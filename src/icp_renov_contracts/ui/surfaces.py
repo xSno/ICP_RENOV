@@ -4,7 +4,7 @@ from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 from .styles import SPACING
 from .clients_view import ClientsInstallationsView
 from .contracts_view import ContractsView
-from ..services import ContractService, MasterDataService
+from ..services import ContractService, MasterDataService, ReviewService
 
 
 class PlaceholderSurface(QWidget):
@@ -29,9 +29,9 @@ class PlaceholderSurface(QWidget):
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
 
-def build_surfaces(master_data: MasterDataService, contracts: ContractService) -> dict[str, QWidget]:
+def build_surfaces(master_data: MasterDataService, contracts: ContractService, review: ReviewService) -> dict[str, QWidget]:
     return {
-        "Contrats": ContractsView(contracts),
+        "Contrats": ContractsView(contracts, review),
         "Clients & installations": ClientsInstallationsView(master_data),
         "Paramètres": PlaceholderSurface(
             "Paramètres",

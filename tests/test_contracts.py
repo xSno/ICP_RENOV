@@ -205,10 +205,11 @@ class ContractUiTests(ContractCase):
         )
         self.assertEqual(self.view.step_buttons[0].text(), "1. Client, site && équipements")
         self.assertEqual(self.view.step_buttons[3].text(), "4. Documents && suivi")
-        self.assertEqual([button.isEnabled() for button in self.view.step_buttons], [True, True, False, False])
+        self.assertEqual([button.isEnabled() for button in self.view.step_buttons], [True, True, True, False])
         all_text = " ".join(widget.text() for widget in self.view.findChildren(QPushButton))
-        for forbidden in ("Générer", "Supprimer", "Régime", "Conclusion", "Modèle"):
+        for forbidden in ("Supprimer", "Régime", "Conclusion", "Modèle"):
             self.assertNotIn(forbidden, all_text)
+        self.assertFalse(self.view.review_view.generate_button.isEnabled())
 
     def test_separate_in_app_selectors_and_master_editors(self):
         draft = self.contracts.create_draft(); self.view.open_contract(draft.id); self.view.open_client_selector()

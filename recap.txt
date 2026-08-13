@@ -1,92 +1,111 @@
-ICP RENOV - CONTRACT MANAGEMENT APP - S3 RECAP
+ICP RENOV - CONTRACT MANAGEMENT APP - S4 RECAP
 
 Migration / schema
-- Migrations 1, 2 and 3 are preserved unchanged. Explicit migration 4 adds contract_templates, contract_template_versions, contract_conditions and nullable Contract template/version references.
-- Existing S2 drafts receive one empty conditions row during migration. Migration 3 -> 4 and reopen are deterministic/idempotent; latest schema version is 4.
-- DRAFT conditions remain nullable/incomplete. No number, revision, lifecycle event, document or readiness structure was added.
+- Review and readiness are fully derived from persisted Contract/Snapshot/Conditions/template metadata.
+- No migration 5, review table, readiness table, ContractDocument table, number or revision was added. Latest schema version remains 4.
 
-Template catalog foundation
-- Typed ContractTemplate and ContractTemplateVersion metadata covers functional name, document kind/type, exact status, exact allowed regimes, context authorization, defaults and controlled option catalogs.
-- Statuses remain TO_VALIDATE / AVAILABLE / ARCHIVED with no production seed. Current Habitation/Copropriété/Professionnel DOCX candidates were not registered as AVAILABLE.
-- Only AVAILABLE + exact contract type + exact regime matches are offered for new selection. CONSUMER, NON_PROFESSIONAL and PROFESSIONAL are never inferred or treated as equivalent.
-- A selected version later archived remains referenced and reopenable, with a visible unavailable warning; it is not silently replaced.
+Review domain / service
+- domain/review.py defines bounded ReviewState, exact ReviewBlockId values, localized issues, block results, four generation checks and separate completeness/readiness projections.
+- services/review.py contains explicit V1 business validation. It reads current persisted Contract snapshots, ordered items, signatory, Conditions and governed template metadata; UI contains no review business rules or SQL.
+- Review summaries format dates deterministically as DD/MM/YYYY and monetary values with a French decimal comma; canonical dates and Decimal calculations remain unchanged.
+- Review never auto-fixes, auto-selects, normalizes or persists a duplicate review snapshot.
 
-Regime / model / legal context
-- Regime remains nullable and Contract-only; Client master remains regime-free.
-- Regime changes atomically clear an incompatible model plus stale conclusion/early-performance context, while preserving unrelated entered Conditions.
-- Model changes apply typed defaults only to empty fields and never overwrite or destroy non-empty user values.
-- Conclusion mode appears only when the selected version metadata explicitly requires it for the recorded regime.
-- Early performance appears/is accepted only for an exact regime + conclusion combination authorizing both BLOCK_WITHDRAWAL and BLOCK_EARLY_PERFORMANCE. There is no legal inference fallback or expression engine.
+Exact nine-block result
+1. Client & signataire
+2. Site & équipements
+3. Cadre du contrat
+4. Modèle & prestations
+5. Période
+6. Conditions d’intervention
+7. Prix & paiement
+8. Renouvellement & fin du contrat
+9. Conditions particulières
+- All nine VALID means data_complete=true and displays « Toutes les informations nécessaires sont complètes ».
+- Incomplete/empty drafts freely enter Review and receive concise localized user-facing errors. Optional empty special terms remain VALID.
 
-Service Conditions
-- Persists visits, refrigerant mode, included area, business hours, travel included, priority breakdown/delay, DEEP_CLEANING, DISINFECTION and additional exclusions.
-- Baseline maintenance is displayed as included and cannot be unchecked. No extra V1 service option exists.
-- Priority delay is absent and cleared when priority breakdown is not included.
-- Travel canonical-field result: only service.included_area and service.travel_included are persisted. No undocumented service.travel_* detail field was invented.
+Snapshot and model behavior
+- Client, Site and Equipment review summaries use only Contract snapshots/items. Later master edits or archives do not change or invalidate those summaries.
+- Equipment summary is bounded to count plus observation count; no annex or master internal notes are reproduced.
+- Selected model is defensively rechecked for existence, AVAILABLE status, Contract type and exact regime. Archived/TO_VALIDATE/incompatible versions remain referenced but make the model block and model capability unavailable.
+- Conclusion mode remains required only by explicit selected-version metadata. An authorized early-performance question requires an explicit yes/no decision; stale unauthorized true state is reported without legal inference.
 
-Period / pricing / payment
-- STANDARD stores start date + month count and calculates calendar end date as anniversary minus one day. CUSTOM stores start date + explicit Date de fin and clears the contradictory month source.
-- Covered examples: 01/09/2026 + 12 months = 31/08/2027, month-end and leap-year-safe cases.
-- Pricing persists only annual HT and a catalog-controlled VAT rate. VAT and TTC are calculated Decimal projections and cannot be independently overridden.
-- Payment terms/methods come only from typed version catalogs; raw codes are not rendered. Due days/custom text are shown and retained only when their selected term authorizes them.
-- Missed-appointment fee remains nullable (« Aucun ») or a validated non-negative amount.
+Completeness versus generation
+- Generation availability is visually and structurally separate after the nine business blocks.
+- Exactly four checks exist: Modèle disponible; Dossier de travail accessible; Génération DOCX disponible; Conversion PDF disponible.
+- generation_available requires complete Contract data plus all four technical checks; a pipeline problem never turns a business block into an error.
 
-Renewal / early termination / special terms
-- NONE clears/hides all dependent renewal data. MANUAL supports duration, price rule and internal alert while clearing notice/channels. TACIT additionally supports contractual notice/channels.
-- FIXED and NEW_PRICE_ON_RENEWAL are accepted; INDEXED is rejected and absent from the UI. Internal alert and non-renewal notice remain distinct.
-- Early-termination reasons, custom text and cure period use a secondary in-app right drawer backed by version catalogs; no termination action/event exists.
-- Special terms remain line-break-preserving plain text with no HTML/Markdown/rich interpretation.
+Workspace / document capabilities
+- Workspace availability reuses WorkspaceService.inspect on the active S0 workspace; Review neither duplicates validation nor changes configuration.
+- Production DOCX capability is truthfully false in S4 because application rendering is not integrated.
+- A small production-side probe searches normal Windows locations/PATH and invokes only `soffice --version`; it never imports spike.*, renders or converts a document.
+- Visible workstation probe result: LibreOffice 26.2.5.2 detected and accepted; Conversion PDF disponible. Missing, probe error or any other version reports unavailable/à vérifier.
 
-Conditions UI
-- Step 2 « Conditions du contrat » is functional with the seven bounded sections. Steps 1 and 2 are enabled; Revue and Documents & suivi remain unavailable.
-- Regime/model empty states, model filtering, conclusion/early-performance context, priority delay, STANDARD/CUSTOM dates, payment dependencies and renewal fields react by true show/hide behavior.
-- Save success appears only after a successful SQLite transaction; structured validation keeps visible entries available for correction.
-- No regime in Client master, Review content, generation button, numbering, revision, native dialog or top-level editor was introduced.
+Review UI
+- Step 3 Revue is functional. Steps 1–3 are enabled; Documents & suivi remains disabled. Exactly four steps remain.
+- Exactly nine non-editable cards render with text state (✓ Valide / ! À corriger), concise summary/issues and Modifier routing blocks 1–2 to step 1, blocks 3–9 to step 2.
+- The separate generation panel renders exactly four compact checks.
+- « Générer le DOCX et le PDF » exists but is disabled and has no handler/side effect. No confirmation modal exists.
+- Neutral pre-generation wording is « Numéro attribué après génération réussie ». No R01 is created or persisted.
+- No legal-validity wording, native dialog, deep DOCX preflight, generation or conversion exists.
 
 Automated tests
 - QT_QPA_PLATFORM=offscreen; python -W error::ResourceWarning -m unittest discover -s tests -v
-- Result: 80 discovered, 80 passed, 0 skipped, 0 failed.
-- S3 coverage includes migration, status/compatibility filtering, archived reference, regime/context cascades, defaults, services, dates, pricing, payment, renewal, early termination and dynamic Qt UI.
+- Result: 105 discovered, 105 passed, 0 skipped, 0 failed.
+- S4 tests cover exact block count/order/titles, empty/complete drafts, localized fields, snapshot non-propagation, model defensive states, exact context, French Review dates and money, Unicode persistence round-trip, renewals, completeness/readiness separation, workspace states, deterministic LibreOffice probe states, routing and zero generation side effects.
 
 Frozen-spike regression
 - ICP_SKIP_WORD_INTEGRATION=1; python -m unittest discover -s spike/tests -v
 - Result: 39 discovered, 38 passed, 1 Microsoft Word integration test skipped as required, 0 failed.
-- LibreOffice and Microsoft Word were not invoked. Frozen spike files were not modified.
+- Frozen spike files were not modified. No rendering or conversion occurred.
 
 Manual smoke
-- PASS in a visible Windows application using an isolated disposable workspace and explicitly synthetic AVAILABLE metadata.
-- Exercised Conditions access, exact context controls, services/options, priority show/hide, STANDARD/CUSTOM, VAT/TTC, payment, NONE/MANUAL/TACIT, early termination, multiline terms, step navigation, reopen, context reconstruction/restart persistence and clean close.
-- Temporary smoke workspace and helper were removed; no screenshots were automated.
+- PASS in the visible Windows application with one empty DRAFT and one complete synthetic DRAFT in an isolated disposable workspace.
+- Empty review showed exactly nine localized cards, separate four-check availability, working Modify routing and no crash/side effect.
+- Complete review showed all nine VALID and the complete-data banner, while DOCX remained Indisponible, PDF was Disponible, CTA remained disabled and no number/revision/document/table was created.
+- Exact `SYNTHÉTIQUE — CLIENT REVUE` persistence/snapshot round-trip passes; the visible `?` characters came from the Windows PowerShell development-smoke pipeline, not product Unicode handling. Production persistence/rendering code is unchanged.
+- Smoke helper/workspace and caches were removed; no screenshot automation was used.
 
 DEVELOPMENT VISUAL SMOKE ONLY
-Run these commands from the repository in one PowerShell session. They redirect both machine bootstrap state and business data to a disposable TEMP folder and create only explicitly synthetic metadata:
+Run from the repository in one PowerShell session. This redirects machine/bootstrap and business state to a disposable TEMP folder and creates only synthetic master/template/Contract data through existing services:
 
-$smokeRoot = Join-Path $env:TEMP 'ICP_RENOV_S3_VISUAL'
+$smokeRoot = Join-Path $env:TEMP 'ICP_RENOV_S4_VISUAL'
 $env:LOCALAPPDATA = Join-Path $smokeRoot 'LocalAppData'
-$env:ICP_S3_WORKSPACE = Join-Path $smokeRoot 'Workspace'
-@'
+$env:ICP_S4_WORKSPACE = Join-Path $smokeRoot 'Workspace'
+$smokeSource = @'
 import os
 from pathlib import Path
 from icp_renov_contracts.bootstrap import build_application_context
 from icp_renov_contracts.config import BootstrapConfig, MachineConfigStore
-from icp_renov_contracts.domain import ContextAuthorization, ControlledOption, PaymentTermOption, TemplateDefaults, TemplateOptionCatalogs, TemplateValidationMetadata, TemplateVersionStatus
+from icp_renov_contracts.domain import ClientDraft, ContractConditions, ControlledOption, EquipmentDraft, PaymentTermOption, SiteDraft, TemplateOptionCatalogs, TemplateVersionStatus
 store = MachineConfigStore()
-store.save(BootstrapConfig(Path(os.environ['ICP_S3_WORKSPACE'])))
+store.save(BootstrapConfig(Path(os.environ['ICP_S4_WORKSPACE'])))
 ctx = build_application_context(config_store=store)
-template = ctx.template_catalog.create_template('SYNTHÉTIQUE — VISUEL S3')
-ctx.template_catalog.create_version(template, 'visual-1', TemplateVersionStatus.AVAILABLE, ('CONSUMER',), TemplateValidationMetadata(('CONSUMER',), (ContextAuthorization('CONSUMER', 'OFF_PREMISES', ('BLOCK_WITHDRAWAL', 'BLOCK_EARLY_PERFORMANCE')),)), TemplateDefaults(visits_per_year=2, included_area='Île-de-France', business_hours='8h–18h', travel_included=True), TemplateOptionCatalogs(('5.5', '20'), (PaymentTermOption('DUE', 'À échéance', True, False), PaymentTermOption('CUSTOM', 'Modalité personnalisée', False, True)), (ControlledOption('TRANSFER', 'Virement'), ControlledOption('CARD', 'Carte')), (ControlledOption('EMAIL', 'E-mail'), ControlledOption('POST', 'Courrier')), (ControlledOption('BREACH', 'Manquement'), ControlledOption('OTHER', 'Autre'))))
-print('Métadonnées SYNTHÉTIQUES S3 créées dans', os.environ['ICP_S3_WORKSPACE'])
-'@ | python -
+contract = ctx.contracts.create_draft()
+client = ctx.master_data.create_client(ClientDraft(party_type='ORGANIZATION', organization_name='SYNTHÉTIQUE — CLIENT REVUE', address_line1='1 rue Test', postal_code='75000', city='Paris', proposed_contact_name='Nadia Roux', proposed_contact_role='Directrice'))
+site = ctx.master_data.create_site(client.id, SiteDraft(label='SYNTHÉTIQUE — SITE', address_line1='1 rue Test', postal_code='75000', city='Paris'))
+equipment = ctx.master_data.create_equipment(site.id, EquipmentDraft(equipment_type='Unité synthétique', location='Accueil'))
+ctx.contracts.select_client(contract.id, client.id)
+ctx.contracts.select_site(contract.id, site.id)
+ctx.contracts.select_equipment(contract.id, equipment.id)
+template = ctx.template_catalog.create_template('SYNTHÉTIQUE — MODÈLE REVUE')
+version = ctx.template_catalog.create_version(template, 'review-visual-1', TemplateVersionStatus.AVAILABLE, ('CONSUMER',), catalogs=TemplateOptionCatalogs(('20',), (PaymentTermOption('DUE', 'À 30 jours', True, False),), (ControlledOption('TRANSFER', 'Virement'),), (ControlledOption('EMAIL', 'E-mail'),), ()))
+ctx.contracts.change_regime(contract.id, 'CONSUMER')
+ctx.contracts.select_template_version(contract.id, version.id)
+ctx.contracts.save_conditions(contract.id, ContractConditions(visits_per_year=2, refrigerant_handling_mode='PARTNER', priority_breakdown=False, included_area='Paris', business_hours='8h–18h', travel_included=True, issue_date='2026-08-13', start_date='2026-09-01', initial_duration_mode='STANDARD', initial_duration_months=12, annual_ht='100', vat_rate='20', payment_terms_code='DUE', payment_due_days=30, payment_methods=('TRANSFER',), renewal_mode='NONE'))
+print('Brouillon SYNTHÉTIQUE S4 créé :', contract.id)
+'@
+$smokeSourceBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($smokeSource))
+python -X utf8 -c "import base64; exec(compile(base64.b64decode('$smokeSourceBase64'), '<s4-visual-smoke>', 'exec'))"
 python -m icp_renov_contracts
 
 Cleanup after closing the application:
 
-Remove-Item -LiteralPath (Join-Path $env:TEMP 'ICP_RENOV_S3_VISUAL') -Recurse -Force
-Remove-Item Env:ICP_S3_WORKSPACE -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath (Join-Path $env:TEMP 'ICP_RENOV_S4_VISUAL') -Recurse -Force
+Remove-Item Env:ICP_S4_WORKSPACE -ErrorAction SilentlyContinue
 Remove-Item Env:LOCALAPPDATA -ErrorAction SilentlyContinue
 
-Remaining S3 risks only
-- Real production versions legitimately remain unavailable until their separate validation/governance workflow marks them AVAILABLE.
-- Final subjective visual acceptance of the full Conditions form remains for the user on the target workstation.
-- Template/model management and company availability governance intentionally remain absent.
-- Review/generation will later own completeness and readiness checks; S3 deliberately saves incomplete drafts.
+Remaining S4 risks only
+- Production DOCX capability intentionally remains unavailable until S5 integrates the accepted renderer pipeline.
+- Real production template versions remain governed separately and may legitimately leave normal workspaces without an AVAILABLE model.
+- Final subjective visual acceptance of the review cards on the target workstation remains for the user.
+- The LibreOffice version probe confirms environment presence/version only; it intentionally does not prove conversion fidelity or run re-acceptance.

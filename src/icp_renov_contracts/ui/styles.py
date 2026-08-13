@@ -63,6 +63,12 @@ def application_stylesheet() -> str:
         border: 1px solid {COLORS['border']};
         border-radius: {RADII['sm']}px;
     }}
+    QFrame#reviewBlock, QFrame#generationAvailability, QFrame#generationCheck {{
+        background: {COLORS['surface']};
+        border: 1px solid {COLORS['border']};
+        border-radius: {RADII['sm']}px;
+    }}
+    QLabel#reviewIssue {{ color: #9F2D2D; }}
     QLabel#detailTitle {{ font-size: 22px; font-weight: 700; }}
     QLabel#sectionTitle, QLabel#siteTitle {{ font-size: 16px; font-weight: 700; }}
     QLabel#archivedBadge {{ color: #8A5A14; background: #FFF2D9; padding: 4px 8px; border-radius: 4px; }}

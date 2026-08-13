@@ -245,10 +245,11 @@ class ConditionsUiTests(ConditionsCase):
     def enter_conditions(self): self.view.navigate_step(1); self.application.processEvents()
 
     def test_only_steps_one_and_two_are_functional_and_no_later_workflow(self):
-        self.assertEqual([button.isEnabled() for button in self.view.step_buttons], [True, True, False, False])
+        self.assertEqual([button.isEnabled() for button in self.view.step_buttons], [True, True, True, False])
         self.enter_conditions(); self.assertEqual(self.view.step_pages.currentIndex(), 1)
         text = " ".join(button.text() for button in self.view.findChildren(QPushButton))
-        self.assertNotIn("Générer", text); self.assertNotIn("Révision", text)
+        self.assertNotIn("Révision", text)
+        self.assertFalse(self.view.review_view.generate_button.isEnabled())
 
     def test_regime_only_in_conditions_and_models_are_filtered(self):
         available = self.version(); self.version(TemplateVersionStatus.TO_VALIDATE, name="pending")

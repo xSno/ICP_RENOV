@@ -12,9 +12,10 @@ from PySide6.QtWidgets import (
 
 from ..domain import Contract
 from ..errors import ApplicationError, MasterDataValidationError
-from ..services import ContractService
+from ..services import ContractService, ReviewService
 from .master_forms import BaseEditor, ClientEditor, EquipmentEditor, SiteEditor
 from .conditions_view import ConditionsView
+from .review_view import ReviewView
 from .styles import SPACING
 
 
@@ -62,9 +63,10 @@ class ContractsView(QWidget):
     title = "Contrats"
     STEP_LABELS = ("Client, site & équipements", "Conditions du contrat", "Revue", "Documents & suivi")
 
-    def __init__(self, service: ContractService) -> None:
+    def __init__(self, service: ContractService, review_service: ReviewService) -> None:
         super().__init__()
         self.service = service
+        self.review_service = review_service
         self.contract_id: str | None = None
         self.active_drawer: QWidget | None = None
         self.setObjectName("contractsView")
@@ -119,7 +121,7 @@ class ContractsView(QWidget):
         steps = QHBoxLayout(); self.step_buttons = []
         for index, label in enumerate(self.STEP_LABELS):
             button = QPushButton(f"{index + 1}. {label.replace('&', '&&')}"); button.setObjectName("secondaryButton")
-            button.setEnabled(index < 2)
+            button.setEnabled(index < 3)
             button.clicked.connect(lambda checked=False, target=index: self.navigate_step(target))
             self.step_buttons.append(button); steps.addWidget(button)
         layout.addLayout(steps)
@@ -130,7 +132,11 @@ class ContractsView(QWidget):
         self.conditions_view = ConditionsView(self.service, self._condition_feedback, self._conditions_drawer)
         conditions_scroll = QScrollArea(); conditions_scroll.setWidgetResizable(True); conditions_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
         conditions_scroll.setWidget(self.conditions_view)
-        self.step_pages.addWidget(scroll); self.step_pages.addWidget(conditions_scroll); layout.addWidget(self.step_pages, 1)
+        self.review_view = ReviewView(self.review_service, self.navigate_step)
+        review_scroll = QScrollArea(); review_scroll.setWidgetResizable(True); review_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        review_scroll.setWidget(self.review_view)
+        self.step_pages.addWidget(scroll); self.step_pages.addWidget(conditions_scroll); self.step_pages.addWidget(review_scroll)
+        layout.addWidget(self.step_pages, 1)
         self.feedback = QLabel(); self.feedback.setWordWrap(True); self.feedback.hide(); layout.addWidget(self.feedback)
         return page
 
@@ -154,10 +160,11 @@ class ContractsView(QWidget):
         self.contract_id = contract_id; self.pages.setCurrentWidget(self.workspace); self.step_pages.setCurrentIndex(0); self.render_contract()
 
     def navigate_step(self, index: int) -> None:
-        if index not in (0, 1): return
+        if index not in (0, 1, 2): return
         self.step_pages.setCurrentIndex(index)
         if index == 0: self.render_contract()
-        elif self.contract_id: self.conditions_view.load(self.contract_id)
+        elif index == 1 and self.contract_id: self.conditions_view.load(self.contract_id)
+        if index == 2 and self.contract_id: self.review_view.load(self.contract_id)
 
     def _condition_feedback(self, success: bool, message: str) -> None:
         self.save_state.setText("Enregistré" if success else "Non enregistré")

@@ -1,5 +1,10 @@
 from .master_data import MasterDataService
 from .contracts import ContractService
 from .template_catalog import TemplateCatalogService
+from .capabilities import DocumentCapabilities, DocumentCapabilityProbe
+from .review import ReviewService
 
-__all__ = ["ContractService", "MasterDataService", "TemplateCatalogService"]
+__all__ = [
+    "ContractService", "DocumentCapabilities", "DocumentCapabilityProbe", "MasterDataService",
+    "ReviewService", "TemplateCatalogService",
+]

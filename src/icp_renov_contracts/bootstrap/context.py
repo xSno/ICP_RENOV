@@ -9,7 +9,7 @@ from ..database import DatabaseService
 from ..repositories import (
     ContractConditionsRepository, ContractRepository, MasterDataRepository, TemplateCatalogRepository,
 )
-from ..services import ContractService, MasterDataService, TemplateCatalogService
+from ..services import ContractService, MasterDataService, ReviewService, TemplateCatalogService
 from ..storage import Workspace, WorkspaceService
 
 
@@ -29,6 +29,7 @@ class ApplicationContext:
     master_data: MasterDataService | None
     contracts: ContractService | None
     template_catalog: TemplateCatalogService | None
+    review: ReviewService | None
     logger: logging.Logger
 
 
@@ -53,6 +54,7 @@ def build_application_context(
             None,
             None,
             None,
+            None,
             application_logger,
         )
 
@@ -64,6 +66,7 @@ def build_application_context(
     contracts = ContractService(
         ContractRepository(database), master_data, ContractConditionsRepository(database), template_catalog
     )
+    review = ReviewService(contracts, workspaces, workspace)
     application_logger.info("Local workspace and database initialized")
     return ApplicationContext(
         ApplicationState.READY,
@@ -75,5 +78,6 @@ def build_application_context(
         master_data,
         contracts,
         template_catalog,
+        review,
         application_logger,
     )

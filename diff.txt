@@ -1,55 +1,53 @@
-ICP RENOV - CONTRACT MANAGEMENT APP - S3 DIFF
+ICP RENOV - CONTRACT MANAGEMENT APP - S4 DIFF
 
 FILES CREATED
-- src/icp_renov_contracts/domain/conditions.py
-  - Controlled S3 enums, typed template metadata/catalogs/defaults, ContractConditions, deterministic date and Decimal price calculations.
-- src/icp_renov_contracts/repositories/conditions.py
-  - 1:1 Conditions reads/writes and atomic regime/template/dependent-state persistence.
-- src/icp_renov_contracts/repositories/template_catalog.py
-  - Minimal catalog SQL and bounded AVAILABLE/type/regime query.
-- src/icp_renov_contracts/services/template_catalog.py
-  - Typed metadata creation/query/status API with no production seed or management UI.
-- src/icp_renov_contracts/ui/conditions_view.py
-  - Functional seven-section Conditions form, dynamic controls, calculated displays and in-app early-termination drawer.
-- tests/test_conditions.py
-  - Migration, compatibility, exact context, defaults, services, dates, pricing/payment, renewal and Qt UI regressions.
+- src/icp_renov_contracts/domain/review.py
+  - Bounded Review states, exact block ids/results, localized issues and separate generation-readiness structures.
+- src/icp_renov_contracts/services/capabilities.py
+  - Production capability boundary: DOCX unavailable by default and non-converting LibreOffice 26.2.5.2 version probe.
+- src/icp_renov_contracts/services/review.py
+  - Explicit nine-block V1 review, snapshot summaries, defensive model checks, workspace check and four separate generation checks.
+  - Added deterministic application-side DD/MM/YYYY and French decimal-comma formatting for Review summaries only.
+- src/icp_renov_contracts/ui/review_view.py
+  - Functional read-only Review surface with nine cards, Modify routing, separate readiness panel and disabled generation CTA.
+- tests/test_review.py
+  - Review order/count, localized business rules, snapshots, model states, completeness/readiness, deterministic probes and Qt UI regressions.
+  - Added exact French date/money assertions and a persisted Unicode client-snapshot round-trip regression.
 
 FILES MODIFIED
-- src/icp_renov_contracts/database/service.py
-  - Added explicit migration 4 and migration of existing S2 drafts to empty Conditions rows; migrations 1–3 unchanged.
 - src/icp_renov_contracts/domain/__init__.py
-  - Exported S3 domain/catalog types and calculations.
-- src/icp_renov_contracts/domain/contract.py
-  - Added nullable selected template/version references to the DRAFT aggregate.
-- src/icp_renov_contracts/repositories/__init__.py
-  - Exported Conditions and template-catalog repositories.
-- src/icp_renov_contracts/repositories/contracts.py
-  - Creates empty Conditions with new drafts and extends the accepted client-change cascade to clear S3 model/context state.
+  - Exported Review domain structures.
 - src/icp_renov_contracts/services/__init__.py
-  - Exported TemplateCatalogService.
-- src/icp_renov_contracts/services/contracts.py
-  - Added ContractService orchestration for regime/model selection, defaults, Conditions validation/normalization/calculation and dependent cascades.
-- src/icp_renov_contracts/errors.py
-  - Added structured field-level Conditions validation error.
+  - Exported ReviewService and document capability boundary.
 - src/icp_renov_contracts/bootstrap/context.py
-  - Composes/injects minimal catalog and Conditions persistence into ContractService.
+  - Composes ReviewService from existing Contract, Workspace and capability abstractions.
+- src/icp_renov_contracts/ui/main_window.py
+  - Passes composed Review service into the application shell.
+- src/icp_renov_contracts/ui/shell.py
+  - Passes Review service to the Contrats surface; permanent navigation unchanged.
+- src/icp_renov_contracts/ui/surfaces.py
+  - Injects ReviewService into ContractsView.
 - src/icp_renov_contracts/ui/contracts_view.py
-  - Enables only step 2 in addition to step 1 and hosts the Conditions surface/drawer while leaving steps 3/4 unavailable.
-- tests/test_foundation.py
-  - Updated latest migration expectation to 4; S0 behavior unchanged.
-- tests/test_master_data.py
-  - Updated latest migration expectation to 4; S1 behavior unchanged.
+  - Enables step 3, hosts ReviewView and leaves step 4 disabled.
+- src/icp_renov_contracts/ui/styles.py
+  - Added bounded Review card/check/error styling using existing application tokens.
 - tests/test_contracts.py
-  - Updated latest migration/step availability expectations for S3; S2 behavior unchanged.
+  - Updated S2 shell assertions for the accepted S4 Review step and disabled generation representation.
+- tests/test_conditions.py
+  - Updated S3 shell assertions for the accepted S4 Review step and disabled generation representation.
 - recap.txt
+  - Updated test totals and replaced the development smoke pipeline with an inline UTF-8/Base64 transport safe on Windows PowerShell; no seed file/module is created.
 - diff.txt
 
 FILES REMOVED
-- Temporary visible-smoke helper and isolated smoke workspace.
+- Temporary S4 visible-smoke helper and isolated smoke workspace.
 - Generated tests/tmp, spike/tmp, __pycache__ directories and *.pyc files outside .venv.
 
+SCHEMA / PERSISTENCE
+- No migration or persistent Review/readiness/document structure added; latest schema remains 4.
+- No Contract number, revision, R01, ContractDocument, generated artifact or review snapshot created.
+
 PRESERVED / OUT OF SCOPE
-- Authoritative docs, production DOCX templates, frozen spike, production template availability and accepted S0/S1/S2 snapshot/master semantics unchanged.
-- No production template seeded AVAILABLE.
-- No Review/readiness, Company/Model management UI, generation, LibreOffice/Word invocation, numbering, revision, Documents & suivi, signature, renewal/termination event, intervention sheet, dashboard, backup/restore, first-use or packaging implementation.
+- Authoritative docs, production DOCX templates, frozen spike, S0/S1/S2/S3 master/snapshot/Conditions behavior and production model status unchanged.
+- No spike import, deep DOCX preflight, renderer, conversion, confirmation modal, number allocation, revision, Documents & suivi, signature, lifecycle, dashboard, settings management, backup/restore, first-use or packaging implementation.
 - No commit created.
