@@ -1,0 +1,52 @@
+ICP RENOV - CONTRACT MANAGEMENT APP - S0 FOUNDATION RECAP
+
+Project/package structure
+- Conventional src-layout created under src/icp_renov_contracts with explicit bootstrap, config, storage, database, UI, error, logging, and application-entry modules.
+- Installable package metadata is defined in pyproject.toml.
+- Deterministic developer entry point: python -m icp_renov_contracts after editable installation.
+- The frozen document spike remains separate and was not migrated into application code.
+
+Python / PySide6 baseline
+- Python package version: 0.1.0.
+- PySide6 is the real desktop UI runtime; tested with PySide6 6.11.1 on Python 3.14.3.
+- Runtime dependencies remain limited to PySide6; SQLite, pathlib, JSON, and logging use the Python standard library.
+
+Workspace and machine configuration
+- Machine-only JSON configuration is stored by default under %LOCALAPPDATA%\ICP Renov\Contrats\bootstrap.json and contains only its schema version and active workspace path.
+- Default user workspace resolves to Documents\ICP Renov\Contrats.
+- Workspace layout is stable and backup-friendly: data/, documents/, backups/, with SQLite under data/.
+- Workspace validation rejects obvious UNC/network paths, distinguishes unavailable and non-writable paths, creates only required directories, and verifies real write access.
+- Structured application errors cover invalid bootstrap configuration, unavailable/non-writable/network workspaces, and database initialization failures.
+
+Database and migrations
+- Explicit DatabaseService owns SQLite connections and transactions; UI widgets contain no SQL and construct no storage services.
+- Every connection enables foreign keys.
+- Version 0 initializes through migration 1 into schema_migrations and PRAGMA user_version.
+- Reopening and re-running initialization is idempotent; no premature business schema was introduced.
+
+Shell and navigation
+- Global PySide6 shell implemented with reusable visual tokens: light content, graphite/blue sidebar, blue-green accent, contained borders/radii, and system sans-serif typography.
+- Permanent navigation contains exactly: Contrats; Clients & installations; Paramètres.
+- Contrats is the deterministic default surface.
+- Navigation switches deterministically among the three bounded placeholder surfaces; no rich business screen or forbidden navigation entry was added.
+
+Bootstrap / no-workspace state
+- Missing active workspace is represented explicitly as BOOTSTRAP_REQUIRED.
+- A temporary surface outside permanent navigation presents exactly the two frozen directions: Configurer ce poste and Restaurer une sauvegarde existante.
+- Full setup and restore workflows remain intentionally unimplemented in S0.
+
+Automated tests
+- S0 command: QT_QPA_PLATFORM=offscreen; python -W error::ResourceWarning -m unittest discover -s tests -v
+- S0 result: 15 discovered, 15 passed, 0 skipped, 0 failed.
+- Frozen-spike regression: ICP_SKIP_WORD_INTEGRATION=1; python -m unittest discover -s spike/tests -v
+- Spike result: 39 discovered, 38 passed, 1 Word integration test skipped as requested, 0 failed.
+
+Manual smoke
+- PASS: local PySide6 offscreen smoke opened the no-workspace bootstrap surface, opened a ready workspace shell, confirmed the three navigation destinations, switched Clients & installations -> Paramètres -> Contrats, and exited cleanly through the Qt event loop.
+- No traceback or console crash occurred. No LibreOffice or Microsoft Word invocation was performed.
+
+Remaining S0 risks only
+- A human-visible Windows display pass is still recommended for subjective typography, spacing, and active-state appearance; functional rendering was exercised with Qt offscreen.
+- The two first-use actions are intentionally placeholders until the dedicated setup/restore slice.
+- PySide6 is installed for the current user environment; distributable Windows packaging is intentionally deferred.
+

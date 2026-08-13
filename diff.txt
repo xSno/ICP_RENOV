@@ -1,0 +1,56 @@
+ICP RENOV - CONTRACT MANAGEMENT APP - S0 FOUNDATION DIFF
+
+FILES CREATED
+- pyproject.toml
+- src/icp_renov_contracts/__init__.py
+- src/icp_renov_contracts/__main__.py
+- src/icp_renov_contracts/app.py
+- src/icp_renov_contracts/errors.py
+- src/icp_renov_contracts/logging_setup.py
+- src/icp_renov_contracts/bootstrap/__init__.py
+- src/icp_renov_contracts/bootstrap/context.py
+- src/icp_renov_contracts/config/__init__.py
+- src/icp_renov_contracts/config/machine.py
+- src/icp_renov_contracts/storage/__init__.py
+- src/icp_renov_contracts/storage/workspace.py
+- src/icp_renov_contracts/database/__init__.py
+- src/icp_renov_contracts/database/service.py
+- src/icp_renov_contracts/ui/__init__.py
+- src/icp_renov_contracts/ui/styles.py
+- src/icp_renov_contracts/ui/surfaces.py
+- src/icp_renov_contracts/ui/bootstrap_view.py
+- src/icp_renov_contracts/ui/shell.py
+- src/icp_renov_contracts/ui/main_window.py
+- tests/__init__.py
+- tests/test_foundation.py
+- recap.txt
+- diff.txt
+
+FILES MODIFIED
+- .gitignore
+  - Added only generated editable-install metadata and S0 test scratch exclusions: *.egg-info/ and tests/tmp/.
+  - Existing Python-cache and spike/tmp exclusions retained.
+
+FILES REMOVED
+- No repository source or accepted evidence file removed.
+- Generated test scratch directories, Python caches, and editable-install egg-info were removed after verification.
+
+IMPLEMENTATION SUMMARY
+- Added deterministic PySide6 QApplication entry point and explicit application composition context.
+- Added bounded local JSON bootstrap configuration and active-workspace persistence.
+- Added local Workspace abstraction, default Documents path, stable data/documents/backups layout, UNC rejection, availability and write checks.
+- Added SQLite connection/transaction layer, foreign-key activation, migration 1, schema versioning, and idempotent reopen.
+- Added structured application errors and bounded rotating local startup/failure logging.
+- Added real global shell, exactly three permanent navigation entries, deterministic placeholder navigation, and explicit no-workspace bootstrap surface.
+- Added 15 offscreen-compatible unit/integration tests covering all S0 acceptance invariants.
+
+UNCHANGED
+- docs/ authoritative inputs.
+- templates/ production DOCX sources.
+- spike/ code, accepted outputs, evidence, and acceptance handoff.
+- ICP_RENOV_CONTRATS_UX_PROTOTYPE_V1_2.html visual reference.
+
+NOT IMPLEMENTED
+- No S1 domain CRUD or richer business workflow.
+- No first-use wizard or backup/restore implementation.
+- No document-generation integration, LibreOffice invocation, PDF generation, Word COM, ORM, server, web frontend, telemetry, cloud, or packaging.
