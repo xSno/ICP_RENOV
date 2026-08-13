@@ -61,9 +61,9 @@ class ContractMigrationTests(unittest.TestCase):
                     connection.execute("INSERT OR REPLACE INTO schema_migrations VALUES (?,?)", (migration.version, "frozen"))
                 connection.execute("PRAGMA user_version=2"); connection.commit()
             database = DatabaseService(path); database.initialize(); database.initialize()
-            self.assertEqual(database.schema_version(), 4)
+            self.assertEqual(database.schema_version(), 5)
             with database.connection() as connection:
-                self.assertEqual(connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0], 4)
+                self.assertEqual(connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0], 5)
                 tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
             self.assertTrue({"contracts", "contract_equipment_items"}.issubset(tables))
 
@@ -74,7 +74,7 @@ class DraftAndSnapshotTests(ContractCase):
         self.assertEqual(draft.status.value, "DRAFT"); self.assertIsNone(draft.client_snapshot)
         with self.context.database.connection() as connection:
             columns = {row[1] for row in connection.execute("PRAGMA table_info(contracts)")}
-        self.assertIn("regime", columns); self.assertFalse({"number", "revision", "official_number"} & columns)
+        self.assertIn("regime", columns); self.assertIn("number", columns); self.assertFalse({"revision", "official_number"} & columns)
         rebuilt = build_application_context(config_store=self.context.config_store)
         self.assertEqual(rebuilt.contracts.get(draft.id).id, draft.id)
 

@@ -11,6 +11,7 @@ from .contract import (
     ClientSnapshot, Contract, ContractEquipmentItem, ContractListItem,
     ContractRegime, ContractStatus, ContractType, EquipmentSnapshot, SiteSnapshot,
 )
+from .documents import ContractDocument, DocumentKind
 from .conditions import (
     ConclusionMode, ContextAuthorization, ContractConditions, ContractTemplate,
     ContractTemplateVersion, ControlledOption, DurationMode, PaymentTermOption,

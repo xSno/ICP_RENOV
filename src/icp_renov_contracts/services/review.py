@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
@@ -39,11 +40,13 @@ def _format_money_fr(value: Decimal) -> str:
 
 class ReviewService:
     def __init__(self, contracts: ContractService, workspace_service: WorkspaceService,
-                 workspace: Workspace, capability_probe: DocumentCapabilityProbe | None = None) -> None:
+                 workspace: Workspace, capability_probe: DocumentCapabilityProbe | None = None,
+                 generation_ready: Callable[[str], bool] | None = None) -> None:
         self.contracts = contracts
         self.workspace_service = workspace_service
         self.workspace = workspace
         self.capability_probe = capability_probe or DocumentCapabilityProbe()
+        self.generation_ready = generation_ready
 
     def review(self, contract_id: str) -> ReviewResult:
         contract = self.contracts.get(contract_id)
@@ -60,13 +63,14 @@ class ReviewService:
         )
         workspace = self.workspace_service.inspect(self.workspace.root)
         capabilities = self.capability_probe.probe()
+        docx_available = self.generation_ready(contract_id) if self.generation_ready else capabilities.docx_available
         model_ok = self._model_compatible(contract, version)
         checks = (
             GenerationCheck("MODEL", "Modèle disponible", model_ok, "Disponible" if model_ok else "Indisponible"),
             GenerationCheck("WORKSPACE", "Dossier de travail accessible", workspace.available and workspace.writable,
                             "Disponible" if workspace.available and workspace.writable else "Indisponible"),
-            GenerationCheck("DOCX", "Génération DOCX disponible", capabilities.docx_available,
-                            "Disponible" if capabilities.docx_available else "Indisponible"),
+            GenerationCheck("DOCX", "Génération DOCX disponible", docx_available,
+                            "Disponible" if docx_available else "Indisponible"),
             GenerationCheck("PDF", "Conversion PDF disponible", capabilities.pdf_available,
                             "Disponible" if capabilities.pdf_available else capabilities.pdf_detail.replace("Conversion PDF ", "").capitalize()),
         )

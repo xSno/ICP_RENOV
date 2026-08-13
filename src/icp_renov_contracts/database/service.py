@@ -214,6 +214,48 @@ MIGRATIONS = (
             "CREATE INDEX idx_template_versions_selection ON contract_template_versions(version_status, template_id)",
         ),
     ),
+    Migration(
+        5,
+        (
+            "ALTER TABLE contracts ADD COLUMN number TEXT",
+            "ALTER TABLE contracts ADD COLUMN generation_status TEXT CHECK (generation_status IS NULL OR generation_status='TO_SIGN')",
+            "CREATE UNIQUE INDEX idx_contracts_number ON contracts(number) WHERE number IS NOT NULL",
+            "ALTER TABLE contract_template_versions ADD COLUMN source_relpath TEXT",
+            "ALTER TABLE contract_template_versions ADD COLUMN source_hash TEXT",
+            "ALTER TABLE contract_template_versions ADD COLUMN required_company_fields_json TEXT NOT NULL DEFAULT '[]'",
+            """
+            CREATE TABLE contract_documents (
+                id TEXT PRIMARY KEY,
+                contract_id TEXT NOT NULL REFERENCES contracts(id) ON DELETE RESTRICT,
+                document_kind TEXT NOT NULL CHECK (document_kind = 'CONTRACT'),
+                revision_index INTEGER NOT NULL CHECK (revision_index = 1),
+                generated_at_utc TEXT NOT NULL,
+                template_version_id TEXT NOT NULL REFERENCES contract_template_versions(id) ON DELETE RESTRICT,
+                docx_relpath TEXT NOT NULL,
+                pdf_relpath TEXT NOT NULL,
+                snapshot_json TEXT NOT NULL,
+                docx_sha256 TEXT NOT NULL,
+                pdf_sha256 TEXT NOT NULL,
+                UNIQUE(contract_id, document_kind, revision_index),
+                UNIQUE(docx_relpath),
+                UNIQUE(pdf_relpath)
+            )
+            """,
+            "CREATE INDEX idx_contract_documents_contract ON contract_documents(contract_id, revision_index)",
+            """
+            CREATE TRIGGER contract_documents_immutable_update
+            BEFORE UPDATE ON contract_documents BEGIN
+                SELECT RAISE(ABORT, 'contract document is immutable');
+            END
+            """,
+            """
+            CREATE TRIGGER contract_documents_immutable_delete
+            BEFORE DELETE ON contract_documents BEGIN
+                SELECT RAISE(ABORT, 'contract document is immutable');
+            END
+            """,
+        ),
+    ),
 )
 
 

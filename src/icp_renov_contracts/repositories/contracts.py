@@ -10,7 +10,7 @@ from ..domain import (
 
 
 CONTRACT_COLUMNS = """
-    id, status, type_code, client_source_id, site_source_id, client_snapshot_json,
+    id, number, COALESCE(generation_status,status) AS status, type_code, client_source_id, site_source_id, client_snapshot_json,
     site_snapshot_json, signatory_name, signatory_role, regime, template_id,
     template_version_id, created_at_utc, updated_at_utc
 """
@@ -18,7 +18,7 @@ CONTRACT_COLUMNS = """
 
 def _contract(row: sqlite3.Row, items: tuple[ContractEquipmentItem, ...]) -> Contract:
     return Contract(
-        id=row["id"], status=ContractStatus(row["status"]), type_code=ContractType(row["type_code"]),
+        id=row["id"], number=row["number"], status=ContractStatus(row["status"]), type_code=ContractType(row["type_code"]),
         client_source_id=row["client_source_id"], site_source_id=row["site_source_id"],
         client_snapshot=ClientSnapshot.from_json(row["client_snapshot_json"]) if row["client_snapshot_json"] else None,
         site_snapshot=SiteSnapshot.from_json(row["site_snapshot_json"]) if row["site_snapshot_json"] else None,
@@ -68,11 +68,11 @@ class ContractRepository:
         with self.database.connection() as connection:
             self._rows(connection)
             rows = connection.execute(
-                "SELECT id,status,client_snapshot_json,site_snapshot_json,updated_at_utc "
-                "FROM contracts WHERE status='DRAFT' ORDER BY updated_at_utc DESC,id"
+                "SELECT id,number,COALESCE(generation_status,status) AS status,client_snapshot_json,site_snapshot_json,updated_at_utc "
+                "FROM contracts ORDER BY updated_at_utc DESC,id"
             ).fetchall()
             return [ContractListItem(
-                id=row["id"], status=ContractStatus(row["status"]),
+                id=row["id"], number=row["number"], status=ContractStatus(row["status"]),
                 client_name=(ClientSnapshot.from_json(row["client_snapshot_json"]).display_name
                              if row["client_snapshot_json"] else "Client à sélectionner"),
                 site_label=(SiteSnapshot.from_json(row["site_snapshot_json"]).label

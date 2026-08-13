@@ -164,6 +164,10 @@ class ContractTemplateVersion:
     catalogs: TemplateOptionCatalogs
     created_at_utc: str
     updated_at_utc: str
+    source_relpath: str | None = None
+    source_hash: str | None = None
+    required_company_fields: tuple[str, ...] = ()
+    document_kind: str = "CONTRACT"
 
     @property
     def display_name(self) -> str:

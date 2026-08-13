@@ -1,53 +1,71 @@
-ICP RENOV - CONTRACT MANAGEMENT APP - S4 DIFF
+ICP RENOV - CONTRACT MANAGEMENT APP - S5 DIFF
+
+FINAL SIGNATURE-CITY RENDERING MICRO-CORRECTION
+- src/icp_renov_contracts/documents/formatters.py
+  - Keeps a non-empty contract.signature_city unchanged for the governed signature field.
+  - Maps only an empty/None signature city to the deterministic handwritten blank `____________________`; no company/site fallback or default city is introduced.
+- tests/test_document_generation.py
+  - Proves exact Paris rendering, exact empty-city rendering, absence of the orphan comma and absence of contract.signature_date from initial R01.
+- recap.txt
+  - Records the 146-test application result, 41-test S5 subset, frozen-spike result and the new empty-city LibreOffice smoke paths/hashes.
+- diff.txt
+  - Records this bounded final correction.
+- No changes under docs/, templates/ or spike/; no lifecycle, numbering, R01/TO_SIGN, atomicity, authorization, requiredness or template-governance change.
+
+FINAL SEMANTIC / PREFLIGHT CORRECTION
+- src/icp_renov_contracts/services/document_generation.py
+  - Maps persisted visits_per_year and breach_cure_period_days into the canonical contract snapshot.
+  - Persists governed required_company_fields in the immutable document snapshot.
+- src/icp_renov_contracts/documents/formatters.py
+  - Maps company.registered_address from the explicit canonical value or deterministic structured company address; adds no business fallback.
+- src/icp_renov_contracts/documents/renderer.py
+  - Adds active-control required-value preflight for REQUIRED and REQUIRED_WHEN fields before rendering/publication.
+  - Validates visits >= 1 and breach cure period >= 0.
+  - Requires explicit withdrawal authorization in addition to explicit early-performance authorization and a true request.
+  - Preserves inactive legal-block removal, optional-line removal and optional equipment cells.
+- tests/test_document_generation.py
+  - Adds Contract -> snapshot -> DOCX visits coverage; missing visits/cure/address/partner/withdrawal failures; exact legal-context combinations; no-fallback, optional-line and stronger logo assertions.
+  - All pre-existing atomic publication regressions remain unchanged and green.
+- recap.txt
+  - Records all five root causes, corrected requiredness/legal semantics and the LibreOffice smoke evidence.
+  - Updates the DEVELOPMENT VISUAL SMOKE data to a coherent PERSON/CONSUMER/OFF_PREMISES context with explicit company values and exact block authorization.
+- diff.txt
+  - Records this bounded correction.
+
+No files were created or removed by this correction.
+No changes under docs/, templates/ or spike/.
 
 FILES CREATED
-- src/icp_renov_contracts/domain/review.py
-  - Bounded Review states, exact block ids/results, localized issues and separate generation-readiness structures.
-- src/icp_renov_contracts/services/capabilities.py
-  - Production capability boundary: DOCX unavailable by default and non-converting LibreOffice 26.2.5.2 version probe.
-- src/icp_renov_contracts/services/review.py
-  - Explicit nine-block V1 review, snapshot summaries, defensive model checks, workspace check and four separate generation checks.
-  - Added deterministic application-side DD/MM/YYYY and French decimal-comma formatting for Review summaries only.
-- src/icp_renov_contracts/ui/review_view.py
-  - Functional read-only Review surface with nine cards, Modify routing, separate readiness panel and disabled generation CTA.
-- tests/test_review.py
-  - Review order/count, localized business rules, snapshots, model states, completeness/readiness, deterministic probes and Qt UI regressions.
-  - Added exact French date/money assertions and a persisted Unicode client-snapshot round-trip regression.
+- src/icp_renov_contracts/documents/__init__.py
+- src/icp_renov_contracts/documents/adapter.py
+- src/icp_renov_contracts/documents/converter.py
+- src/icp_renov_contracts/documents/formatters.py
+- src/icp_renov_contracts/documents/ooxml.py
+- src/icp_renov_contracts/documents/providers.py
+- src/icp_renov_contracts/documents/registry.py
+- src/icp_renov_contracts/documents/renderer.py
+- src/icp_renov_contracts/documents/source_store.py
+- src/icp_renov_contracts/documents/validation.py
+- src/icp_renov_contracts/domain/documents.py
+- src/icp_renov_contracts/repositories/documents.py
+- src/icp_renov_contracts/services/document_generation.py
+- tests/test_document_generation.py
 
 FILES MODIFIED
-- src/icp_renov_contracts/domain/__init__.py
-  - Exported Review domain structures.
-- src/icp_renov_contracts/services/__init__.py
-  - Exported ReviewService and document capability boundary.
-- src/icp_renov_contracts/bootstrap/context.py
-  - Composes ReviewService from existing Contract, Workspace and capability abstractions.
-- src/icp_renov_contracts/ui/main_window.py
-  - Passes composed Review service into the application shell.
-- src/icp_renov_contracts/ui/shell.py
-  - Passes Review service to the Contrats surface; permanent navigation unchanged.
-- src/icp_renov_contracts/ui/surfaces.py
-  - Injects ReviewService into ContractsView.
-- src/icp_renov_contracts/ui/contracts_view.py
-  - Enables step 3, hosts ReviewView and leaves step 4 disabled.
-- src/icp_renov_contracts/ui/styles.py
-  - Added bounded Review card/check/error styling using existing application tokens.
-- tests/test_contracts.py
-  - Updated S2 shell assertions for the accepted S4 Review step and disabled generation representation.
-- tests/test_conditions.py
-  - Updated S3 shell assertions for the accepted S4 Review step and disabled generation representation.
-- recap.txt
-  - Updated test totals and replaced the development smoke pipeline with an inline UTF-8/Base64 transport safe on Windows PowerShell; no seed file/module is created.
-- diff.txt
+- src/icp_renov_contracts/database/service.py: migration 5 generation state, immutable ContractDocument schema and guards.
+- src/icp_renov_contracts/domain/__init__.py, domain/conditions.py, domain/contract.py: document exports, governed template source/company metadata, nullable number and reachable TO_SIGN.
+- src/icp_renov_contracts/repositories/__init__.py, repositories/contracts.py, repositories/template_catalog.py: document repository export, number/effective status hydration and generation metadata persistence/immutability.
+- src/icp_renov_contracts/services/__init__.py, services/contracts.py, services/review.py, services/template_catalog.py: generation exports, TO_SIGN mutation lock, current readiness callback and governed metadata service.
+- src/icp_renov_contracts/bootstrap/context.py: production renderer/LibreOffice composition with intentionally unavailable Company/numbering providers.
+- src/icp_renov_contracts/ui/contracts_view.py, ui/main_window.py, ui/review_view.py, ui/shell.py, ui/surfaces.py: real confirmation/generation flow, bounded result, number/status landing and TO_SIGN read-only behavior; step 4 remains disabled.
+- tests/test_conditions.py, tests/test_contracts.py, tests/test_foundation.py, tests/test_master_data.py: migration-version expectations and accepted S0-S4 assertions adapted to migration 5 without changing prior behavior.
+- recap.txt: S5 implementation, tests, real smoke evidence, reproducible DEVELOPMENT VISUAL SMOKE and remaining risks.
+- diff.txt: exact S5 file inventory.
 
 FILES REMOVED
-- Temporary S4 visible-smoke helper and isolated smoke workspace.
-- Generated tests/tmp, spike/tmp, __pycache__ directories and *.pyc files outside .venv.
-
-SCHEMA / PERSISTENCE
-- No migration or persistent Review/readiness/document structure added; latest schema remains 4.
-- No Contract number, revision, R01, ContractDocument, generated artifact or review snapshot created.
+- None from the repository.
+- Only explicitly identified generated caches/test scratch and the temporary external QA dependency folder are removed during final hygiene. The retained external smoke DOCX/PDF and QA pages are not removed.
 
 PRESERVED / OUT OF SCOPE
-- Authoritative docs, production DOCX templates, frozen spike, S0/S1/S2/S3 master/snapshot/Conditions behavior and production model status unchanged.
-- No spike import, deep DOCX preflight, renderer, conversion, confirmation modal, number allocation, revision, Documents & suivi, signature, lifecycle, dashboard, settings management, backup/restore, first-use or packaging implementation.
-- No commit created.
+- Zero changes under docs/, templates/ or spike/.
+- No production spike import, source-template mutation, real PQ-08 policy, Company/Model settings UI, R02/correction, document history screen, sending/signature/lifecycle/intervention generation, broad cleanup or commit.

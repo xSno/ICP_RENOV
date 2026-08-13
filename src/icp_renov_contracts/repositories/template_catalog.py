@@ -29,18 +29,20 @@ class TemplateCatalogRepository:
         with self.database.transaction() as connection:
             connection.execute(
                 "INSERT INTO contract_template_versions(id,template_id,version,version_status,allowed_client_regimes_json,"
-                "validation_metadata_json,defaults_json,option_catalogs_json,created_at_utc,updated_at_utc) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                "validation_metadata_json,defaults_json,option_catalogs_json,created_at_utc,updated_at_utc,"
+                "source_relpath,source_hash,required_company_fields_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (version.id, version.template_id, version.version, version.status.value,
                  json.dumps(version.allowed_client_regimes, ensure_ascii=False, separators=(",", ":")),
                  version.validation.to_json(), version.defaults.to_json(), version.catalogs.to_json(),
-                 version.created_at_utc, version.updated_at_utc),
+                 version.created_at_utc, version.updated_at_utc, version.source_relpath, version.source_hash,
+                 json.dumps(version.required_company_fields, ensure_ascii=False, separators=(",", ":"))),
             )
 
     def get_version(self, version_id: str) -> ContractTemplateVersion | None:
         with self.database.connection() as connection:
             self._rows(connection)
             row = connection.execute(
-                "SELECT v.*,t.functional_name,t.contract_type_code FROM contract_template_versions v "
+                "SELECT v.*,t.functional_name,t.contract_type_code,t.document_kind FROM contract_template_versions v "
                 "JOIN contract_templates t ON t.id=v.template_id WHERE v.id=?", (version_id,),
             ).fetchone()
             return self._version(row) if row else None
@@ -50,7 +52,7 @@ class TemplateCatalogRepository:
         with self.database.connection() as connection:
             self._rows(connection)
             rows = connection.execute(
-                "SELECT v.*,t.functional_name,t.contract_type_code FROM contract_template_versions v "
+                "SELECT v.*,t.functional_name,t.contract_type_code,t.document_kind FROM contract_template_versions v "
                 "JOIN contract_templates t ON t.id=v.template_id WHERE t.contract_type_code=? " + status +
                 " ORDER BY LOWER(t.functional_name),v.version,v.id", (contract_type_code,),
             ).fetchall()
@@ -61,6 +63,17 @@ class TemplateCatalogRepository:
             cursor = connection.execute(
                 "UPDATE contract_template_versions SET version_status=?,updated_at_utc=? WHERE id=?",
                 (status.value, now, version_id),
+            )
+            if cursor.rowcount != 1: raise LookupError(version_id)
+
+    def update_generation_metadata(self, version_id: str, source_relpath: str, source_hash: str,
+                                   required_company_fields: tuple[str, ...], now: str) -> None:
+        with self.database.transaction() as connection:
+            if connection.execute("SELECT 1 FROM contract_documents WHERE template_version_id=?", (version_id,)).fetchone():
+                raise ValueError("template version is immutable")
+            cursor = connection.execute(
+                "UPDATE contract_template_versions SET source_relpath=?,source_hash=?,required_company_fields_json=?,updated_at_utc=? WHERE id=?",
+                (source_relpath, source_hash, json.dumps(required_company_fields, ensure_ascii=False, separators=(",", ":")), now, version_id),
             )
             if cursor.rowcount != 1: raise LookupError(version_id)
 
@@ -75,4 +88,13 @@ class TemplateCatalogRepository:
             defaults=TemplateDefaults.from_json(row["defaults_json"]),
             catalogs=TemplateOptionCatalogs.from_json(row["option_catalogs_json"]),
             created_at_utc=row["created_at_utc"], updated_at_utc=row["updated_at_utc"],
+            source_relpath=row["source_relpath"], source_hash=row["source_hash"],
+            required_company_fields=tuple(json.loads(row["required_company_fields_json"])),
+            document_kind=row["document_kind"],
         )
+
+    def source_in_use(self, version_id: str) -> bool:
+        with self.database.connection() as connection:
+            return connection.execute(
+                "SELECT 1 FROM contract_documents WHERE template_version_id=? LIMIT 1", (version_id,)
+            ).fetchone() is not None

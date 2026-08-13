@@ -8,7 +8,7 @@ import sqlite3
 import uuid
 
 from ..domain import (
-    ClientDraft, ClientSnapshot, ConclusionMode, Contract, ContractConditions,
+    ClientDraft, ClientSnapshot, ConclusionMode, Contract, ContractConditions, ContractStatus,
     ContractEquipmentItem, ContractRegime, DurationMode, EquipmentDraft, EquipmentSnapshot,
     INCLUDED_OPTIONS, RefrigerantHandlingMode, RenewalMode, RenewalPriceRule, SiteDraft,
     SiteSnapshot, TemplateVersionStatus,
@@ -65,8 +65,14 @@ class ContractService:
         if contract.regime is None or self.template_catalog is None: return []
         return self.template_catalog.list_compatible(contract.type_code.value, contract.regime.value)
 
-    def change_regime(self, contract_id: str, regime: str | None) -> Contract:
+    def _editable(self, contract_id: str) -> Contract:
         contract = self.get(contract_id)
+        if contract.status is not ContractStatus.DRAFT:
+            raise ContractValidationError("contract is read-only")
+        return contract
+
+    def change_regime(self, contract_id: str, regime: str | None) -> Contract:
+        contract = self._editable(contract_id)
         if regime is not None and regime not in {item.value for item in ContractRegime}:
             raise ContractValidationError("invalid regime")
         if (contract.regime.value if contract.regime else None) == regime: return contract
@@ -78,7 +84,7 @@ class ContractService:
         return self.get(contract_id)
 
     def select_template_version(self, contract_id: str, version_id: str) -> Contract:
-        contract = self.get(contract_id)
+        contract = self._editable(contract_id)
         if contract.regime is None or self.template_catalog is None:
             raise ContractValidationError("regime required")
         version = self.template_catalog.get_version(version_id)
@@ -94,7 +100,7 @@ class ContractService:
         return self.get(contract_id)
 
     def save_conditions(self, contract_id: str, conditions: ContractConditions) -> ContractConditions:
-        contract = self.get(contract_id)
+        contract = self._editable(contract_id)
         version = self.selected_template_version(contract_id)
         regime = contract.regime.value if contract.regime else None
         normalized = self._normalize_context(conditions, regime, version, strict=True)
@@ -216,7 +222,7 @@ class ContractService:
         return self.master_data.list_clients(search=search, archived=False)
 
     def select_client(self, contract_id: str, client_id: str) -> Contract:
-        current = self.get(contract_id)
+        current = self._editable(contract_id)
         client = self.master_data.get_client(client_id)
         if client.archived: raise ContractValidationError("client archived")
         if current.client_source_id == client_id:
@@ -228,6 +234,7 @@ class ContractService:
         return self.get(contract_id)
 
     def create_and_select_client(self, contract_id: str, draft: ClientDraft) -> Contract:
+        self._editable(contract_id)
         return self.select_client(contract_id, self.master_data.create_client(draft).id)
 
     def selectable_sites(self, contract_id: str):
@@ -236,7 +243,7 @@ class ContractService:
         return [site for site in self.master_data.list_sites(contract.client_source_id) if not site.archived]
 
     def select_site(self, contract_id: str, site_id: str) -> Contract:
-        current = self.get(contract_id)
+        current = self._editable(contract_id)
         if current.client_source_id is None: raise ContractValidationError("client required")
         site = self.master_data.get_site(site_id)
         if site.archived or site.client_id != current.client_source_id:
@@ -247,7 +254,7 @@ class ContractService:
         return self.get(contract_id)
 
     def create_and_select_site(self, contract_id: str, draft: SiteDraft) -> Contract:
-        contract = self.get(contract_id)
+        contract = self._editable(contract_id)
         if contract.client_source_id is None: raise ContractValidationError("client required")
         return self.select_site(contract_id, self.master_data.create_site(contract.client_source_id, draft).id)
 
@@ -257,7 +264,7 @@ class ContractService:
         return [item for item in self.master_data.list_equipment(contract.site_source_id) if not item.archived]
 
     def select_equipment(self, contract_id: str, equipment_id: str) -> Contract:
-        contract = self.get(contract_id)
+        contract = self._editable(contract_id)
         if contract.site_source_id is None: raise ContractValidationError("site required")
         if any(item.source_equipment_id == equipment_id for item in contract.equipment_items):
             return contract
@@ -272,13 +279,13 @@ class ContractService:
         return self.get(contract_id)
 
     def create_and_select_equipment(self, contract_id: str, draft: EquipmentDraft) -> Contract:
-        contract = self.get(contract_id)
+        contract = self._editable(contract_id)
         if contract.site_source_id is None: raise ContractValidationError("site required")
         equipment = self.master_data.create_equipment(contract.site_source_id, draft)
         return self.select_equipment(contract_id, equipment.id)
 
     def deselect_equipment(self, contract_id: str, equipment_id: str) -> Contract:
-        contract = self.get(contract_id)
+        contract = self._editable(contract_id)
         item = next((value for value in contract.equipment_items if value.source_equipment_id == equipment_id), None)
         if item is None: raise ContractValidationError("equipment not selected")
         remaining = [value.id for value in contract.equipment_items if value.id != item.id]
@@ -287,7 +294,7 @@ class ContractService:
 
     def move_equipment(self, contract_id: str, item_id: str, delta: int) -> Contract:
         if delta not in {-1, 1}: raise ContractValidationError("invalid movement")
-        contract = self.get(contract_id)
+        contract = self._editable(contract_id)
         ids = [item.id for item in contract.equipment_items]
         if item_id not in ids: raise ContractValidationError("item not selected")
         index = ids.index(item_id)
@@ -298,14 +305,14 @@ class ContractService:
         return self.get(contract_id)
 
     def update_observation(self, contract_id: str, item_id: str, observation: str) -> Contract:
-        contract = self.get(contract_id)
+        contract = self._editable(contract_id)
         if item_id not in {item.id for item in contract.equipment_items}:
             raise ContractValidationError("item not selected")
         self._persist(self.repository.update_observation, contract_id, item_id, observation.strip(), _now())
         return self.get(contract_id)
 
     def update_signatory(self, contract_id: str, name: str, role: str) -> Contract:
-        self.get(contract_id)
+        self._editable(contract_id)
         self._persist(self.repository.update_signatory, contract_id, name.strip(), role.strip(), _now())
         return self.get(contract_id)
 

@@ -1,111 +1,141 @@
-ICP RENOV - CONTRACT MANAGEMENT APP - S4 RECAP
+ICP RENOV - CONTRACT MANAGEMENT APP - S5 RECAP
 
-Migration / schema
-- Review and readiness are fully derived from persisted Contract/Snapshot/Conditions/template metadata.
-- No migration 5, review table, readiness table, ContractDocument table, number or revision was added. Latest schema version remains 4.
+Implementation
+- Migration 5 adds the nullable official contract number, durable TO_SIGN generation state, immutable CONTRACT document records, template source metadata/hash, required company-field metadata, indexes and immutability guards. Migrations 1-4 remain unchanged.
+- Production code is split between documents/ (closed registry, OOXML adaptation, formatters, source store, renderer, validation, LibreOffice converter and dependency boundaries), services/document_generation.py (orchestration) and repositories/documents.py (immutable persistence).
+- The accepted spike mechanisms were independently ported. Production code has no spike import; docs/, templates/ and spike/ are unchanged.
+- TemplateSourceStore copies a governed source into workspace/templates/sources and records SHA-256. Every generation verifies existence and hash; rendering never changes the governed copy.
+- Deep preflight covers document stories, closed placeholders/blocks/loops, compatibility metadata, source identity and required company values. Postflight rejects invalid DOCX, unresolved markers and invalid PDF.
+- The immutable ContractDocument snapshot contains company data, Contract client/site/signatory snapshots, Conditions/calculated values, ordered Contract equipment snapshots and observations, selected labels/blocks and template/source identity. Live master records and equipment internal notes are never read into it.
+- CompanyDocumentDataProvider and ContractNumberAllocator are explicit boundaries. Default production providers remain unavailable; no unknown ICP Renov value or PQ-08 numbering policy is invented. Preview does not consume and allocation occurs inside official publication.
+- LibreOfficeConverter accepts exactly LibreOffice 26.2.5.2, uses a unique headless profile, bounded timeout/process-tree termination, strict output checks and PDF validation.
+- Generation uses a unique workspace attempt directory. The DOCX/PDF pair, number allocation, immutable R01 row and DRAFT -> TO_SIGN transition publish atomically. All tested failures leave DRAFT/null number/no R01/no partial final pair and clean the attempt.
+- First success creates exactly R01, persists relative paths and SHA-256 hashes, changes the UI to « À signer », locks steps 1/2, disables another generation and leaves Documents & suivi unavailable.
 
-Review domain / service
-- domain/review.py defines bounded ReviewState, exact ReviewBlockId values, localized issues, block results, four generation checks and separate completeness/readiness projections.
-- services/review.py contains explicit V1 business validation. It reads current persisted Contract snapshots, ordered items, signatory, Conditions and governed template metadata; UI contains no review business rules or SQL.
-- Review summaries format dates deterministically as DD/MM/YYYY and monetary values with a French decimal comma; canonical dates and Decimal calculations remain unchanged.
-- Review never auto-fixes, auto-selects, normalizes or persists a duplicate review snapshot.
+Final semantic/preflight correction
+- Root cause A: visits_per_year was copied under service while the closed field is contract.visits_per_year. It is now copied from the same persisted ContractConditions value into the immutable contract snapshot.
+- Root cause B: company.registered_address had no prepared mapping. It now uses the explicit canonical value, or the deterministic rendered structured company address; no business value is invented.
+- Root cause C: breach_cure_period_days was omitted from the contract snapshot. The persisted secondary Conditions value is now copied and an active blank/invalid duration fails required-value preflight.
+- Root causes D/E: refrigerant_partner_name and withdrawal_contact were absent from the reviewed smoke company snapshot. Active PARTNER/withdrawal controls now fail before rendering when their required values are empty.
+- Required-value preflight walks the closed adapted controls and only active blocks/loops. Every active REQUIRED or REQUIRED_WHEN field must be non-empty; visits must be >= 1 and the cure period non-negative. Optional equipment cells remain allowed.
+- BLOCK_WITHDRAWAL and BLOCK_ELECTRONIC_TERMINATION require exact selected-version/context authorization. BLOCK_EARLY_PERFORMANCE additionally requires BLOCK_WITHDRAWAL authorization and early_performance_requested=true. No regime-only or textual inference exists.
+- StaticCompanyDocumentDataProvider and the renderer contain no mediator/contact/address/partner business fallbacks. Values that appeared in the prior smoke but not its recap were confirmed as explicit values in that prior immutable company snapshot, not production defaults.
 
-Exact nine-block result
-1. Client & signataire
-2. Site & équipements
-3. Cadre du contrat
-4. Modèle & prestations
-5. Période
-6. Conditions d’intervention
-7. Prix & paiement
-8. Renouvellement & fin du contrat
-9. Conditions particulières
-- All nine VALID means data_complete=true and displays « Toutes les informations nécessaires sont complètes ».
-- Incomplete/empty drafts freely enter Review and receive concise localized user-facing errors. Optional empty special terms remain VALID.
+Final signature-city rendering correction
+- contract.signature_city remains optional in persisted Conditions and the immutable R01 snapshot. The bounded production formatter renders a non-empty city unchanged and renders an empty/None value as the governed handwritten blank `____________________`; it does not use company.city, site.city or any invented default.
+- The governed signature range now yields exactly `Fait à Paris, le ____________________.` for Paris and `Fait à ____________________, le ____________________.` when empty. No orphan comma or punctuation hole remains, and contract.signature_date is never injected.
 
-Snapshot and model behavior
-- Client, Site and Equipment review summaries use only Contract snapshots/items. Later master edits or archives do not change or invalidate those summaries.
-- Equipment summary is bounded to count plus observation count; no annex or master internal notes are reproduced.
-- Selected model is defensively rechecked for existence, AVAILABLE status, Contract type and exact regime. Archived/TO_VALIDATE/incompatible versions remain referenced but make the model block and model capability unavailable.
-- Conclusion mode remains required only by explicit selected-version metadata. An authorized early-performance question requires an explicit yes/no decision; stale unauthorized true state is reported without legal inference.
-
-Completeness versus generation
-- Generation availability is visually and structurally separate after the nine business blocks.
-- Exactly four checks exist: Modèle disponible; Dossier de travail accessible; Génération DOCX disponible; Conversion PDF disponible.
-- generation_available requires complete Contract data plus all four technical checks; a pipeline problem never turns a business block into an error.
-
-Workspace / document capabilities
-- Workspace availability reuses WorkspaceService.inspect on the active S0 workspace; Review neither duplicates validation nor changes configuration.
-- Production DOCX capability is truthfully false in S4 because application rendering is not integrated.
-- A small production-side probe searches normal Windows locations/PATH and invokes only `soffice --version`; it never imports spike.*, renders or converts a document.
-- Visible workstation probe result: LibreOffice 26.2.5.2 detected and accepted; Conversion PDF disponible. Missing, probe error or any other version reports unavailable/à vérifier.
-
-Review UI
-- Step 3 Revue is functional. Steps 1–3 are enabled; Documents & suivi remains disabled. Exactly four steps remain.
-- Exactly nine non-editable cards render with text state (✓ Valide / ! À corriger), concise summary/issues and Modifier routing blocks 1–2 to step 1, blocks 3–9 to step 2.
-- The separate generation panel renders exactly four compact checks.
-- « Générer le DOCX et le PDF » exists but is disabled and has no handler/side effect. No confirmation modal exists.
-- Neutral pre-generation wording is « Numéro attribué après génération réussie ». No R01 is created or persisted.
-- No legal-validity wording, native dialog, deep DOCX preflight, generation or conversion exists.
-
-Automated tests
-- QT_QPA_PLATFORM=offscreen; python -W error::ResourceWarning -m unittest discover -s tests -v
-- Result: 105 discovered, 105 passed, 0 skipped, 0 failed.
-- S4 tests cover exact block count/order/titles, empty/complete drafts, localized fields, snapshot non-propagation, model defensive states, exact context, French Review dates and money, Unicode persistence round-trip, renewals, completeness/readiness separation, workspace states, deterministic LibreOffice probe states, routing and zero generation side effects.
-
-Frozen-spike regression
-- ICP_SKIP_WORD_INTEGRATION=1; python -m unittest discover -s spike/tests -v
+Automated validation
+- Application: QT_QPA_PLATFORM=offscreen; python -W error::ResourceWarning -m unittest discover -s tests -v
+- Result: 146 discovered, 146 passed, 0 skipped, 0 failed.
+- S5 targeted/negative subset: 41 discovered, 41 passed, including the preserved atomicity cases plus semantic requiredness, structured registered-address mapping, legal authorization, optional-line, logo and both signature-city regressions.
+- Frozen spike: ICP_SKIP_WORD_INTEGRATION=1; python -m unittest discover -s spike/tests -v
 - Result: 39 discovered, 38 passed, 1 Microsoft Word integration test skipped as required, 0 failed.
-- Frozen spike files were not modified. No rendering or conversion occurred.
 
-Manual smoke
-- PASS in the visible Windows application with one empty DRAFT and one complete synthetic DRAFT in an isolated disposable workspace.
-- Empty review showed exactly nine localized cards, separate four-check availability, working Modify routing and no crash/side effect.
-- Complete review showed all nine VALID and the complete-data banner, while DOCX remained Indisponible, PDF was Disponible, CTA remained disabled and no number/revision/document/table was created.
-- Exact `SYNTHÉTIQUE — CLIENT REVUE` persistence/snapshot round-trip passes; the visible `?` characters came from the Windows PowerShell development-smoke pipeline, not product Unicode handling. Production persistence/rendering code is unchanged.
-- Smoke helper/workspace and caches were removed; no screenshot automation was used.
+Real LibreOffice smoke
+- PASS with C:\Program Files\LibreOffice\program\soffice.com, LibreOffice 26.2.5.2.
+- Disposable workspace: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S5_SIGNATURE_CITY_SMOKE_20260813_V3\Workspace
+- Final Contract generated from the final code state: 98a890d1-025c-428d-85d4-f23adb78a0d8; PERSON/CONSUMER/OFF_PREMISES context; nine Review blocks valid; synthetic number SYNTH-SIG-0001; exactly R01; status TO_SIGN; second generation rejected; signature_city intentionally empty.
+- Exact authorized blocks: BLOCK_WITHDRAWAL, BLOCK_EARLY_PERFORMANCE and BLOCK_ELECTRONIC_TERMINATION; early_performance_requested=true.
+- DOCX: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S5_SIGNATURE_CITY_SMOKE_20260813_V3\Workspace\documents\contracts\98a890d1-025c-428d-85d4-f23adb78a0d8\R01\SYNTH-SIG-0001_R01.docx
+- DOCX SHA-256: 707B22F8010763AE4A4095D6C431AA876465AE224A7A573641EA2F4BFEF5B7E6
+- PDF: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S5_SIGNATURE_CITY_SMOKE_20260813_V3\Workspace\documents\contracts\98a890d1-025c-428d-85d4-f23adb78a0d8\R01\SYNTH-SIG-0001_R01.pdf
+- PDF SHA-256: BD70C890505CD3395AF968DC14A475A71119D072FDD9556874D2D6D96AEDC214
+- DOCX is a valid OOXML package with no unresolved marker. PDF is readable and has 6 pages.
+- Verified in both DOCX and PDF: exact `Fait à ____________________, le ____________________.` with no orphan comma; 2 visits; registered address; 15-day cure period; Partenaire synthétique; complete withdrawal contact; all three and only the explicitly selected legal-sensitive blocks.
+- Every page was rasterized and visually accepted: no clipping/overlap/broken glyph, coherent headers/footers/signature, 10 ordered equipment items with observations, and no source-logo artefact when company.logo is absent.
 
 DEVELOPMENT VISUAL SMOKE ONLY
-Run from the repository in one PowerShell session. This redirects machine/bootstrap and business state to a disposable TEMP folder and creates only synthetic master/template/Contract data through existing services:
+Run from the repository in PowerShell. It creates only a disposable workspace and synthetic data through existing services, copies the production-source candidate into that workspace, injects synthetic company/numbering dependencies and opens the normal application for Review, cancel-once, then generation:
 
-$smokeRoot = Join-Path $env:TEMP 'ICP_RENOV_S4_VISUAL'
-$env:LOCALAPPDATA = Join-Path $smokeRoot 'LocalAppData'
-$env:ICP_S4_WORKSPACE = Join-Path $smokeRoot 'Workspace'
-$smokeSource = @'
-import os
+$OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+$env:PYTHONPATH = 'src;tests'
+$env:ICP_S5_SMOKE_ROOT = Join-Path $env:TEMP 'ICP_RENOV_S5_VISUAL'
+if (Test-Path -LiteralPath $env:ICP_S5_SMOKE_ROOT) { throw "Smoke path already exists: $env:ICP_S5_SMOKE_ROOT" }
+$smoke = @'
+from dataclasses import replace
+import os, sqlite3
 from pathlib import Path
+from PySide6.QtWidgets import QApplication
 from icp_renov_contracts.bootstrap import build_application_context
 from icp_renov_contracts.config import BootstrapConfig, MachineConfigStore
-from icp_renov_contracts.domain import ClientDraft, ContractConditions, ControlledOption, EquipmentDraft, PaymentTermOption, SiteDraft, TemplateOptionCatalogs, TemplateVersionStatus
-store = MachineConfigStore()
-store.save(BootstrapConfig(Path(os.environ['ICP_S4_WORKSPACE'])))
+from icp_renov_contracts.documents import LibreOfficeConverter, ProductionDocxRenderer, StaticCompanyDocumentDataProvider, TemplateSourceStore
+from icp_renov_contracts.documents.providers import ContractNumberAllocator
+from icp_renov_contracts.domain import ContractConditions, ContextAuthorization, ControlledOption, PaymentTermOption, TemplateOptionCatalogs, TemplateValidationMetadata, TemplateVersionStatus
+from icp_renov_contracts.repositories import ContractDocumentRepository
+from icp_renov_contracts.services import DocumentGenerationService
+from icp_renov_contracts.ui import MainWindow
+from test_master_data import equipment, person, site
+
+root = Path(os.environ['ICP_S5_SMOKE_ROOT'])
+store = MachineConfigStore(root / 'machine.json')
+store.save(BootstrapConfig(root / 'Workspace'))
 ctx = build_application_context(config_store=store)
 contract = ctx.contracts.create_draft()
-client = ctx.master_data.create_client(ClientDraft(party_type='ORGANIZATION', organization_name='SYNTHÉTIQUE — CLIENT REVUE', address_line1='1 rue Test', postal_code='75000', city='Paris', proposed_contact_name='Nadia Roux', proposed_contact_role='Directrice'))
-site = ctx.master_data.create_site(client.id, SiteDraft(label='SYNTHÉTIQUE — SITE', address_line1='1 rue Test', postal_code='75000', city='Paris'))
-equipment = ctx.master_data.create_equipment(site.id, EquipmentDraft(equipment_type='Unité synthétique', location='Accueil'))
+client = ctx.master_data.create_client(person('Élodie', 'Synthétique', proposed_contact_name='Élodie Synthétique', proposed_contact_role='Cliente'))
+selected_site = ctx.master_data.create_site(client.id, site('SYNTHÉTIQUE — SITE S5'))
 ctx.contracts.select_client(contract.id, client.id)
-ctx.contracts.select_site(contract.id, site.id)
-ctx.contracts.select_equipment(contract.id, equipment.id)
-template = ctx.template_catalog.create_template('SYNTHÉTIQUE — MODÈLE REVUE')
-version = ctx.template_catalog.create_version(template, 'review-visual-1', TemplateVersionStatus.AVAILABLE, ('CONSUMER',), catalogs=TemplateOptionCatalogs(('20',), (PaymentTermOption('DUE', 'À 30 jours', True, False),), (ControlledOption('TRANSFER', 'Virement'),), (ControlledOption('EMAIL', 'E-mail'),), ()))
+ctx.contracts.select_site(contract.id, selected_site.id)
+for index in range(1, 11):
+    item = ctx.master_data.create_equipment(selected_site.id, equipment(f'SYNTHÉTIQUE — UNITÉ {index:02d}', f'Zone {index:02d}'))
+    ctx.contracts.select_equipment(contract.id, item.id)
+items = ctx.contracts.get(contract.id).equipment_items
+ctx.contracts.update_observation(contract.id, items[0].id, 'Observation contractuelle 01')
+ctx.contracts.update_observation(contract.id, items[-1].id, 'Observation contractuelle 10')
+validation = TemplateValidationMetadata(('CONSUMER',), (ContextAuthorization('CONSUMER', 'OFF_PREMISES', ('BLOCK_WITHDRAWAL', 'BLOCK_EARLY_PERFORMANCE', 'BLOCK_ELECTRONIC_TERMINATION')),))
+template = ctx.template_catalog.create_template('SYNTHÉTIQUE — MODÈLE S5')
+version = ctx.template_catalog.create_version(template, 'synthetic-s5-1', TemplateVersionStatus.AVAILABLE, ('CONSUMER',), validation=validation, catalogs=TemplateOptionCatalogs(
+    ('20',), (PaymentTermOption('DUE', 'Paiement sous 30 jours', True, False),),
+    (ControlledOption('TRANSFER', 'Virement bancaire'),), (ControlledOption('EMAIL', 'Courriel'),), ()))
+source_store = TemplateSourceStore(ctx.workspace.root)
+source = Path('templates/ICP_RENOV_TEMPLATE_CONTRAT_ENTRETIEN_HABITATION_V1_0.docx').resolve()
+source_relpath, source_hash = source_store.import_source(source, version.id)
+required = ('registered_address', 'phone', 'email', 'signatory_name', 'signatory_role', 'mediator_name', 'mediator_address', 'mediator_website', 'complaints_contact', 'privacy_contact', 'refrigerant_partner_name', 'withdrawal_contact')
+ctx.template_catalog.set_generation_metadata(version.id, source_relpath, source_hash, required)
 ctx.contracts.change_regime(contract.id, 'CONSUMER')
 ctx.contracts.select_template_version(contract.id, version.id)
-ctx.contracts.save_conditions(contract.id, ContractConditions(visits_per_year=2, refrigerant_handling_mode='PARTNER', priority_breakdown=False, included_area='Paris', business_hours='8h–18h', travel_included=True, issue_date='2026-08-13', start_date='2026-09-01', initial_duration_mode='STANDARD', initial_duration_months=12, annual_ht='100', vat_rate='20', payment_terms_code='DUE', payment_due_days=30, payment_methods=('TRANSFER',), renewal_mode='NONE'))
-print('Brouillon SYNTHÉTIQUE S4 créé :', contract.id)
+ctx.contracts.save_conditions(contract.id, ContractConditions(
+    conclusion_mode='OFF_PREMISES', early_performance_requested=True, visits_per_year=2, refrigerant_handling_mode='PARTNER', included_options=('DEEP_CLEANING', 'DISINFECTION'),
+    priority_breakdown=True, priority_breakdown_delay='24 heures', included_area='Île-de-France', business_hours='8h–18h', travel_included=True,
+    missed_appointment_fee='25', issue_date='2026-08-13', start_date='2026-09-01', initial_duration_mode='STANDARD', initial_duration_months=12, signature_city='',
+    annual_ht='100', vat_rate='20', payment_terms_code='DUE', payment_due_days=30, payment_methods=('TRANSFER',),
+    renewal_mode='TACIT', renewal_period_months=12, non_renewal_notice_days=60, non_renewal_notice_channels=('EMAIL',),
+    internal_alert_days=90, renewal_price_rule='FIXED', breach_cure_period_days=15, special_terms='Condition synthétique de démonstration.'))
+with ctx.database.transaction() as connection:
+    connection.execute('CREATE TABLE synthetic_number(value INTEGER NOT NULL)')
+    connection.execute('INSERT INTO synthetic_number VALUES (1)')
+
+class SyntheticAllocator(ContractNumberAllocator):
+    def available(self): return True
+    def preview_next(self):
+        with ctx.database.connection() as connection:
+            return f"SYNTH-S5-{connection.execute('SELECT value FROM synthetic_number').fetchone()[0]:04d}"
+    def allocate(self, connection):
+        value = connection.execute('SELECT value FROM synthetic_number').fetchone()[0]
+        connection.execute('UPDATE synthetic_number SET value=value+1')
+        return f'SYNTH-S5-{value:04d}'
+
+company = {'legal_name':'SYNTHÉTIQUE — ICP RENOV','trade_name':'ICP Renov','registered_address':'1 rue Synthétique, 75001 Paris, France','address_line1':'1 rue Synthétique','postal_code':'75001','city':'Paris','country':'France','siren':'123456789','siret':'12345678900010','phone':'0102030405','email':'smoke@example.invalid','logo':'','insurer_name':'Assureur synthétique','insurance_policy_number':'SYNTH-001','insurance_scope':'France','refrigerant_capacity_number':'SYNTH-CAP','refrigerant_capacity_body':'Organisme synthétique','refrigerant_partner_name':'Partenaire synthétique','mediator_name':'Médiateur synthétique','mediator_address':'1 rue Médiation, Paris','mediator_website':'https://example.invalid','complaints_contact':'reclamations@example.invalid','privacy_contact':'privacy@example.invalid','withdrawal_contact':'retractation@example.invalid','signatory_name':'Camille Test','signatory_role':'Gérante'}
+generation = DocumentGenerationService(ctx.database, ctx.contracts, ContractDocumentRepository(ctx.database), ctx.review, source_store,
+    ProductionDocxRenderer(), LibreOfficeConverter(timeout_seconds=180), StaticCompanyDocumentDataProvider(company), SyntheticAllocator(), ctx.workspace.root)
+ctx.review.generation_ready = generation.available
+ctx = replace(ctx, generation=generation)
+print('S5 synthetic contract:', contract.id)
+print('Review valid blocks:', sum(block.state.value == 'VALID' for block in ctx.review.review(contract.id).blocks), '/ 9')
+app = QApplication.instance() or QApplication([])
+window = MainWindow(ctx)
+window.show()
+raise SystemExit(app.exec())
 '@
-$smokeSourceBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($smokeSource))
-python -X utf8 -c "import base64; exec(compile(base64.b64decode('$smokeSourceBase64'), '<s4-visual-smoke>', 'exec'))"
-python -m icp_renov_contracts
+$smoke | python -X utf8 -
 
-Cleanup after closing the application:
+After closing the application, inspect the printed contract folder under $env:ICP_S5_SMOKE_ROOT\Workspace\documents\contracts. Cleanup only that explicit disposable path:
 
-Remove-Item -LiteralPath (Join-Path $env:TEMP 'ICP_RENOV_S4_VISUAL') -Recurse -Force
-Remove-Item Env:ICP_S4_WORKSPACE -ErrorAction SilentlyContinue
-Remove-Item Env:LOCALAPPDATA -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath $env:ICP_S5_SMOKE_ROOT -Recurse -Force
+Remove-Item Env:ICP_S5_SMOKE_ROOT -ErrorAction SilentlyContinue
+Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
 
-Remaining S4 risks only
-- Production DOCX capability intentionally remains unavailable until S5 integrates the accepted renderer pipeline.
-- Real production template versions remain governed separately and may legitimately leave normal workspaces without an AVAILABLE model.
-- Final subjective visual acceptance of the review cards on the target workstation remains for the user.
-- The LibreOffice version probe confirms environment presence/version only; it intentionally does not prove conversion fidelity or run re-acceptance.
+Remaining S5 risks only
+- PQ-08 numbering policy and Company configuration UI remain intentionally open; ordinary production generation therefore remains unavailable until those providers are configured.
+- S5 supports only first official CONTRACT revision R01 and DRAFT -> TO_SIGN; correction/R02, signature, sending, lifecycle and Documents & suivi remain out of scope.
+- The synthetic smoke validates technical production integration and fidelity on the tested candidate; it is not final legal approval of contract wording.

@@ -7,9 +7,11 @@ from enum import Enum
 from ..config import BootstrapConfig, MachineConfigStore
 from ..database import DatabaseService
 from ..repositories import (
-    ContractConditionsRepository, ContractRepository, MasterDataRepository, TemplateCatalogRepository,
+    ContractConditionsRepository, ContractDocumentRepository, ContractRepository, MasterDataRepository, TemplateCatalogRepository,
 )
-from ..services import ContractService, MasterDataService, ReviewService, TemplateCatalogService
+from ..documents import (LibreOfficeConverter, ProductionDocxRenderer, TemplateSourceStore,
+                         UnavailableCompanyDocumentDataProvider, UnavailableContractNumberAllocator)
+from ..services import ContractService, DocumentGenerationService, MasterDataService, ReviewService, TemplateCatalogService
 from ..storage import Workspace, WorkspaceService
 
 
@@ -30,6 +32,7 @@ class ApplicationContext:
     contracts: ContractService | None
     template_catalog: TemplateCatalogService | None
     review: ReviewService | None
+    generation: DocumentGenerationService | None
     logger: logging.Logger
 
 
@@ -55,6 +58,7 @@ def build_application_context(
             None,
             None,
             None,
+            None,
             application_logger,
         )
 
@@ -67,6 +71,12 @@ def build_application_context(
         ContractRepository(database), master_data, ContractConditionsRepository(database), template_catalog
     )
     review = ReviewService(contracts, workspaces, workspace)
+    generation = DocumentGenerationService(
+        database, contracts, ContractDocumentRepository(database), review, TemplateSourceStore(workspace.root),
+        ProductionDocxRenderer(), LibreOfficeConverter(), UnavailableCompanyDocumentDataProvider(),
+        UnavailableContractNumberAllocator(), workspace.root, application_logger,
+    )
+    review.generation_ready = generation.available
     application_logger.info("Local workspace and database initialized")
     return ApplicationContext(
         ApplicationState.READY,
@@ -79,5 +89,6 @@ def build_application_context(
         contracts,
         template_catalog,
         review,
+        generation,
         application_logger,
     )

@@ -80,6 +80,16 @@ class TemplateCatalogService:
         self.get_version(version_id)
         self._persist(self.repository.update_status, version_id, status, _now())
 
+    def set_generation_metadata(self, version_id: str, source_relpath: str, source_hash: str,
+                                required_company_fields: tuple[str, ...]) -> ContractTemplateVersion:
+        self.get_version(version_id)
+        fields = tuple(dict.fromkeys(value.strip() for value in required_company_fields if value.strip()))
+        try:
+            self.repository.update_generation_metadata(version_id, source_relpath, source_hash, fields, _now())
+        except ValueError as exc:
+            raise ContractValidationError("template version is immutable") from exc
+        return self.get_version(version_id)
+
     @staticmethod
     def _persist(operation, *args) -> None:
         try: operation(*args)

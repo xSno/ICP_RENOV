@@ -9,6 +9,7 @@ from .master_data import ClientMaster, EquipmentMaster, SiteMaster
 
 class ContractStatus(str, Enum):
     DRAFT = "DRAFT"
+    TO_SIGN = "TO_SIGN"
 
 
 class ContractType(str, Enum):
@@ -122,6 +123,7 @@ class ContractEquipmentItem:
 @dataclass(frozen=True)
 class Contract:
     id: str
+    number: str | None
     status: ContractStatus
     type_code: ContractType
     client_source_id: str | None
@@ -141,6 +143,7 @@ class Contract:
 @dataclass(frozen=True)
 class ContractListItem:
     id: str
+    number: str | None
     status: ContractStatus
     client_name: str
     site_label: str
