@@ -408,6 +408,35 @@ MIGRATIONS = (
             """,
         ),
     ),
+    Migration(
+        8,
+        (
+            "ALTER TABLE contracts ADD COLUMN predecessor_contract_id TEXT REFERENCES contracts(id) ON DELETE RESTRICT CHECK (predecessor_contract_id IS NULL OR predecessor_contract_id != id)",
+            "ALTER TABLE contracts ADD COLUMN terminal_status TEXT CHECK (terminal_status IS NULL OR terminal_status IN ('TERMINATED','EXPIRED','ABANDONED'))",
+            "CREATE INDEX idx_contracts_predecessor ON contracts(predecessor_contract_id) WHERE predecessor_contract_id IS NOT NULL",
+            "CREATE UNIQUE INDEX idx_contract_one_termination_schedule ON contract_events(contract_id) WHERE type='TERMINATION_SCHEDULED'",
+            "CREATE UNIQUE INDEX idx_contract_one_terminated ON contract_events(contract_id) WHERE type='TERMINATED'",
+            "CREATE UNIQUE INDEX idx_contract_one_expired ON contract_events(contract_id) WHERE type='EXPIRED'",
+            "CREATE UNIQUE INDEX idx_contract_one_abandoned ON contract_events(contract_id) WHERE type='ABANDONED'",
+            "CREATE UNIQUE INDEX idx_contract_renewal_period ON contract_events(contract_id,period_start,period_end) WHERE type='RENEWAL_CONFIRMED'",
+            "CREATE UNIQUE INDEX idx_contract_nonrenewal_period ON contract_events(contract_id,period_start,period_end) WHERE type='RENEWAL_NOTICE_RECORDED'",
+            """
+            CREATE TRIGGER contract_s8_required_fields
+            BEFORE INSERT ON contract_events
+            WHEN (NEW.type='RENEWAL_CONFIRMED' AND (
+                    NEW.period_start IS NULL OR NEW.period_end IS NULL OR NEW.renewal_annual_ht IS NULL
+                    OR NEW.renewal_vat_rate IS NULL OR NEW.renewal_vat_amount IS NULL OR NEW.renewal_annual_ttc IS NULL
+                    OR NEW.document_id IS NOT NULL))
+              OR (NEW.type='RENEWAL_NOTICE_RECORDED' AND (NEW.effective_date IS NULL OR NEW.period_start IS NULL OR NEW.period_end IS NULL OR NEW.document_id IS NOT NULL))
+              OR (NEW.type='TERMINATION_SCHEDULED' AND (NEW.effective_date IS NULL OR NEW.reason_text IS NULL OR trim(NEW.reason_text)='' OR NEW.document_id IS NOT NULL))
+              OR (NEW.type IN ('TERMINATED','EXPIRED') AND (NEW.effective_date IS NULL OR NEW.document_id IS NOT NULL))
+              OR (NEW.type='ABANDONED' AND NEW.document_id IS NOT NULL)
+            BEGIN
+                SELECT RAISE(ABORT, 'S8 event fields invalid');
+            END
+            """,
+        ),
+    ),
 )
 
 

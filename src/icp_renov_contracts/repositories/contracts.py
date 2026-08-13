@@ -10,10 +10,11 @@ from ..domain import (
 
 
 CONTRACT_COLUMNS = """
-    id, number, COALESCE(lifecycle_status,generation_status,status) AS status, type_code, client_source_id, site_source_id, client_snapshot_json,
+    id, number, COALESCE(terminal_status,lifecycle_status,generation_status,status) AS status, type_code, client_source_id, site_source_id, client_snapshot_json,
     site_snapshot_json, signatory_name, signatory_role, regime, template_id,
     template_version_id, created_at_utc, updated_at_utc,
-    (SELECT effective_date FROM contract_events e WHERE e.contract_id=contracts.id AND e.type='SIGNATURE_RECORDED') AS signature_date
+    (SELECT effective_date FROM contract_events e WHERE e.contract_id=contracts.id AND e.type='SIGNATURE_RECORDED') AS signature_date,
+    predecessor_contract_id
 """
 
 
@@ -27,7 +28,7 @@ def _contract(row: sqlite3.Row, items: tuple[ContractEquipmentItem, ...]) -> Con
         regime=ContractRegime(row["regime"]) if row["regime"] else None,
         template_id=row["template_id"], template_version_id=row["template_version_id"],
         equipment_items=items, created_at_utc=row["created_at_utc"], updated_at_utc=row["updated_at_utc"],
-        signature_date=row["signature_date"],
+        signature_date=row["signature_date"], predecessor_contract_id=row["predecessor_contract_id"],
     )
 
 
@@ -73,10 +74,11 @@ class ContractRepository:
         with self.database.connection() as connection:
             self._rows(connection)
             rows = connection.execute(
-                "SELECT id,number,COALESCE(lifecycle_status,generation_status,status) AS status,client_snapshot_json,site_snapshot_json,updated_at_utc,"
+                "SELECT id,number,COALESCE(terminal_status,lifecycle_status,generation_status,status) AS status,client_snapshot_json,site_snapshot_json,updated_at_utc,"
                 "(SELECT MAX(revision_index) FROM contract_documents d WHERE d.contract_id=contracts.id AND d.document_kind='CONTRACT') AS latest_revision "
                 ",(SELECT d.revision_index FROM contract_events e JOIN contract_documents d ON d.id=e.document_id WHERE e.contract_id=contracts.id AND e.type='SIGNATURE_RECORDED') AS signed_revision "
                 ",(SELECT CASE WHEN d.signed_pdf_path IS NULL THEN 'NONE' ELSE 'RECORDED' END FROM contract_events e JOIN contract_documents d ON d.id=e.document_id WHERE e.contract_id=contracts.id AND e.type='SIGNATURE_RECORDED') AS signed_copy_state "
+                ",(SELECT p.number FROM contracts p WHERE p.id=contracts.predecessor_contract_id) AS predecessor_number "
                 "FROM contracts ORDER BY updated_at_utc DESC,id"
             ).fetchall()
             return [ContractListItem(
@@ -87,7 +89,7 @@ class ContractRepository:
                             if row["site_snapshot_json"] else "Site à sélectionner"),
                 updated_at_utc=row["updated_at_utc"], latest_revision=(f"R{row['latest_revision']:02d}" if row["latest_revision"] else None),
                 signed_revision=(f"R{row['signed_revision']:02d}" if row["signed_revision"] else None),
-                signed_copy_state=row["signed_copy_state"],
+                signed_copy_state=row["signed_copy_state"], predecessor_number=row["predecessor_number"],
             ) for row in rows]
 
     def select_client(self, contract_id: str, source_id: str, snapshot: ClientSnapshot,

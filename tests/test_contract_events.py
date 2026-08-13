@@ -58,7 +58,7 @@ class EventMigrationTests(unittest.TestCase):
             self.assertEqual([(e.type,e.occurred_at,e.document_id) for e in reversed(events)],[(ContractEventType.CREATED,"2026-01-02T00:00:00+00:00",None),(ContractEventType.DOCUMENT_GENERATED,"2026-01-03T00:00:00+00:00","d")])
             with database.transaction() as connection:
                 with self.assertRaises(sqlite3.IntegrityError):connection.execute("UPDATE contract_events SET note='x' WHERE id=?",(events[0].id,))
-            self.assertEqual(database.schema_version(),7)
+            self.assertEqual(database.schema_version(),8)
 
 
 class ContractEventLifecycleTests(GenerationCase):

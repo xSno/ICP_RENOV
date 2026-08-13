@@ -143,7 +143,8 @@ class DocumentGenerationService:
                        "visits_per_year":conditions.visits_per_year,"breach_cure_period_days":conditions.breach_cure_period_days,
                        "issue_date":conditions.issue_date,"start_date":conditions.start_date,"initial_duration_mode":conditions.initial_duration_mode,"initial_duration_months":conditions.initial_duration_months,
                        "initial_end_date":conditions.resolved_end_date,"signature_city":conditions.signature_city,"renewal_mode":conditions.renewal_mode,"renewal_period_months":conditions.renewal_period_months,
-                       "non_renewal_notice_days":conditions.non_renewal_notice_days,"non_renewal_notice_channels":list(conditions.non_renewal_notice_channels),"special_terms":conditions.special_terms,"equipment_items":items}
+                       "non_renewal_notice_days":conditions.non_renewal_notice_days,"non_renewal_notice_channels":list(conditions.non_renewal_notice_channels),"internal_alert_days":conditions.internal_alert_days,
+                       "special_terms":conditions.special_terms,"equipment_items":items}
         service={key:getattr(conditions,key) for key in ("visits_per_year","refrigerant_handling_mode","included_area","business_hours","travel_included","priority_breakdown","priority_breakdown_delay","included_options","additional_exclusions")};service["included_options"]=list(service["included_options"])
         pricing={"annual_ht":conditions.annual_ht,"vat_rate":str((Decimal(conditions.vat_rate or '0')/100)),"payment_terms_code":conditions.payment_terms_code,"payment_due_days":conditions.payment_due_days,
                  "payment_terms_custom_text":conditions.payment_terms_custom_text,"payment_methods":list(conditions.payment_methods),"missed_appointment_fee":conditions.missed_appointment_fee,"renewal_price_rule":conditions.renewal_price_rule}

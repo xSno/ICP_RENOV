@@ -82,7 +82,7 @@ class MigrationTests(unittest.TestCase):
                 connection.commit()
             database = DatabaseService(path)
             database.initialize()
-            self.assertEqual(database.schema_version(), 7)
+            self.assertEqual(database.schema_version(), 8)
             with database.connection() as connection:
                 self.assertEqual(connection.execute("SELECT applied_at_utc FROM schema_migrations WHERE version=1").fetchone()[0], "frozen-migration-1")
                 tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
@@ -94,7 +94,7 @@ class MigrationTests(unittest.TestCase):
             database.initialize()
             database.initialize()
             with database.connection() as connection:
-                self.assertEqual(connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0], 7)
+                self.assertEqual(connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0], 8)
 
 
 class ClientPersistenceTests(MasterDataCase):

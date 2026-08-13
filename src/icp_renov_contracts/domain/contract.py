@@ -12,6 +12,9 @@ class ContractStatus(str, Enum):
     TO_SIGN = "TO_SIGN"
     SIGNED = "SIGNED"
     ACTIVE = "ACTIVE"
+    TERMINATED = "TERMINATED"
+    EXPIRED = "EXPIRED"
+    ABANDONED = "ABANDONED"
 
 
 class ContractType(str, Enum):
@@ -141,6 +144,7 @@ class Contract:
     created_at_utc: str
     updated_at_utc: str
     signature_date: str | None = None
+    predecessor_contract_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -154,3 +158,4 @@ class ContractListItem:
     latest_revision: str | None = None
     signed_revision: str | None = None
     signed_copy_state: str | None = None
+    predecessor_number: str | None = None
