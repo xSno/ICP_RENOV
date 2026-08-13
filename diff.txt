@@ -1,55 +1,50 @@
-ICP RENOV - CONTRACT MANAGEMENT APP - S1 MASTER DATA DIFF
+ICP RENOV - CONTRACT MANAGEMENT APP - S2 DIFF
 
 FILES CREATED
-- src/icp_renov_contracts/domain/__init__.py
-- src/icp_renov_contracts/domain/master_data.py
-- src/icp_renov_contracts/repositories/__init__.py
-- src/icp_renov_contracts/repositories/master_data.py
-- src/icp_renov_contracts/services/__init__.py
-- src/icp_renov_contracts/services/master_data.py
-- src/icp_renov_contracts/ui/clients_view.py
-  - Hosts one reusable overlay drawer inside the Clients & installations workspace for all Client/Site/Equipment create and edit flows.
-  - Replaced blocking dialog execution with signal-driven in-app save/cancel handling; detail hierarchy remains unchanged.
-- src/icp_renov_contracts/ui/master_forms.py
-  - Replaced QDialog/QDialogButtonBox editors with shared scrollable QWidget drawer content.
-  - Added contextual titles, Enregistrer, Annuler, Fermer, validation retention, and Escape handling.
-- tests/test_master_data.py
-  - Added UI regressions for all six create/edit drawer paths, non-top-level ownership, French actions, validation retention, Escape safety, and primary-button consistency.
+- src/icp_renov_contracts/domain/contract.py
+  - Controlled DRAFT/type/regime enums, typed deterministic snapshots, Contract aggregate, ordered item and list projection.
+- src/icp_renov_contracts/repositories/contracts.py
+  - Contract SQL, snapshot-only draft list, transactional cascades, equipment selection/order/observation and signatory persistence.
+- src/icp_renov_contracts/services/contracts.py
+  - DRAFT orchestration, master-data snapshotting, active/ownership validation, signatory prefill, cascades and MasterDataService-backed creation flows.
+- src/icp_renov_contracts/ui/contracts_view.py
+  - Persisted Contracts landing, four-step workspace shell, functional step 1 and in-app selection/creation/observation drawers.
+- tests/test_contracts.py
+  - Migration, DRAFT/restart, snapshots, non-propagation/non-leakage, cascades/rollback, signatory, archive, ordered equipment and Qt UI regressions.
 
 FILES MODIFIED
 - src/icp_renov_contracts/database/service.py
-  - Added explicit migration 2 for clients, sites, equipment, indexes, checks, timestamps, and restrictive foreign keys; migration 1 unchanged.
+  - Added explicit migration 3 for contracts and ordered contract_equipment_items; migrations 1 and 2 unchanged.
+- src/icp_renov_contracts/domain/__init__.py
+  - Exported S2 Contract domain types.
+- src/icp_renov_contracts/repositories/__init__.py
+  - Exported ContractRepository.
+- src/icp_renov_contracts/services/__init__.py
+  - Exported ContractService.
 - src/icp_renov_contracts/errors.py
-  - Added bounded master-data validation, not-found, and persistence errors.
+  - Added bounded Contract validation, not-found and persistence errors.
 - src/icp_renov_contracts/bootstrap/context.py
-  - Added composition-root construction/injection of MasterDataRepository and MasterDataService for ready workspaces.
+  - Composes and injects ContractRepository/ContractService for ready workspaces.
 - src/icp_renov_contracts/ui/surfaces.py
-  - Replaced only Clients & installations placeholder with the functional S1 surface.
+  - Replaced only the Contrats placeholder with ContractsView.
 - src/icp_renov_contracts/ui/shell.py
-  - Accepts injected master-data service and exposes deterministic surface lookup for UI composition/tests; navigation unchanged.
+  - Passes the injected Contract service while preserving the exact three-entry navigation.
 - src/icp_renov_contracts/ui/main_window.py
-  - Passes the composed master-data service into the shell.
+  - Injects both master-data and Contract services into the shell.
 - src/icp_renov_contracts/ui/styles.py
-  - Added bounded reusable panel/card/list/form/feedback primitives and the embedded drawer treatment for the S1 surface.
+  - Added only the bounded Contract step background treatment; existing S1 styling remains the basis.
 - tests/test_foundation.py
-  - Updated expected latest schema version/migration count from 1 to 2 while retaining all S0 behavioral tests.
+  - Updated latest migration expectations from 2 to 3; S0 behavior assertions unchanged.
+- tests/test_master_data.py
+  - Updated latest migration expectations from 2 to 3; S1 semantics/assertions unchanged.
 - recap.txt
 - diff.txt
 
 FILES REMOVED
-- None.
-- Generated test/smoke workspaces, Python caches, pyc files, and editable-install metadata were removed before handoff.
+- Generated tests/tmp and spike/tmp runtime scratch directories.
+- Generated __pycache__ directories and *.pyc files outside .venv.
 
-BEHAVIOR ADDED
-- PERSON/ORGANIZATION client create/edit with structured validation and no contract regime.
-- Multi-site persistence and create/edit within selected client.
-- Multi-equipment persistence and create/edit within owning site; internal notes remain master-only.
-- Independent Archive/Restore for all three entities with no cascade and no ordinary Delete API/UI.
-- Aggregate client search/filter/count queries and relationship queries.
-- Functional PySide6 Clients & installations split workspace, adaptive editor panels, empty states, deterministic selection refresh, and linked-contract placeholder only.
-- All master-data editor panels remain inside the application window and share French actions, scrolling, validation retention, and Escape/cancel behavior.
-
-PRESERVED / OUT OF SCOPE
-- Authoritative docs, production templates, and frozen spike behavior/evidence unchanged.
-- Permanent navigation still has exactly three entries.
-- No Contract table/domain, snapshots, regime, signatory, numbering, status, creation workflow, document integration, LibreOffice/Word invocation, backup/restore, first-use expansion, packaging, or richer business screen.
+PRESERVED / NOT ADDED
+- Authoritative docs, production templates, frozen spike sources/evidence and S1 master semantics unchanged.
+- No official numbering, revision, lifecycle beyond DRAFT, Conditions fields, regime UI, model selection, pricing, generation, document integration, signature, renewal, termination, dashboard, backup/restore, first-use or packaging implementation.
+- No commit created.

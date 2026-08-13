@@ -13,14 +13,14 @@ from PySide6.QtWidgets import (
 
 from .styles import SPACING
 from .surfaces import build_surfaces
-from ..services import MasterDataService
+from ..services import ContractService, MasterDataService
 
 
 NAVIGATION_LABELS = ("Contrats", "Clients & installations", "Paramètres")
 
 
 class ApplicationShell(QWidget):
-    def __init__(self, master_data: MasterDataService) -> None:
+    def __init__(self, master_data: MasterDataService, contracts: ContractService) -> None:
         super().__init__()
         self.setObjectName("applicationRoot")
         root = QHBoxLayout(self)
@@ -46,7 +46,7 @@ class ApplicationShell(QWidget):
         group = QButtonGroup(self)
         group.setExclusive(True)
         for label in NAVIGATION_LABELS:
-            button = QPushButton(label)
+            button = QPushButton(label.replace("&", "&&"))
             button.setObjectName("navButton")
             button.setCheckable(True)
             button.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -57,7 +57,7 @@ class ApplicationShell(QWidget):
         sidebar_layout.addStretch(1)
 
         self.stack = QStackedWidget()
-        self._surfaces = build_surfaces(master_data)
+        self._surfaces = build_surfaces(master_data, contracts)
         self._indices: dict[str, int] = {}
         for label in NAVIGATION_LABELS:
             self._indices[label] = self.stack.addWidget(self._surfaces[label])

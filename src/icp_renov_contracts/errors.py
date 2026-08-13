@@ -38,3 +38,15 @@ class MasterDataNotFoundError(ApplicationError):
 
 class MasterDataPersistenceError(ApplicationError):
     user_message = "Les données ne peuvent pas être enregistrées."
+
+
+class ContractValidationError(ApplicationError):
+    user_message = "Cette action n’est pas valide pour ce brouillon."
+
+
+class ContractNotFoundError(ApplicationError):
+    user_message = "Le brouillon demandé est introuvable."
+
+
+class ContractPersistenceError(ApplicationError):
+    user_message = "Le brouillon ne peut pas être enregistré."

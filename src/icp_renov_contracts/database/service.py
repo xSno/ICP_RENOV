@@ -104,6 +104,43 @@ MIGRATIONS = (
             "CREATE INDEX idx_equipment_site ON equipment(site_id)",
         ),
     ),
+    Migration(
+        3,
+        (
+            """
+            CREATE TABLE contracts (
+                id TEXT PRIMARY KEY,
+                status TEXT NOT NULL CHECK (status = 'DRAFT'),
+                type_code TEXT NOT NULL CHECK (type_code = 'CLIMATE_MAINTENANCE'),
+                client_source_id TEXT REFERENCES clients(id) ON DELETE RESTRICT,
+                site_source_id TEXT REFERENCES sites(id) ON DELETE RESTRICT,
+                client_snapshot_json TEXT,
+                site_snapshot_json TEXT,
+                signatory_name TEXT NOT NULL DEFAULT '',
+                signatory_role TEXT NOT NULL DEFAULT '',
+                regime TEXT CHECK (regime IS NULL OR regime IN ('CONSUMER', 'NON_PROFESSIONAL', 'PROFESSIONAL')),
+                created_at_utc TEXT NOT NULL,
+                updated_at_utc TEXT NOT NULL,
+                CHECK ((client_source_id IS NULL) = (client_snapshot_json IS NULL)),
+                CHECK ((site_source_id IS NULL) = (site_snapshot_json IS NULL))
+            )
+            """,
+            """
+            CREATE TABLE contract_equipment_items (
+                id TEXT PRIMARY KEY,
+                contract_id TEXT NOT NULL REFERENCES contracts(id) ON DELETE RESTRICT,
+                source_equipment_id TEXT NOT NULL REFERENCES equipment(id) ON DELETE RESTRICT,
+                position INTEGER NOT NULL CHECK (position >= 0),
+                equipment_snapshot_json TEXT NOT NULL,
+                observation TEXT NOT NULL DEFAULT '',
+                UNIQUE(contract_id, source_equipment_id),
+                UNIQUE(contract_id, position)
+            )
+            """,
+            "CREATE INDEX idx_contracts_updated ON contracts(updated_at_utc DESC, id)",
+            "CREATE INDEX idx_contract_equipment_order ON contract_equipment_items(contract_id, position)",
+        ),
+    ),
 )
 
 

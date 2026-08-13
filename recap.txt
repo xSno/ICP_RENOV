@@ -1,65 +1,58 @@
-ICP RENOV - CONTRACT MANAGEMENT APP - S1 MASTER DATA RECAP
+ICP RENOV - CONTRACT MANAGEMENT APP - S2 RECAP
 
-Migration and schema
-- S0 migration 1 is preserved unchanged; explicit migration 2 adds clients, sites, and equipment.
-- Migration 1 -> 2 and reopen are deterministic and idempotent; schema_migrations and PRAGMA user_version report version 2.
-- SQLite foreign keys remain enabled. Parent relationships use ON DELETE RESTRICT; no cascade archive or physical-delete workflow exists.
-- The client table contains no contract regime column. The equipment table contains internal_notes and deliberately contains no contract observations column.
+Migration / schema
+- Migrations 1 and 2 are unchanged. Explicit migration 3 adds contracts and contract_equipment_items.
+- Migration 2 -> 3 and repeated initialization are deterministic and idempotent; latest schema version is 3.
+- contracts supports DRAFT / CLIMATE_MAINTENANCE, nullable Contract-only regime, source references, typed JSON snapshots, signatory and timestamps. No business number or revision exists.
+- contract_equipment_items persists stable ids, source references, unique contiguous positions, deterministic snapshots and Contract-only observations.
 
-Domain / repository / service structure
-- domain/master_data.py defines explicit immutable drafts, persisted entities, summaries, display names, and rendered structured addresses.
-- repositories/master_data.py owns all SQLite queries, including bounded aggregate client counts without a client-list N+1 pattern.
-- services/master_data.py owns UUID creation, validation, create/edit, search/list, Archive/Restore, and relationship orchestration.
-- The S0 application composition context constructs and injects MasterDataService; UI widgets execute no SQL, open no database connection, and construct no persistence service.
-- Structured validation/not-found/persistence errors prevent raw SQLite errors from reaching normal UI messaging.
+Contract domain / repository / service
+- domain/contract.py defines the controlled enums, typed client/site/equipment snapshots, Contract aggregate, ordered item and list projection.
+- repositories/contracts.py owns SQL, the snapshot-based list query and atomic client/site cascades, reorder, observation and signatory writes.
+- services/contracts.py owns empty draft creation/reopen, active master selection checks, snapshot orchestration, master creation reuse, cascades, equipment selection/order and Contract-only edits.
+- The application composition root injects ContractService; UI widgets contain no SQL or database construction.
 
-Client semantics
-- Supports only PERSON and ORGANIZATION master classifications.
-- PERSON requires first and last name. ORGANIZATION requires its organization name and supports optional legal form, SIRET, billing address, and proposed reusable contact.
-- Common structured address, optional phone/e-mail, internal reference/notes, opaque UUID, timestamps, and archived state persist.
-- The proposed organization contact is labelled as requiring confirmation in a future contract; it is not a permanent legal signatory.
-- Existing party type remains stable during edit. No consumer/non-professional/professional regime is stored or shown.
+DRAFT and snapshots
+- Nouveau contrat persists an incomplete DRAFT immediately with an opaque UUID only; empty drafts survive restart and are never auto-deleted.
+- Client, site and equipment snapshots serialize deterministically and exclude master internal notes/references not intended as contract-facing data.
+- Existing drafts and the Contracts list read stored snapshots, not live master rows. Later master edits or archives do not silently rewrite or remove selected Contract data.
 
-Site semantics
-- Each site belongs to exactly one client and stores its label, structured address, optional contact and access/instruction notes, UUID/timestamps, and archived state.
-- A client supports zero, one, or multiple sites. Site creation from the client detail binds the selected client automatically.
-- No standalone Sites navigation entry was added.
+Cascades and signatory
+- Changing client atomically replaces its snapshot/reference, resets the signatory prefill, clears regime, site, equipment and observations; master rows remain untouched.
+- Changing site atomically replaces its snapshot/reference and clears equipment plus observations; master rows remain untouched.
+- PERSON prefill is « prénom nom » / « Client ». ORGANIZATION uses the proposed contact when present and otherwise remains blank.
+- Contract signatory edits never update the master client, and later master-contact edits never update an existing draft.
 
-Equipment semantics
-- Each equipment belongs to exactly one site and supports an evolvable equipment-type string, optional brand/model/serial/power/install date/reference/notes, required location, UUID/timestamps, and archived state.
-- Optional power must be numeric and non-negative.
-- Master internal notes remain separate from future contract observations. No maintenance history, planning, ticketing, or GMAO model was added.
+Ordered equipment and observations
+- Only active equipment from the selected site can be newly selected; cross-site and archived selections are rejected by the service.
+- Selections append last. Deselection removes its observation and compacts positions. Monter/Descendre persists contiguous order across restart.
+- Equipment created from the Contract reuses MasterDataService, is automatically selected and appended last.
+- Contract observations are stored only on contract_equipment_items; equipment.internal_notes is neither copied nor mutated.
+- Already selected archived equipment remains visible from its Contract snapshot.
 
-Archive / Restore
-- Client, site, and equipment expose Archive and Restore; the application service exposes no Delete operation.
-- Archiving a client does not change its sites or equipment. Archiving a site does not change its equipment. Equipment archive affects only that equipment.
-- Relationships and counts remain intact throughout archive/restore operations.
-
-Clients & installations UI
-- Replaced only the S0 Clients & installations placeholder with a functional PySide6 split workspace.
-- Left pane: real search, Actifs/Archivés filter, persisted selectable clients, party label, site/equipment counts, and clean empty state.
-- Right pane: selected identity/admin detail, multi-site cards, correctly nested equipment, real empty states, and bounded « Aucun contrat lié » structural reserve.
-- Client, Site, and Equipment creation/editing all use the same scrollable right-side drawer embedded inside the Clients & installations workspace; no editor creates a separate native/top-level window.
-- Every drawer exposes Enregistrer, Annuler, an explicit Fermer action, and Escape dismissal. Validation keeps the drawer open with entered values intact, while Escape/Annuler leave persisted data unchanged.
-- Client fields adapt to Personne/Organisation and keep party type fixed during edit. Nouveau client uses the same primary blue-green treatment as Ajouter un site.
-- Create/edit refreshes and selects sensibly; Archive/Restore respects the current filter. No regime control, Delete action, fake row, or contract-creation action exists.
-- Permanent navigation remains exactly Contrats, Clients & installations, Paramètres; Contrats and Paramètres remain S0 placeholders.
+Contracts UI / workspace
+- The Contrats placeholder is replaced by a bounded persisted draft landing with Nouveau contrat, snapshot-derived client/site labels, Brouillon, last update and reopen.
+- The Contract header shows Retour aux contrats, Brouillon, Brouillon sans numéro, snapshot context and the real save state.
+- Exactly four steps exist: Client, site & équipements; Conditions du contrat; Revue; Documents & suivi. Only step 1 is enabled/functional.
+- Step 1 provides separate select/change and create actions for Client/Site, Contract signatory fields, equipment checkboxes/order/observation and the zero-equipment anomaly.
+- Selectors and reused S1 master editors are embedded right-side drawers with French actions and Escape/cancel closure; no QDialog/top-level editor is introduced.
+- No regime, conclusion mode, model, Conditions content, generation, numbering, revision or Delete action is exposed.
 
 Automated tests
-- Command: QT_QPA_PLATFORM=offscreen; python -W error::ResourceWarning -m unittest discover -s tests -v
-- Result: 40 discovered, 40 passed, 0 skipped, 0 failed.
+- QT_QPA_PLATFORM=offscreen; python -W error::ResourceWarning -m unittest discover -s tests -v
+- Result: 58 discovered, 58 passed, 0 skipped, 0 failed.
+- Coverage includes migration, restart, empty draft, snapshots/non-propagation, non-leakage, signatory, transactional rollback, cascades, archive behavior, equipment collection/order, new-master auto-selection and Qt UI boundaries.
 
 Frozen-spike regression
-- Command: ICP_SKIP_WORD_INTEGRATION=1; python -m unittest discover -s spike/tests -v
+- ICP_SKIP_WORD_INTEGRATION=1; python -m unittest discover -s spike/tests -v
 - Result: 39 discovered, 38 passed, 1 Microsoft Word integration test skipped as required, 0 failed.
-- LibreOffice and Microsoft Word were not invoked.
+- LibreOffice and Microsoft Word were not invoked; frozen spike sources and artifacts were not modified.
 
 Manual smoke
-- PASS using a configured isolated local workspace and the real PySide6 event loop/offscreen platform.
-- Verified a persisted Client -> Site -> Equipment context with an Equipment edit drawer visibly hosted inside the application, French actions, no top-level editor, Escape dismissal without persistence change, and clean application exit.
-- Temporary smoke data was removed.
+- PASS for a visible Windows launch using an isolated configured local workspace: the real application opened on Contrats and closed cleanly.
+- Detailed S2 interactions were exercised through the Qt offscreen regression suite. No screenshot automation was performed; temporary smoke data was removed.
 
-Remaining S1 risks only
-- Final subjective visual acceptance on a visible Windows desktop remains for the user; functional UI behavior was exercised through Qt offscreen.
-- SIRET, phone, date, and equipment type intentionally use only bounded/light validation pending later product decisions.
-- The linked-contract area is intentionally an empty structural state until the Contract slice.
+Remaining S2 risks only
+- Final subjective visual acceptance of the complete representative Client/Site/Equipment draft flow remains for the user on the visible workstation.
+- S2 intentionally has direct per-interaction persistence rather than a queued autosave model.
+- Conditions, Review and Documents & suivi remain intentionally disabled for future slices.

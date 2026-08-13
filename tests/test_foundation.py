@@ -105,9 +105,9 @@ class DatabaseTests(unittest.TestCase):
         with scratch() as temporary:
             database = DatabaseService(Path(temporary) / "app.sqlite3")
             database.initialize()
-            self.assertEqual(database.schema_version(), 2)
+            self.assertEqual(database.schema_version(), 3)
             with database.connection() as connection:
-                self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 2)
+                self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 3)
 
     def test_migration_reopen_is_idempotent(self):
         with scratch() as temporary:
@@ -116,7 +116,7 @@ class DatabaseTests(unittest.TestCase):
             database.initialize()
             with database.connection() as connection:
                 count = connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0]
-            self.assertEqual(count, 2)
+            self.assertEqual(count, 3)
 
 
 class ApplicationContextTests(unittest.TestCase):
@@ -157,6 +157,15 @@ class UiShellTests(unittest.TestCase):
             self.assertEqual(
                 window.shell.navigation_labels,
                 ("Contrats", "Clients & installations", "Paramètres"),
+            )
+            window.close()
+
+    def test_navigation_ampersands_are_escaped_for_qt_rendering(self):
+        with scratch() as temporary:
+            window = self.ready_window(temporary)
+            self.assertEqual(
+                window.shell._buttons["Clients & installations"].text(),
+                "Clients && installations",
             )
             window.close()
 

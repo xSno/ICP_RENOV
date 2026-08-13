@@ -1,4 +1,4 @@
 from .master_data import MasterDataRepository
+from .contracts import ContractRepository
 
-__all__ = ["MasterDataRepository"]
-
+__all__ = ["ContractRepository", "MasterDataRepository"]

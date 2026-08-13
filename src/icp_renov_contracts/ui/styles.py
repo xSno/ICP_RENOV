@@ -56,6 +56,7 @@ def application_stylesheet() -> str:
         border-left: 1px solid {COLORS['border']};
         border-radius: {RADII['md']}px 0 0 {RADII['md']}px;
     }}
+    QWidget#contractStepOne {{ background: transparent; }}
     QLabel#drawerTitle {{ font-size: 21px; font-weight: 700; }}
     QFrame#equipmentRow {{
         background: #F7F9FA;

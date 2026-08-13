@@ -1,4 +1,4 @@
 from .master_data import MasterDataService
+from .contracts import ContractService
 
-__all__ = ["MasterDataService"]
-
+__all__ = ["ContractService", "MasterDataService"]
