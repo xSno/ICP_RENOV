@@ -9,6 +9,13 @@ class DocumentKind(str, Enum):
     CONTRACT = "CONTRACT"
 
 
+class SignedCopyState(str, Enum):
+    NONE = "NONE"
+    VALID = "VALID"
+    MISSING = "MISSING"
+    HASH_MISMATCH = "HASH_MISMATCH"
+
+
 @dataclass(frozen=True)
 class ContractDocument:
     id: str
@@ -22,6 +29,9 @@ class ContractDocument:
     snapshot_json: str
     docx_sha256: str
     pdf_sha256: str
+    signed_pdf_path: str | None = None
+    signed_pdf_hash: str | None = None
+    signed_pdf_attached_at: str | None = None
 
     @property
     def revision(self) -> str:

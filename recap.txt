@@ -1,42 +1,57 @@
-ICP RENOV - CONTRACT MANAGEMENT APP - S6 RECAP
+ICP RENOV - CONTRACT MANAGEMENT APP - S7 RECAP
 
 Implementation
-- Migration 6 preserves migrations 1-5, rebuilds the ContractDocument table only to allow immutable R02+ indices, and adds the single generic append-only contract_events authority with the full canonical event vocabulary, foreign keys, indexes, immutability triggers and document-scope insertion protection.
-- Backfill is deterministic: one CREATED event uses each existing Contract.created_at_utc, and one DOCUMENT_GENERATED event uses each existing CONTRACT ContractDocument.generated_at_utc and exact document id. No sending or unsupported event is inferred; reopening the database creates no duplicate.
-- New Contract creation persists Contract + Conditions + exactly one CREATED event in one transaction. Event failure leaves no partial Contract.
-- Every successful official revision persists its DOCUMENT_GENERATED event in the existing atomic publication transaction. Event failure rolls back DB changes and removes the newly placed pair.
-- Documents & suivi is the functional fourth step for every Contract. A never-generated DRAFT shows “Aucun document” and its creation history. Revisions are newest-first with readable template/version, generation date, restrained latest/previous wording, revision-specific sent marker and safe DOCX/PDF/folder opening.
-- Paths are resolved from workspace-relative persistence and must remain inside the configured workspace. A missing DOCX or PDF keeps the immutable revision visible, disables only that action and shows “Un fichier du contrat est introuvable”; the other file remains usable. Opening a screen, file or folder creates no event.
-- Corriger le contrat uses a bounded confirmation and atomically appends REOPENED_FOR_CORRECTION while changing TO_SIGN to DRAFT. The official number, previous revisions, snapshots, hashes and sending history are preserved; no revision is created by reopening.
-- A reopened DRAFT is a valid numbered/editable state. Steps 1 and 2, Review and Documents & suivi remain functional; the landing shows the retained number, Brouillon and the latest unsigned revision.
-- Later generation derives the next Rxx from durable CONTRACT documents, reuses the official number and never calls NumberAllocator. R02/R03+ preserve all prior revisions. Inconsistent number/document/revision states and file collisions fail closed.
-- R02+ readiness remains within the four accepted Review checks. Review and confirmation show the retained number and next revision; the first-number allocator may be unavailable for an already-numbered correction.
-- Failed R02 renderer, DOCX postflight, conversion/PDF, DB publication, event insertion and collision cases leave DRAFT + existing number + byte-identical R01, with no R02 files/document/event; the next success still creates R02.
-- Enregistrer un envoi records an action performed outside the application. CONTRACT_SENT requires an exact existing CONTRACT revision and real effective_date, accepts an optional note, changes no Contract status and supports historical and multiple sends.
-- Sent state is derived only from CONTRACT_SENT events for the exact document. R01 sent does not mark R02 sent; the compact marker uses the latest declared sending date and History retains every event.
-- History is derived only from ContractEvent, ordered by occurred_at plus stable id tie-breaker, and uses French labels. S6 creates only CREATED, DOCUMENT_GENERATED, CONTRACT_SENT and REOPENED_FOR_CORRECTION.
-- No signature, signed PDF, SIGNED/ACTIVE, renewal, termination, intervention-sheet generation or S7 behavior was added.
+- Migration 7 preserves migrations 1-6 and adds the bounded lifecycle_status projection for SIGNED/ACTIVE, nullable signed_pdf_path/signed_pdf_hash/signed_pdf_attached_at metadata, unique SIGNATURE_RECORDED/ACTIVATED authority, required event fields, and a trigger that keeps every core ContractDocument field immutable while allowing only typed signed-copy metadata updates.
+- Enregistrer la signature is available only for TO_SIGN with an existing CONTRACT revision and no prior signature. The latest revision is preselected, but the user may explicitly sign an older revision after a clear non-blocking warning. SIGNATURE_RECORDED.document_id is the sole signed-revision authority.
+- The selected revision immutable snapshot is the sole authority for contractual start_date. Missing/invalid snapshot start dates fail closed; live Contract data and the latest revision are never substituted.
+- Contract.signature_date is a read-only repository projection of SIGNATURE_RECORDED.effective_date. No editable or duplicate signature-date persistence exists.
+- If signed snapshot start_date is future, signature atomically produces SIGNED and no ACTIVATED. If reached, signature atomically appends SIGNATURE_RECORDED then ACTIVATED, uses snapshot start_date as ACTIVATED.effective_date, and produces ACTIVE.
+- Activation reconciliation runs at startup, Contracts refresh and Contract opening/Documents refresh. It is date-provider driven, idempotent, never reverses ACTIVE, creates no duplicate, and exposes a storage notice if a due transition cannot persist. No Activate action exists.
+- Signed PDF is optional. When supplied, it is validated as a readable/non-empty PDF, staged, copied to documents/contracts/<contract-id>/<Rxx>/signed/<unique>.pdf, hashed SHA-256 and persisted with archival timestamp in the same logical signature publication. The external source is untouched; failure leaves TO_SIGN, no signature/activation and no official orphan.
+- Signature without copy remains valid and shows “Signature enregistrée — copie signée non archivée” plus “Ajouter le PDF signé”. Adding it later updates only signed-copy metadata and creates no ContractEvent.
+- Missing and hash-mismatched copies preserve signature, metadata and lifecycle status. Localiser requires the original stored hash and preserves hash/attached_at; Ajouter une nouvelle copie uses a new unique path/hash/attached_at. Neither action creates a ContractEvent.
+- History uses SIGNATURE_RECORDED and ACTIVATED business entries plus one display-only “Copie signée archivée” row derived from signed_pdf_attached_at. Signed state is shown only on the exact event-linked revision; “Dernière révision” remains independent.
+- After signature, structured services remain locked, Corriger le contrat is unavailable and defensively rejected, and official generation rejects any later Rxx even under inconsistent status. Historical CONTRACT_SENT recording remains available and status-neutral.
+- Contracts landing and Documents & suivi render Brouillon / À signer / Signé / Actif, exact signed/latest revision truth, future-effective information and valid/missing/mismatched copy states without introducing a new screen or workflow.
 
 Automated validation
-- Application command: QT_QPA_PLATFORM=offscreen; python -W error::ResourceWarning -m unittest discover -s tests -v
-- Result: 157 discovered, 157 passed, 0 skipped, 0 failed.
-- S6 targeted migration/lifecycle/revision/UI suite: 11 passed, 0 failed.
-- Frozen spike command: ICP_SKIP_WORD_INTEGRATION=1; python -m unittest discover -s spike/tests -v
-- Result: 39 discovered, 38 passed, 1 Microsoft Word integration test skipped as required, 0 failed.
+- Application: QT_QPA_PLATFORM=offscreen; python -W error::ResourceWarning -m unittest discover -s tests -v
+- Result: 167 discovered, 167 passed, 0 skipped, 0 failed.
+- Targeted S7 migration/lifecycle/atomicity/copy/UI suite: 10 passed, 0 failed.
+- Frozen spike: ICP_SKIP_WORD_INTEGRATION=1; python -m unittest discover -s spike/tests -v
+- Result: 39 discovered, 38 passed, 1 Microsoft Word integration skipped as required, 0 failed.
 
-Real LibreOffice S6 smoke
+Real LibreOffice S7 smoke
 - PASS with C:\Program Files\LibreOffice\program\soffice.com, LibreOffice 26.2.5.2.
-- Disposable workspace: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S6_R01_R02_SMOKE_20260813_V2\WorkspaceFixture\workspace
-- Contract 0f8aa285-c860-44fc-8f8c-2d9324719e9d retained number SYNTH-S5-0001 through R01 -> CONTRACT_SENT -> correction -> R02; final status TO_SIGN.
-- NumberAllocator consumption: exactly 1 for R01; R02 succeeded while its allocator was unavailable and made no preview/allocation call.
-- Durable history is exactly CREATED, DOCUMENT_GENERATED R01, CONTRACT_SENT R01 (effective 13/08/2026), REOPENED_FOR_CORRECTION, DOCUMENT_GENERATED R02, with exact document references and no event from four file openings.
-- R01 remained byte-for-byte/hash unchanged. “CORRECTION SYNTHÉTIQUE S6 — R02 UNIQUEMENT” is absent from R01 and present in R02. R01 remains sent; R02 is initially not sent. Both DOCX and PDF pairs are readable; both PDFs have 5 pages.
-- R01 DOCX: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S6_R01_R02_SMOKE_20260813_V2\WorkspaceFixture\workspace\documents\contracts\0f8aa285-c860-44fc-8f8c-2d9324719e9d\R01\SYNTH-S5-0001_R01.docx
-- R01 PDF: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S6_R01_R02_SMOKE_20260813_V2\WorkspaceFixture\workspace\documents\contracts\0f8aa285-c860-44fc-8f8c-2d9324719e9d\R01\SYNTH-S5-0001_R01.pdf
-- R02 DOCX: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S6_R01_R02_SMOKE_20260813_V2\WorkspaceFixture\workspace\documents\contracts\0f8aa285-c860-44fc-8f8c-2d9324719e9d\R02\SYNTH-S5-0001_R02.docx
-- R02 PDF: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S6_R01_R02_SMOKE_20260813_V2\WorkspaceFixture\workspace\documents\contracts\0f8aa285-c860-44fc-8f8c-2d9324719e9d\R02\SYNTH-S5-0001_R02.pdf
+- Evidence root: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S7_SMOKE_20260813_V1
+- Contract: 1b528cac-9804-4e26-8a1b-5fe55b2a5462; permanent number SYNTH-S5-0001.
+- Real production pipeline generated R01 and corrected R02. R01 start_date=14/08/2026; R02 start_date=12/08/2026. R01 was explicitly selected as signed while R02 remained the latest revision.
+- Future-date result on 13/08/2026: SIGNED, one SIGNATURE_RECORDED linked exactly to R01, no ACTIVATED. Reconciliation on 14/08/2026: ACTIVE, exactly one ACTIVATED with effective_date=14/08/2026; repeat reconciliation had no effect.
+- R01 generated DOCX/PDF hashes remained byte-identical before/after signature. R02 remained distinct and unchanged. The archived signed copy is linked only to R01; its SHA-256 equals the untouched synthetic source.
+- DOCX postflight and PDF validation passed. R01, R02 and archived signed copy each have 5 pages. All 15 pages were rasterized and visually accepted with no clipping, overlap, broken glyph, table, signature, header/footer or page-break defect. PNGs/contact sheets remain under evidence-root\qa_pages.
+- R01 DOCX: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S7_SMOKE_20260813_V1\C_D_SIGNED_FUTURE_WITH_COPY\workspace\documents\contracts\1b528cac-9804-4e26-8a1b-5fe55b2a5462\R01\SYNTH-S5-0001_R01.docx
+- R01 PDF: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S7_SMOKE_20260813_V1\C_D_SIGNED_FUTURE_WITH_COPY\workspace\documents\contracts\1b528cac-9804-4e26-8a1b-5fe55b2a5462\R01\SYNTH-S5-0001_R01.pdf
+- R02 DOCX: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S7_SMOKE_20260813_V1\C_D_SIGNED_FUTURE_WITH_COPY\workspace\documents\contracts\1b528cac-9804-4e26-8a1b-5fe55b2a5462\R02\SYNTH-S5-0001_R02.docx
+- R02 PDF: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S7_SMOKE_20260813_V1\C_D_SIGNED_FUTURE_WITH_COPY\workspace\documents\contracts\1b528cac-9804-4e26-8a1b-5fe55b2a5462\R02\SYNTH-S5-0001_R02.pdf
+- Archived signed R01 PDF: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S7_SMOKE_20260813_V1\C_D_SIGNED_FUTURE_WITH_COPY\workspace\documents\contracts\1b528cac-9804-4e26-8a1b-5fe55b2a5462\R01\signed\signed-33534004871d46fc9c0829dd59fafa5c.pdf
+- Machine-readable evidence: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S7_SMOKE_20260813_V1\smoke-results.json
 
-Remaining S6 risks only
-- Real production Company and PQ-08 first-number providers remain intentionally unavailable in the default composition; the smoke uses explicit synthetic dependencies.
-- OS opening is path-validated and covered through an injected opener; user workstation file associations remain an external dependency.
-- Missing-file repair/Locate workflow, signature and all later lifecycle phases remain deferred by scope.
+DEVELOPMENT VISUAL SMOKE
+- A / B (TO_SIGN R01+R02, then open Documents & suivi and click Enregistrer la signature):
+  $workspace='C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S7_SMOKE_20260813_V1\A_TO_SIGN_R01_R02\workspace'; python -c "from pathlib import Path; from icp_renov_contracts.config import BootstrapConfig,MachineConfigStore; MachineConfigStore().save(BootstrapConfig(Path(r'$workspace')))"; python -m icp_renov_contracts
+- C / D (SIGNED future start, R01 signed with valid copy, R02 latest):
+  $workspace='C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S7_SMOKE_20260813_V1\C_D_SIGNED_FUTURE_WITH_COPY\workspace'; python -c "from pathlib import Path; from icp_renov_contracts.config import BootstrapConfig,MachineConfigStore; MachineConfigStore().save(BootstrapConfig(Path(r'$workspace')))"; python -m icp_renov_contracts
+- E (signature recorded without copy, Ajouter le PDF signé available):
+  $workspace='C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S7_SMOKE_20260813_V1\E_SIGNED_WITHOUT_COPY\workspace'; python -c "from pathlib import Path; from icp_renov_contracts.config import BootstrapConfig,MachineConfigStore; MachineConfigStore().save(BootstrapConfig(Path(r'$workspace')))"; python -m icp_renov_contracts
+- F (missing signed copy, Localiser / Ajouter une nouvelle copie):
+  $workspace='C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S7_SMOKE_20260813_V1\F_MISSING_SIGNED_COPY\workspace'; python -c "from pathlib import Path; from icp_renov_contracts.config import BootstrapConfig,MachineConfigStore; MachineConfigStore().save(BootstrapConfig(Path(r'$workspace')))"; python -m icp_renov_contracts
+- G (ACTIVE with one durable ACTIVATED):
+  $workspace='C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S7_SMOKE_20260813_V1\G_ACTIVE\workspace'; python -c "from pathlib import Path; from icp_renov_contracts.config import BootstrapConfig,MachineConfigStore; MachineConfigStore().save(BootstrapConfig(Path(r'$workspace')))"; python -m icp_renov_contracts
+
+Remaining S7 risks only
+- The application archives the user-declared signed PDF and checks file integrity by SHA-256; electronic-signature/certificate authenticity is intentionally not verified.
+- Date-driven activation runs at bounded local application entry points rather than a background scheduler; a workstation that is not opened cannot persist the due transition until the next entry point.
+- A due activation that cannot write local storage remains durably SIGNED and requires a later successful reconciliation; there is intentionally no manual activation fallback.
+- Real Company and first-number providers remain intentionally unavailable in default composition; the smoke uses accepted synthetic providers. OS file opening still depends on workstation file associations.
+
+No changes under docs/, templates/ or spike/. No commit. No renewal, termination, intervention-sheet workflow or S8 implementation.

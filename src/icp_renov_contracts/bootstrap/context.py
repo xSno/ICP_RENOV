@@ -81,6 +81,9 @@ def build_application_context(
     lifecycle = ContractLifecycleService(
         database, contracts, ContractDocumentRepository(database), ContractEventRepository(database), workspace.root
     )
+    failures = lifecycle.reconcile_due_activations()
+    if failures:
+        application_logger.error("Due contract activation reconciliation failed for %s", ",".join(failures))
     review.generation_ready = generation.available
     application_logger.info("Local workspace and database initialized")
     return ApplicationContext(

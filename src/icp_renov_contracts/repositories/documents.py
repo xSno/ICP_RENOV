@@ -13,6 +13,8 @@ def _document(row: sqlite3.Row) -> ContractDocument:
         template_version_id=row["template_version_id"], docx_relpath=row["docx_relpath"],
         pdf_relpath=row["pdf_relpath"], snapshot_json=row["snapshot_json"],
         docx_sha256=row["docx_sha256"], pdf_sha256=row["pdf_sha256"],
+        signed_pdf_path=row["signed_pdf_path"], signed_pdf_hash=row["signed_pdf_hash"],
+        signed_pdf_attached_at=row["signed_pdf_attached_at"],
     )
 
 
@@ -44,3 +46,22 @@ class ContractDocumentRepository:
              document.generated_at_utc, document.template_version_id, document.docx_relpath,
              document.pdf_relpath, document.snapshot_json, document.docx_sha256, document.pdf_sha256),
         )
+
+    @staticmethod
+    def set_signed_copy(connection: sqlite3.Connection, document_id: str, relpath: str,
+                        digest: str, attached_at: str) -> None:
+        cursor = connection.execute(
+            "UPDATE contract_documents SET signed_pdf_path=?,signed_pdf_hash=?,signed_pdf_attached_at=? WHERE id=?",
+            (relpath, digest, attached_at, document_id),
+        )
+        if cursor.rowcount != 1:
+            raise sqlite3.IntegrityError("signed document missing")
+
+    @staticmethod
+    def relocate_signed_copy(connection: sqlite3.Connection, document_id: str, relpath: str) -> None:
+        cursor = connection.execute(
+            "UPDATE contract_documents SET signed_pdf_path=? WHERE id=? AND signed_pdf_hash IS NOT NULL",
+            (relpath, document_id),
+        )
+        if cursor.rowcount != 1:
+            raise sqlite3.IntegrityError("signed document metadata missing")

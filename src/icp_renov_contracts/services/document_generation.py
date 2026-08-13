@@ -39,6 +39,8 @@ class DocumentGenerationService:
         try:
             contract=self.contracts.get(contract_id);version=self.contracts.selected_template_version(contract_id);documents=self.documents.list_for_contract(contract_id)
             if contract.status is not ContractStatus.DRAFT or not version or not self.company_provider.available() or not self.converter.available():return False
+            with self.database.connection() as connection:
+                if connection.execute("SELECT 1 FROM contract_events WHERE contract_id=? AND type='SIGNATURE_RECORDED'",(contract_id,)).fetchone():return False
             if bool(contract.number)!=bool(documents):return False
             if not documents and not self.number_allocator.available():return False
             company=self._prepared_company(self.company_provider.get());return all(company.get(key) not in (None,"") for key in version.required_company_fields)
@@ -60,6 +62,9 @@ class DocumentGenerationService:
             contract=self.contracts.get(contract_id);existing=self.documents.list_for_contract(contract_id)
             if contract.status is not ContractStatus.DRAFT:
                 raise DocumentGenerationError("status","Ce contrat ne peut plus être généré.")
+            with self.database.connection() as connection:
+                if connection.execute("SELECT 1 FROM contract_events WHERE contract_id=? AND type='SIGNATURE_RECORDED'",(contract_id,)).fetchone():
+                    raise DocumentGenerationError("signed","Ce contrat signé ne peut plus produire de nouvelle révision.")
             if bool(contract.number)!=bool(existing):raise DocumentGenerationError("revision_integrity","L’historique des révisions est incohérent.")
             indices=[item.revision_index for item in existing]
             if len(indices)!=len(set(indices)):raise DocumentGenerationError("revision_integrity","L’historique des révisions est incohérent.")
@@ -98,6 +103,8 @@ class DocumentGenerationService:
             try:
                 with self.database.transaction() as connection:
                     current=connection.execute("SELECT COALESCE(generation_status,status),number FROM contracts WHERE id=?",(contract.id,)).fetchone()
+                    if connection.execute("SELECT 1 FROM contract_events WHERE contract_id=? AND type='SIGNATURE_RECORDED'",(contract.id,)).fetchone():
+                        raise DocumentGenerationError("signed","Ce contrat signé ne peut plus produire de nouvelle révision.")
                     durable=connection.execute("SELECT revision_index FROM contract_documents WHERE contract_id=? AND document_kind='CONTRACT' ORDER BY revision_index",(contract.id,)).fetchall()
                     if not current or current[0]!="DRAFT" or current[1]!=contract.number or [row[0] for row in durable]!=indices:raise DocumentGenerationError("status","Ce contrat ne peut plus être généré.")
                     allocated=self.number_allocator.allocate(connection) if first else current[1]

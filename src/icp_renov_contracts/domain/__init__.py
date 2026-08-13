@@ -11,7 +11,7 @@ from .contract import (
     ClientSnapshot, Contract, ContractEquipmentItem, ContractListItem,
     ContractRegime, ContractStatus, ContractType, EquipmentSnapshot, SiteSnapshot,
 )
-from .documents import ContractDocument, DocumentKind
+from .documents import ContractDocument, DocumentKind, SignedCopyState
 from .events import ContractEvent, ContractEventType
 from .conditions import (
     ConclusionMode, ContextAuthorization, ContractConditions, ContractTemplate,
@@ -31,6 +31,7 @@ __all__ = [
     "ClientSnapshot", "Contract", "ContractEquipmentItem", "ContractListItem",
     "ContractRegime", "ContractStatus", "ContractType", "EquipmentSnapshot", "SiteSnapshot",
     "ContractEvent", "ContractEventType",
+    "ContractDocument", "DocumentKind", "SignedCopyState",
     "ConclusionMode", "ContextAuthorization", "ContractConditions", "ContractTemplate",
     "ContractTemplateVersion", "ControlledOption", "DurationMode", "PaymentTermOption",
     "RefrigerantHandlingMode", "RenewalMode", "RenewalPriceRule", "TemplateDefaults",

@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
     QPlainTextEdit, QPushButton, QScrollArea, QStackedWidget, QVBoxLayout, QWidget,
 )
 
-from ..domain import Contract, ContractStatus
+from ..domain import Contract, ContractStatus, SignedCopyState
 from ..errors import ApplicationError, MasterDataValidationError
 from ..services import ContractLifecycleService, ContractService, DocumentGenerationService, ReviewService
 from .master_forms import BaseEditor, ClientEditor, EquipmentEditor, SiteEditor
@@ -148,13 +148,19 @@ class ContractsView(QWidget):
         return page
 
     def refresh_drafts(self) -> None:
+        if self.lifecycle_service:self.lifecycle_service.reconcile_due_activations()
         drafts = self.service.list_drafts(); self.draft_list.clear()
         for draft in drafts:
             try: updated = datetime.fromisoformat(draft.updated_at_utc).astimezone().strftime("%d/%m/%Y %H:%M")
             except ValueError: updated = draft.updated_at_utc
             number = draft.number or "Brouillon sans numéro"
-            status = "À signer" if draft.status is ContractStatus.TO_SIGN else "Brouillon"
-            documents=f"{draft.latest_revision} · non signé" if draft.latest_revision else "Aucun document"
+            status = {ContractStatus.DRAFT:"Brouillon",ContractStatus.TO_SIGN:"À signer",ContractStatus.SIGNED:"Signé",ContractStatus.ACTIVE:"Actif"}[draft.status]
+            if draft.signed_revision:
+                authority=self.lifecycle_service.signature_authority(draft.id) if self.lifecycle_service else None
+                state=self.lifecycle_service.signed_copy_state(authority.document) if self.lifecycle_service and authority else SignedCopyState.NONE
+                copy={SignedCopyState.NONE:"Copie signée non archivée",SignedCopyState.VALID:"Copie signée",SignedCopyState.MISSING:"Copie signée introuvable",SignedCopyState.HASH_MISMATCH:"Copie signée altérée"}[state]
+                documents=f"{draft.signed_revision} · signé · {copy}"
+            else:documents=f"{draft.latest_revision} · non signé" if draft.latest_revision else "Aucun document"
             item = QListWidgetItem(f"{number}\n{draft.client_name} · {draft.site_label}\n{status} · {documents} · {updated}")
             item.setData(Qt.ItemDataRole.UserRole, draft.id); self.draft_list.addItem(item)
         self.draft_empty.setVisible(not drafts); self.draft_list.setVisible(bool(drafts)); self.open_button.setEnabled(bool(drafts))
@@ -167,6 +173,7 @@ class ContractsView(QWidget):
         if item: self.open_contract(item.data(Qt.ItemDataRole.UserRole))
 
     def open_contract(self, contract_id: str) -> None:
+        if self.lifecycle_service:self.lifecycle_service.reconcile_due_activations()
         self.contract_id = contract_id; self.pages.setCurrentWidget(self.workspace); self.step_pages.setCurrentIndex(0); self.render_contract()
 
     def navigate_step(self, index: int) -> None:
@@ -202,9 +209,9 @@ class ContractsView(QWidget):
     def render_contract(self, notice: str = "") -> None:
         if self.contract_id is None: return
         contract = self.service.get(self.contract_id); self._clear_step()
-        locked = contract.status is ContractStatus.TO_SIGN
+        locked = contract.status is not ContractStatus.DRAFT
         self.number_label.setText(contract.number or "Brouillon sans numéro")
-        self.status_label.setText("À signer" if locked else "Brouillon")
+        self.status_label.setText({ContractStatus.DRAFT:"Brouillon",ContractStatus.TO_SIGN:"À signer",ContractStatus.SIGNED:"Signé",ContractStatus.ACTIVE:"Actif"}[contract.status])
         client_name = contract.client_snapshot.display_name if contract.client_snapshot else "Client à sélectionner"
         site_name = contract.site_snapshot.label if contract.site_snapshot else "Site à sélectionner"
         self.workspace_context.setText(f"{client_name} · {site_name}")

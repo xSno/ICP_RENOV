@@ -10,6 +10,8 @@ from .master_data import ClientMaster, EquipmentMaster, SiteMaster
 class ContractStatus(str, Enum):
     DRAFT = "DRAFT"
     TO_SIGN = "TO_SIGN"
+    SIGNED = "SIGNED"
+    ACTIVE = "ACTIVE"
 
 
 class ContractType(str, Enum):
@@ -138,6 +140,7 @@ class Contract:
     equipment_items: tuple[ContractEquipmentItem, ...]
     created_at_utc: str
     updated_at_utc: str
+    signature_date: str | None = None
 
 
 @dataclass(frozen=True)
@@ -149,3 +152,5 @@ class ContractListItem:
     site_label: str
     updated_at_utc: str
     latest_revision: str | None = None
+    signed_revision: str | None = None
+    signed_copy_state: str | None = None

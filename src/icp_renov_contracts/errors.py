@@ -55,6 +55,12 @@ class ContractPersistenceError(ApplicationError):
 class ContractLifecycleError(ApplicationError):
     user_message = "Le suivi du contrat ne peut pas être enregistré."
 
+    def __init__(self, detail: str = "", user_message: str | None = None) -> None:
+        self.detail = detail
+        if user_message is not None:
+            self.user_message = user_message
+        super().__init__(detail or self.user_message)
+
 
 class ContractConditionsValidationError(ApplicationError):
     user_message = "Certaines conditions sont invalides."

@@ -362,6 +362,52 @@ MIGRATIONS = (
             """,
         ),
     ),
+    Migration(
+        7,
+        (
+            "ALTER TABLE contracts ADD COLUMN lifecycle_status TEXT CHECK (lifecycle_status IS NULL OR lifecycle_status IN ('SIGNED','ACTIVE'))",
+            "DROP TRIGGER contract_documents_immutable_update",
+            "ALTER TABLE contract_documents ADD COLUMN signed_pdf_path TEXT",
+            "ALTER TABLE contract_documents ADD COLUMN signed_pdf_hash TEXT",
+            "ALTER TABLE contract_documents ADD COLUMN signed_pdf_attached_at TEXT",
+            """
+            CREATE TRIGGER contract_documents_core_immutable_update
+            BEFORE UPDATE ON contract_documents
+            WHEN NEW.id IS NOT OLD.id
+              OR NEW.contract_id IS NOT OLD.contract_id
+              OR NEW.document_kind IS NOT OLD.document_kind
+              OR NEW.revision_index IS NOT OLD.revision_index
+              OR NEW.generated_at_utc IS NOT OLD.generated_at_utc
+              OR NEW.template_version_id IS NOT OLD.template_version_id
+              OR NEW.docx_relpath IS NOT OLD.docx_relpath
+              OR NEW.pdf_relpath IS NOT OLD.pdf_relpath
+              OR NEW.snapshot_json IS NOT OLD.snapshot_json
+              OR NEW.docx_sha256 IS NOT OLD.docx_sha256
+              OR NEW.pdf_sha256 IS NOT OLD.pdf_sha256
+            BEGIN
+                SELECT RAISE(ABORT, 'contract document core is immutable');
+            END
+            """,
+            "CREATE UNIQUE INDEX idx_contract_one_signature ON contract_events(contract_id) WHERE type='SIGNATURE_RECORDED'",
+            "CREATE UNIQUE INDEX idx_contract_one_activation ON contract_events(contract_id) WHERE type='ACTIVATED'",
+            """
+            CREATE TRIGGER contract_signature_required_fields
+            BEFORE INSERT ON contract_events
+            WHEN NEW.type='SIGNATURE_RECORDED' AND (NEW.document_id IS NULL OR NEW.effective_date IS NULL)
+            BEGIN
+                SELECT RAISE(ABORT, 'signature event fields required');
+            END
+            """,
+            """
+            CREATE TRIGGER contract_activation_required_fields
+            BEFORE INSERT ON contract_events
+            WHEN NEW.type='ACTIVATED' AND (NEW.effective_date IS NULL OR NEW.document_id IS NOT NULL)
+            BEGIN
+                SELECT RAISE(ABORT, 'activation event fields invalid');
+            END
+            """,
+        ),
+    ),
 )
 
 

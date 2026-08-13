@@ -1,36 +1,29 @@
-ICP RENOV - CONTRACT MANAGEMENT APP - S6 DIFF
+ICP RENOV - CONTRACT MANAGEMENT APP - S7 DIFF
 
 FILES CREATED
-- src/icp_renov_contracts/domain/events.py: immutable ContractEvent and exact canonical ContractEventType vocabulary.
-- src/icp_renov_contracts/repositories/events.py: append/query-only event repository.
-- src/icp_renov_contracts/services/contract_events.py: correction/send lifecycle rules, revision/history queries and injectable safe file opening.
-- src/icp_renov_contracts/ui/documents_view.py: functional Documents & suivi step, revision list, History, correction confirmation and external-send recording modal.
-- tests/test_contract_events.py: migration/backfill/immutability, CREATED atomicity, generation-event atomicity, R02/R03, failure matrix, numbering, sending, file integrity/opening and UI coverage.
+- tests/test_signature.py: migration 7, exact older-revision signature, snapshot start-date authority, SIGNED/ACTIVE reconciliation, signature projection, atomic failures/collision, post-signature locks, signed-copy integrity/recovery and Qt UI coverage.
 
 FILES MODIFIED
-- src/icp_renov_contracts/database/service.py: migration 6, R02+ ContractDocument constraint, ContractEvent schema/backfill/indexes/immutability/document-scope protection.
-- src/icp_renov_contracts/domain/__init__.py: event exports.
-- src/icp_renov_contracts/domain/contract.py: latest revision in bounded landing summary.
-- src/icp_renov_contracts/errors.py: bounded lifecycle persistence error.
-- src/icp_renov_contracts/repositories/__init__.py: event repository export.
-- src/icp_renov_contracts/repositories/contracts.py: atomic Contract/Conditions/CREATED insert and latest-revision query.
-- src/icp_renov_contracts/repositories/documents.py: exact document lookup for lifecycle validation/opening.
-- src/icp_renov_contracts/services/__init__.py: lifecycle/opener exports.
-- src/icp_renov_contracts/services/contracts.py: one CREATED event per new Contract in the creation transaction.
-- src/icp_renov_contracts/services/document_generation.py: contract-specific readiness, integrity checks, generic durable Rxx calculation, number reuse and atomic DOCUMENT_GENERATED insertion.
-- src/icp_renov_contracts/bootstrap/context.py: ContractLifecycleService composition.
-- src/icp_renov_contracts/ui/main_window.py, ui/shell.py, ui/surfaces.py: lifecycle dependency routing without navigation changes.
-- src/icp_renov_contracts/ui/contracts_view.py: always-accessible step 4, numbered reopened DRAFT behavior, latest-document landing summary and lifecycle refresh.
-- src/icp_renov_contracts/ui/review_view.py: retained-number/next-revision wording and R02+ confirmation semantics.
-- tests/test_foundation.py, tests/test_master_data.py, tests/test_contracts.py, tests/test_conditions.py, tests/test_review.py, tests/test_document_generation.py: migration-6 and enabled-step-4 expectations while preserving S0-S5 assertions.
-- recap.txt: concise S6 behavior, test results, real LibreOffice smoke and exact R01/R02 paths.
-- diff.txt: exact S6 inventory.
+- src/icp_renov_contracts/database/service.py: appended migration 7 only; lifecycle projection, signed-copy fields, bounded document immutability trigger, signature/activation uniqueness and required fields.
+- src/icp_renov_contracts/domain/contract.py: SIGNED/ACTIVE states, read-only signature_date projection field and bounded signed-revision landing summary.
+- src/icp_renov_contracts/domain/documents.py: nullable signed-copy metadata and SignedCopyState.
+- src/icp_renov_contracts/domain/__init__.py: S7 domain exports.
+- src/icp_renov_contracts/errors.py: bounded lifecycle error messages without raw storage exceptions.
+- src/icp_renov_contracts/repositories/contracts.py: lifecycle status, signature-date and signed-revision projections.
+- src/icp_renov_contracts/repositories/documents.py: signed-copy hydration plus narrowly typed set/relocate metadata operations.
+- src/icp_renov_contracts/services/contract_events.py: exact signed authority, signature/activation atomicity, business-date provider, reconciliation, signed-copy validation/archive/hash/open/locate/replace and no-copy/integrity states.
+- src/icp_renov_contracts/services/document_generation.py: defensive no-Rxx-after-signature checks in availability, preflight and publication transaction.
+- src/icp_renov_contracts/services/__init__.py: business-date and signed-authority exports.
+- src/icp_renov_contracts/bootstrap/context.py: startup activation reconciliation and bounded failure logging.
+- src/icp_renov_contracts/ui/documents_view.py: frozen signature modal, exact revision warning/summary, SIGNED/ACTIVE history, signed-copy actions/states and no Activate action.
+- src/icp_renov_contracts/ui/contracts_view.py: reconciliation entry points, SIGNED/ACTIVE labels, documentary summaries and structural locking.
+- tests/test_foundation.py, tests/test_master_data.py, tests/test_contracts.py, tests/test_conditions.py, tests/test_contract_events.py: migration baseline advanced from 6 to 7 only.
+- recap.txt: S7 behavior, tests, real smoke, artifact paths, visual-fixture commands and remaining S7 risks.
+- diff.txt: exact S7 file inventory.
 
 FILES REMOVED
 - None.
 
 PRESERVED / OUT OF SCOPE
-- Zero modifications under docs/, templates/ or spike/.
-- No authoritative DOCX template mutation.
-- No signature/S7, signed PDF, SIGNED/ACTIVE, renewal, termination, abandonment, intervention-sheet workflow, Company/numbering settings, backup/restore, packaging or commit.
-- Existing accepted S5 working-tree implementation was preserved; no restore/reset/clean operation was used.
+- Zero modifications under docs/, templates/ or spike/; migrations 1-6 and production DOCX templates unchanged.
+- No new event table/type, signed document/revision, manual activation, electronic-signature verification, renewal, termination, intervention-sheet generation, S8 work or commit.

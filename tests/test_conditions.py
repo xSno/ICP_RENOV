@@ -78,9 +78,9 @@ class MigrationFourTests(unittest.TestCase):
                 connection.execute("INSERT INTO contracts(id,status,type_code,created_at_utc,updated_at_utc) VALUES ('draft','DRAFT','CLIMATE_MAINTENANCE','t','t')")
                 connection.execute("PRAGMA user_version=3"); connection.commit()
             database = DatabaseService(path); database.initialize(); database.initialize()
-            self.assertEqual(database.schema_version(), 6)
+            self.assertEqual(database.schema_version(), 7)
             with database.connection() as connection:
-                self.assertEqual(connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0], 6)
+                self.assertEqual(connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0], 7)
                 self.assertEqual(connection.execute("SELECT contract_id FROM contract_conditions").fetchone()[0], "draft")
 
 
