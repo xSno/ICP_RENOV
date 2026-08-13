@@ -1,0 +1,1516 @@
+UX_SPEC_V1_2
+Générateur local de contrats d’entretien de climatisation
+Projet : ICP Renov
+Date : 12 août 2026
+Statut : BASELINE UX V1.2 CONSOLIDÉE APRÈS REVUE ÉCRAN PAR ÉCRAN
+
+============================================================
+0. RÔLE ET AUTORITÉ DU DOCUMENT
+============================================================
+
+Cette spécification accompagne le prototype UX global V1.2.
+
+Elle consolide dans la baseline V1.1 tous les arbitrages validés pendant la revue humaine écran par écran. Elle décrit :
+- l’architecture de navigation conservée ;
+- les écrans et surfaces ;
+- les interactions démontrables ;
+- les règles de cycle de vie ;
+- les contrôles de génération ;
+- les états dégradés ;
+- les données de démonstration ;
+- les quatre Product Questions qui restent ouvertes.
+
+Elle ne constitue pas :
+- une architecture technique de production ;
+- une validation juridique des contrats ;
+- une preuve de fiabilité du moteur DOCX/PDF ;
+- une décision sur les Product Questions ouvertes ;
+- un plan de développement.
+
+Sources réconciliées, par ordre d’autorité :
+1. addendum de consolidation V1.2 après revue écran par écran ;
+2. UX_SPEC_V1_1 et prototype UX V1.1 ;
+3. arbitrages finaux de la passe V1.1 ;
+4. amendements du kickoff UX ;
+5. cadrage produit Lead Product ;
+6. Field & Template Contract ;
+7. modèle documentaire comme source de structure, sans valeur de validation juridique.
+
+============================================================
+1. DIRECTION UX CONSERVÉE
+============================================================
+
+La navigation permanente comporte exactement trois entrées :
+1. Contrats
+2. Clients & installations
+3. Paramètres
+
+La liste Contrats reste l’accueil opérationnel.
+
+La création, la correction avant signature et la consultation utilisent le même espace Contrat, structuré en quatre étapes :
+1. Client, site & équipements
+2. Conditions du contrat
+3. Revue
+4. Documents & suivi
+
+La première configuration reste un parcours temporaire hors navigation permanente.
+
+Le sélecteur « Scénario de revue » appartient uniquement au prototype. Il sert à atteindre les états rares et dégradés. Il n’existe pas dans le produit final.
+
+Principes conservés :
+- application métier desktop claire et modérément dense ;
+- thème clair prioritaire ;
+- aucune page Dashboard ;
+- tableaux pour les listes et données répétées ;
+- drawers pour les créations inline ;
+- résumé latéral non éditable ;
+- revue structurée plutôt qu’aperçu WYSIWYG ;
+- données maîtres séparées des snapshots de contrat ;
+- technique documentaire invisible dans l’usage normal ;
+- messages d’erreur orientés action ;
+- dates explicites au format français ;
+- aucun compte cloud, CRM, planning ou GMAO ;
+- aucune communication externe automatique.
+
+Règle de classification :
+- une fiche client maître est Personne ou Organisation ;
+- le régime Consommateur, Non-professionnel ou Professionnel appartient au contrat ;
+- le régime n’est jamais déduit automatiquement de la fiche client ;
+- le signataire est confirmé dans le contrat et reste propre à celui-ci.
+
+============================================================
+2. ARCHITECTURE DE NAVIGATION
+============================================================
+
+NAVIGATION PERMANENTE
+
+Contrats
+└─ Liste des contrats / accueil
+   └─ Espace contrat
+      ├─ Client, site & équipements
+      ├─ Conditions du contrat
+      ├─ Revue
+      └─ Documents & suivi
+
+Clients & installations
+└─ Liste clients + fiche sélectionnée
+   ├─ Identité et coordonnées
+   ├─ Sites
+   ├─ Équipements par site
+   └─ Contrats liés
+
+Paramètres
+├─ Société
+├─ Modèles
+├─ Numérotation & alertes
+├─ Stockage & sauvegarde
+└─ Diagnostic génération
+
+PARCOURS TEMPORAIRE
+
+Première utilisation
+├─ Configurer ce poste
+│  ├─ Dossier de travail
+│  ├─ Société
+│  ├─ Premier modèle
+│  ├─ Numérotation
+│  ├─ Test
+│  └─ Sauvegarde initiale
+└─ Restaurer une sauvegarde existante
+
+Règles :
+- aucune navigation séparée Sites, Équipements, Modèles ou Archives ;
+- aucun écran permanent ajouté ;
+- un contrat s’ouvre depuis Contrats, un contrat lié ou l’action d’un site ;
+- le retour Contrats conserve le brouillon ;
+- l’étape active reste visible ;
+- la restauration initiale ne crée pas d’entrée de navigation permanente.
+
+============================================================
+3. INVENTAIRE FINAL DES ÉCRANS ET SURFACES
+============================================================
+
+------------------------------------------------------------
+S10 — CONTRATS / ACCUEIL OPÉRATIONNEL
+------------------------------------------------------------
+
+Rôle : retrouver un contrat et distinguer immédiatement ce qui exige une action de ce qui constitue seulement une information de suivi.
+
+En-tête :
+- titre Contrats ;
+- texte court ;
+- CTA Nouveau contrat.
+
+Bandeau opérationnel :
+- libellé « Actions à traiter maintenant ou prochainement » ;
+- compteur des contrats qui nécessitent réellement une intervention ;
+- action vers le filtre Actions à traiter ;
+- état de la dernière sauvegarde ;
+- action Sauvegarder maintenant ;
+- rappel persistant si la configuration a été terminée sans sauvegarde.
+
+Actions réellement à traiter :
+- préparer une échéance ;
+- relancer une signature ;
+- compléter un brouillon ;
+- toute autre intervention explicite attendue de l’utilisateur.
+
+Informations de suivi, exclues du filtre et du compteur :
+- prise d’effet future ;
+- résiliation déjà programmée ;
+- état calculé qui n’appelle pas d’action immédiate.
+
+Recherche :
+- numéro ;
+- client ;
+- site.
+
+Filtres :
+- Tous ;
+- Actions à traiter ;
+- Brouillons ;
+- Actifs ;
+- Terminés.
+
+Table :
+- Contrat ;
+- Client & site ;
+- Statut ;
+- Échéance ;
+- Action ou information ;
+- Documents ;
+- ouverture de la ligne.
+
+État documentaire :
+- aucune génération : « Aucun document » ;
+- révision générée non signée : « R01 · non signé », « R02 · non signé »… ;
+- copie signée présente : « Copie signée ».
+
+Un brouillon jamais généré n’affiche jamais une révision fictive.
+
+Ouverture d’une ligne :
+- clic ;
+- touche Entrée lorsque la ligne a le focus ;
+- focus clavier visible.
+
+Statuts :
+- Brouillon ;
+- À signer ;
+- Signé ;
+- Actif ;
+- Résilié ;
+- Expiré ;
+- Abandonné.
+
+Signaux distincts des statuts :
+- prochaine échéance ;
+- relance signature ;
+- prise d’effet future ;
+- résiliation programmée ;
+- reconduction à confirmer ;
+- anomalie de copie signée.
+
+États vides :
+- « Aucun contrat trouvé » pour recherche ou filtre sans résultat ;
+- invitation à modifier la recherche ou le filtre ;
+- aucune incitation à recréer un doublon.
+
+Mode dossier inaccessible :
+- consultation conservée ;
+- Nouveau contrat désactivé ;
+- modifications et générations bloquées ;
+- action Localiser le dossier ;
+- anomalie persistante jusqu’à résolution.
+
+------------------------------------------------------------
+S20 — ESPACE CONTRAT
+------------------------------------------------------------
+
+Rôle : créer, corriger avant signature, générer, consulter et suivre un contrat dans une surface unique.
+
+En-tête commun :
+- retour Contrats ;
+- statut ;
+- numéro ou « Brouillon sans numéro » ;
+- client ;
+- site ;
+- état réel de sauvegarde ;
+- ouverture du dossier documentaire lorsque disponible ;
+- actions secondaires.
+
+En cas d’échec d’écriture, aucun libellé « enregistré » n’est affiché. Une notice persistante remplace l’état de succès.
+
+Résumé latéral :
+- client ;
+- signataire ;
+- site ;
+- équipements ;
+- régime ;
+- mode de conclusion lorsqu’il est requis ;
+- période ;
+- prix ;
+- renouvellement ;
+- modèle et version ;
+- état de complétude.
+
+Le résumé est une aide et ne remplace jamais la revue.
+
+------------------------------------------------------------
+S20.1 — CLIENT, SITE & ÉQUIPEMENTS
+------------------------------------------------------------
+
+Client :
+- sélection d’une fiche existante ;
+- action « Changer le client » ouvrant un sélecteur/recherche ;
+- action distincte « Créer un nouveau client » ;
+- classification maître Personne ou Organisation uniquement ;
+- snapshot des coordonnées dans le brouillon.
+
+Cascade lors d’un changement de client :
+- site sélectionné retiré ;
+- équipements sélectionnés remis à zéro ;
+- observations contractuelles de ces équipements retirées du brouillon ;
+- fiches maîtres jamais supprimées ;
+- notice sobre invitant à recontrôler les conditions dépendantes.
+
+Signataire pour ce contrat :
+- nom ;
+- fonction ou qualité ;
+- pour une Personne, préremplissage avec le client et fonction proposée « Client » ;
+- pour une Organisation, préremplissage possible depuis une donnée connue ;
+- valeurs toujours modifiables avant génération ;
+- aucune propriété juridique figée ajoutée au client maître.
+
+Site :
+- action « Changer le site » ouvrant les sites existants du client ;
+- action distincte « Ajouter un site » ;
+- un et un seul site ;
+- reprise facultative de l’adresse client à la création.
+
+Cascade lors d’un changement de site :
+- sélection des équipements remise à zéro ;
+- observations contractuelles de l’ancien site retirées ;
+- conditions dépendantes à reconfirmer signalées ;
+- aucune donnée hors contexte conservée silencieusement.
+
+Équipements :
+- liste limitée au site sélectionné ;
+- checkboxes fonctionnelles ;
+- collection du contrat mise à jour à chaque coche ;
+- compteur, résumé latéral et revue mis à jour ;
+- ordre d’annexe limité aux équipements sélectionnés ;
+- boutons Monter / Descendre fonctionnels ;
+- observation facultative propre à chaque équipement dans ce contrat ;
+- notes internes de la fiche maître jamais recopiées automatiquement ;
+- ajout inline.
+
+Si zéro équipement :
+- anomalie légère immédiate dans l’étape ;
+- bloc Site & équipements en erreur dans la revue ;
+- génération bloquée.
+
+Lorsqu’un équipement est créé depuis le contrat :
+- il est automatiquement sélectionné ;
+- il est ajouté en dernière position de l’annexe.
+
+------------------------------------------------------------
+S20.2 — CONDITIONS DU CONTRAT
+------------------------------------------------------------
+
+Cadre du contrat :
+- régime confirmé au niveau du contrat ;
+- valeurs contrôlées Consommateur, Non-professionnel, Professionnel ;
+- brouillon possible sans régime ;
+- génération bloquée tant que le régime manque ;
+- mode de conclusion visible uniquement lorsqu’il est requis par la variante configurée ;
+- aucune détermination juridique automatique ;
+- confirmation de démarrage avant la fin du délai de rétractation visible uniquement lorsque le modèle ou contexte validé l’exige.
+
+Filtrage des modèles :
+- modèles filtrés après confirmation du régime ;
+- proposition des seules versions Disponible et compatibles ;
+- sélection automatique possible si un seul modèle existe ;
+- aucun modèle : « Aucun modèle disponible pour ce régime » ;
+- accès aux Paramètres > Modèles ;
+- aucune assimilation implicite entre deux régimes distincts ;
+- compatibilité fondée uniquement sur ce qui a été confirmé pour chaque modèle.
+
+Modèle et prestations :
+- nom fonctionnel et version visibles ;
+- aucune sélection de fichier technique ;
+- fréquence des visites ;
+- gestion des fluides ;
+- prestation de base affichée comme incluse, sans checkbox ;
+- options complémentaires : Nettoyage approfondi et Désinfection ;
+- dépannage prioritaire séparé, Non inclus ou Inclus ;
+- délai visible seulement lorsque le dépannage prioritaire est inclus ;
+- nombre de visites comme source unique de fréquence.
+
+Période :
+- date d’émission ;
+- date de prise d’effet ;
+- durée ;
+- date de fin ;
+- ville de signature.
+
+Source de vérité :
+- date de prise d’effet + durée → date de fin ;
+- durée standard : calcul automatique et mention « Calculée automatiquement » ;
+- durée personnalisée : date de fin modifiable ;
+- début, fin et durée doivent rester cohérents.
+
+Conditions d’intervention :
+- zone géographique incluse ;
+- horaires habituels ;
+- conditions de déplacement ;
+- frais de rendez-vous non réalisable, Aucun ou montant ;
+- exclusions complémentaires facultatives ;
+- préremplissage depuis modèle ou paramètres ;
+- copie dans le contrat ;
+- modification possible avant génération ;
+- aucune ressaisie obligatoire des standards à chaque contrat.
+
+Prix et paiement :
+- prix annuel HT ;
+- taux de TVA choisi parmi les valeurs configurées ou admises ;
+- calcul TVA et TTC ;
+- aucune prétention de détermination automatique du taux juridiquement applicable ;
+- modalité et moyens de paiement.
+
+Renouvellement dynamique :
+
+Aucun :
+- masque durée de reconduction ;
+- masque délai et modalités de non-renouvellement ;
+- masque règle de prix au renouvellement ;
+- contrat expirant à la date de fin.
+
+Manuel :
+- durée envisagée ;
+- prix au renouvellement ;
+- alerte interne.
+
+Reconduction tacite :
+- durée de reconduction ;
+- délai de non-renouvellement ;
+- modalités de non-renouvellement ;
+- prix au renouvellement ;
+- alerte interne ;
+- reconduction à confirmer, jamais enregistrée automatiquement comme certaine.
+
+Modalités de non-renouvellement :
+- donnée métier structurée ;
+- valeurs contrôlées par le modèle ;
+- libellé utilisateur, par exemple « E-mail ou courrier » ;
+- aucune clé technique exposée.
+
+Prix au renouvellement V1 :
+- Même prix ;
+- Nouveau prix défini au renouvellement ;
+- aucune indexation V1.
+
+Fin anticipée :
+- valeurs standards préremplies depuis le modèle ;
+- délai de régularisation ;
+- motifs supplémentaires éventuels ;
+- formulaire standard non chargé de ces champs ;
+- action secondaire « Modifier les conditions de fin anticipée ».
+
+Conditions particulières :
+- texte brut ;
+- retours à la ligne ;
+- aucun éditeur riche, image ou tableau libre.
+
+------------------------------------------------------------
+S20.3 — REVUE AVANT GÉNÉRATION
+------------------------------------------------------------
+
+Rôle : vérifier les données qui seront figées et distinguer leur complétude de la disponibilité documentaire du poste.
+
+Neuf blocs, dans cet ordre :
+1. Client & signataire
+2. Site & équipements
+3. Cadre du contrat
+4. Modèle & prestations
+5. Période
+6. Conditions d’intervention
+7. Prix & paiement
+8. Renouvellement & fin du contrat
+9. Conditions particulières
+
+Chaque bloc comporte :
+- état valide ou erreur ;
+- synthèse lisible ;
+- action Modifier vers la bonne étape.
+
+Équipements :
+- synthèse courte, par exemple « 3 équipements · 2 avec observations contractuelles » ;
+- aucune reproduction de toute l’annexe.
+
+Mode de conclusion :
+- contenu dans Cadre du contrat ;
+- absent si non requis.
+
+Compatibilité modèle :
+- le filtrage normal évite l’incompatibilité ;
+- cas défensif : « Le modèle sélectionné n’est plus disponible pour ce contrat » ;
+- retour vers Conditions.
+
+Niveau 1 — Données du contrat :
+- message de succès « Toutes les informations nécessaires sont complètes » ;
+- ou erreurs métier localisées ;
+- champs requis ;
+- régime ;
+- modèle ;
+- signataire ;
+- au moins un équipement ;
+- cohérence dates et prix.
+
+Niveau 2 — Disponibilité de la génération :
+- Modèle disponible ;
+- Dossier de travail accessible ;
+- Génération DOCX disponible ;
+- Conversion PDF disponible.
+
+Exemple d’état :
+« Le contrat est complet, mais la génération PDF est indisponible. »
+
+Une indisponibilité documentaire n’est pas présentée comme une erreur métier du contrat.
+
+Contrôles profonds :
+- exécutés dans le préflight au moment de la génération ;
+- non exposés dans la revue sous forme de jargon technique ;
+- en cas d’échec : aucun numéro, aucune révision officielle, données conservées, message métier et accès Diagnostic si utile.
+
+Action finale :
+- Générer le DOCX et le PDF ;
+- désactivée si données incomplètes ou génération indisponible ;
+- « Numéro prévu » utilisé avant succès ;
+- prochaine révision annoncée.
+
+Modale de confirmation :
+- figer les données dans une nouvelle révision ;
+- créer le DOCX ;
+- créer le PDF ;
+- attribuer le numéro prévu seulement après succès complet ;
+- créer R01, R02… ;
+- passer à À signer ;
+- garantie affichée : en cas d’échec, aucune révision officielle ni aucun numéro ne sont créés.
+
+------------------------------------------------------------
+S20.4 — DOCUMENTS & SUIVI
+------------------------------------------------------------
+
+Révisions contractuelles :
+- R01, R02… ;
+- date de génération ;
+- modèle et version ;
+- Dernière révision ;
+- Révision signée ;
+- état envoyée lié à la révision ;
+- révision remplacée mais conservée ;
+- ouverture DOCX et PDF ;
+- aucune révision sans génération complète réussie ;
+- aucun écrasement.
+
+Correction d’un contrat À signer :
+- action « Corriger le contrat » ;
+- retour à Brouillon ;
+- anciennes révisions conservées ;
+- données modifiables ;
+- passage obligatoire par Revue ;
+- nouvelle révision uniquement après nouvelle génération réussie ;
+- aucune nouvelle révision identique créée par simple clic.
+
+Envoi :
+- Révision envoyée requise ;
+- Date d’envoi requise ;
+- Note facultative ;
+- dernière révision présélectionnée ;
+- événement lié uniquement à la révision choisie ;
+- une révision plus récente n’hérite pas de l’état envoyé de l’ancienne ;
+- marqueur possible « Envoyée le JJ/MM/AAAA ».
+
+Signature :
+- Date de signature requise ;
+- Révision réellement signée requise ;
+- PDF signé recommandé mais facultatif ;
+- rappel informatif de la date de prise d’effet ;
+- aucune modification silencieuse de la prise d’effet dans la modale ;
+- prise d’effet future → Signé ;
+- prise d’effet atteinte → Actif ;
+- aucun bouton Activer ;
+- la révision choisie reçoit « Révision signée », même si elle n’est pas la dernière.
+
+Deux états distincts de copie signée :
+
+1. Signature sans copie jointe
+- message « Signature enregistrée — copie signée non archivée » ;
+- action Ajouter le PDF signé ;
+- avertissement documentaire uniquement.
+
+2. Copie auparavant archivée devenue introuvable
+- message « Copie signée introuvable dans le dossier de travail » ;
+- actions Localiser le fichier et Ajouter une nouvelle copie ;
+- trace de signature et historique intacts.
+
+Historique :
+- création ;
+- génération ;
+- réouverture pour correction ;
+- envoi ;
+- signature ;
+- ajout du PDF signé ;
+- activation ;
+- renouvellement ;
+- résiliation ;
+- correction administrative.
+
+Ne sont pas journalisés :
+- consultation ;
+- ouverture d’écran ;
+- changement d’onglet ;
+- ouverture d’un document.
+
+Renouvellement dans Documents & suivi :
+
+Aucun :
+- aucun CTA principal Préparer le renouvellement ;
+- action secondaire possible Créer un nouveau contrat lié.
+
+Manuel :
+- action Préparer le renouvellement ;
+- nouveau brouillon lié et prérempli ;
+- nouvelles dates et conditions à revoir.
+
+Reconduction tacite :
+- aucun nouveau contrat automatique ;
+- signal Reconduction à confirmer ;
+- actions Confirmer la reconduction, Enregistrer une fin de contrat, Créer un nouveau contrat ;
+- confirmation ajoutant une nouvelle période à l’historique ;
+- aucun PDF automatique si les conditions restent identiques.
+
+Résiliation et abandon :
+
+Signé ou Actif :
+- action Programmer une résiliation ;
+- date de notification facultative ;
+- date effective requise ;
+- motif ;
+- note facultative ;
+- date future : statut inchangé + signal Résiliation programmée ;
+- date atteinte : Résilié.
+
+Brouillon ou À signer non conclu :
+- action Abandonner le contrat ;
+- passage à Abandonné ;
+- documents éventuels et historique conservés ;
+- terme Résilier non employé.
+
+Autres documents :
+- groupe visuellement séparé des révisions contractuelles ;
+- action Créer une fiche d’intervention ;
+- date ;
+- technicien facultatif ;
+- document distinct ;
+- aucun ticketing, planning, GMAO ou historique maintenance structuré.
+
+------------------------------------------------------------
+S30 — CLIENTS & INSTALLATIONS
+------------------------------------------------------------
+
+Rôle : gérer les données réutilisables sans CRM ni GMAO.
+
+Disposition :
+- liste et recherche à gauche ;
+- fiche sélectionnée à droite ;
+- filtre Actifs / Archivés dans la même surface.
+
+Liste client :
+- nom ;
+- type Personne ou Organisation ;
+- nombre de sites ;
+- nombre d’équipements ;
+- marqueur Archivé lorsque pertinent.
+
+Fiche Personne :
+- identité ;
+- adresse ;
+- téléphone ;
+- e-mail ;
+- référence interne ;
+- notes internes.
+
+Fiche Organisation :
+- raison sociale ;
+- forme juridique ;
+- SIRET ;
+- adresse ;
+- adresse de facturation si différente ;
+- téléphone ;
+- e-mail ;
+- référence interne ;
+- notes internes ;
+- contact proposé, toujours confirmable dans le contrat.
+
+La fiche maître ne stocke pas le régime applicable à tous les contrats.
+
+Multi-sites :
+- fixture Résidence Le Levant avec Bâtiment A et Bâtiment B ;
+- adresse et contact propres à chaque site ;
+- équipements propres à chaque site ;
+- aucune navigation Sites séparée.
+
+Création d’un contrat depuis un site :
+- action « Créer un contrat pour ce site » sur chaque site ;
+- client et site préremplis ;
+- régime non prérempli ;
+- équipements du site proposés mais non tous sélectionnés automatiquement.
+
+Équipements :
+- type ;
+- marque et modèle ;
+- localisation ;
+- numéro de série lorsqu’il existe ;
+- ajout inline.
+
+Effet d’une modification maître :
+« Les modifications seront proposées pour les futurs contrats. Les contrats et révisions existants restent inchangés. »
+
+Un brouillon déjà créé conserve aussi sa copie existante. Aucune propagation silencieuse.
+
+Archivage :
+- usage normal limité à Archiver et Restaurer ;
+- client archivé retiré des nouvelles sélections ;
+- site archivé non proposé dans les nouveaux contrats ;
+- équipement archivé masqué des nouvelles sélections ;
+- historiques et contrats conservés ;
+- archivage d’un client sans modification silencieuse des états propres de ses sites ou équipements ;
+- filtre Actifs / Archivés ;
+- aucun écran Archives séparé.
+
+États vides :
+- aucun site → Ajouter un site ;
+- aucun équipement → Ajouter un équipement ;
+- aucun contrat lié → Créer un contrat pour ce site.
+
+------------------------------------------------------------
+S40 — PARAMÈTRES
+------------------------------------------------------------
+
+S40.1 Société
+
+Groupes :
+- Identité ;
+- Contacts / signataire ;
+- Assurance ;
+- Fluides frigorigènes ;
+- Informations consommateur.
+
+Fixture connue :
+- ICP Renov — entreprise générale du bâtiment ;
+- 1138 boulevard Jean Moulin, 83700 Saint-Raphaël ;
+- 06 27 47 33 94 ;
+- icprenov83@gmail.com ;
+- SIRET 989 488 796 00016 ;
+- APE / NAF 4322A.
+
+Toute autre valeur inconnue affiche « À compléter ».
+
+Données conditionnelles possibles :
+- assureur ;
+- couverture et validité ;
+- capacité fluides ;
+- partenaire fluides ;
+- médiateur ;
+- rétractation ;
+- signataire.
+
+Règle : « Requis par les modèles utilisés ». Une version de modèle ne peut devenir Disponible si une donnée société qu’elle exige manque.
+
+S40.2 Modèles
+
+Colonnes :
+- Modèle ;
+- Régime confirmé ;
+- Version ;
+- État ;
+- Dernière utilisation ;
+- Actions.
+
+États visibles :
+- À valider ;
+- Disponible ;
+- Archivé.
+
+Chaque modèle annonce seulement les régimes réellement confirmés pour cette version.
+
+Actions distinctes :
+
+Ajouter un modèle :
+- nom fonctionnel ;
+- utilisation ou régimes visés ;
+- DOCX initial ;
+- état initial À valider.
+
+Nouvelle version :
+- modèle déjà fixé ;
+- nouvelle source DOCX ;
+- nouveau numéro de version ;
+- version précédente inchangée.
+
+Conditions avant Rendre disponible :
+- Structure contrôlée ;
+- Test DOCX/PDF réussi ;
+- Confirmation externe du contenu enregistrée.
+
+L’application ne certifie jamais juridiquement un contrat.
+
+Règles :
+- version référencée immuable ;
+- aucune suppression d’une version référencée ;
+- nouvelle version pour toute modification ;
+- aucun éditeur de variables documentaires ;
+- Tester la génération ouvre le Diagnostic avec le modèle et la version présélectionnés.
+
+S40.3 Numérotation & alertes
+
+Numérotation :
+- format ;
+- préfixe ;
+- année ;
+- aperçu ;
+- Prochain numéro en lecture seule après première attribution officielle ;
+- action secondaire Corriger le prochain numéro ;
+- contrôle des collisions ;
+- effet sur les futurs contrats uniquement ;
+- aucune renumérotation de l’existant ;
+- aucune décision silencieuse sur la continuité annuelle.
+
+Alertes configurables :
+- anticipation d’échéance par défaut ;
+- relance signature après X jours ;
+- rappel de sauvegarde après X jours.
+
+Anomalies toujours affichées lorsqu’elles existent :
+- reconduction à confirmer ;
+- copie signée introuvable ;
+- problème stockage ;
+- moteur de génération indisponible ;
+- autre anomalie structurelle.
+
+S40.4 Stockage & sauvegarde
+
+Dossier de travail :
+- chemin visible ;
+- local ;
+- accessible en écriture ;
+- non réseau ;
+- chemin de référence utilisateur « Documents\ICP Renov\Contrats ».
+
+Déplacement contrôlé :
+1. vérifier la destination ;
+2. vérifier l’espace ;
+3. copier intégralement ;
+4. contrôler la copie ;
+5. basculer seulement après succès.
+
+En cas d’échec, l’ancien dossier reste actif.
+
+Sauvegarde :
+- destination explicite ;
+- nom unique ;
+- aucun écrasement silencieux ;
+- avertissement même disque ;
+- contenu complet et sensible rappelé.
+
+Restauration :
+- contrôle avant modification ;
+- résumé du ZIP avant confirmation : date, taille, contenu reconnu ;
+- sauvegarde de sécurité de l’état actuel ;
+- contrôle final avant bascule ;
+- état actuel conservé en cas d’échec.
+
+S40.5 Diagnostic génération
+
+Même écran, deux groupes.
+
+État du poste :
+- dossier accessible ;
+- génération DOCX disponible ;
+- « Conversion PDF — moteur à confirmer » tant que PQ-06 reste ouverte.
+
+Test d’un modèle :
+- modèle et version ;
+- génération d’une fixture ;
+- DOCX ;
+- PDF ;
+- absence de donnée documentaire non traitée ;
+- ouverture des deux fichiers ;
+- rendu « À contrôler visuellement » lorsque nécessaire ;
+- données fictives uniquement ;
+- aucun contrat officiel.
+
+------------------------------------------------------------
+S00 — PREMIÈRE CONFIGURATION
+------------------------------------------------------------
+
+S00.0 Choix initial
+- Configurer ce poste → wizard ;
+- Restaurer une sauvegarde existante → restauration contrôlée ;
+- aucune entrée permanente ajoutée.
+
+S00.1 Dossier de travail
+- proposition « Documents\ICP Renov\Contrats » ;
+- local ;
+- accessible en écriture ;
+- non réseau ;
+- choix d’un autre dossier ;
+- explication du dossier unique.
+
+S00.2 Société
+- socle minimal connu ;
+- aucune obligation arbitraire ;
+- assurance, capacité fluides ou médiateur requis seulement si le premier modèle les exige ;
+- accès au logiciel non bloqué par un profil artificiellement complet.
+
+S00.3 Premier modèle
+- import ou sélection ;
+- nom fonctionnel ;
+- régimes réellement visés ;
+- version ;
+- état initial À valider ;
+- un import seul ne rend jamais le modèle Disponible ;
+- action Configurer les modèles plus tard.
+
+Si les modèles sont différés :
+- application utilisable ;
+- clients, sites et équipements utilisables ;
+- brouillons possibles ;
+- génération indisponible ;
+- sortie du wizard autorisée.
+
+S00.4 Numérotation
+- format ;
+- préfixe ;
+- premier compteur ;
+- aperçu ;
+- aucun numéro consommé par les tests ;
+- aucune décision silencieuse sur PQ-08.
+
+S00.5 Test
+
+Groupe État du poste :
+- dossier ;
+- DOCX ;
+- PDF ;
+- moteur PDF non figé avant décision.
+
+Groupe Test du premier modèle :
+- présent seulement si un modèle a été configuré ;
+- données fictives ;
+- aucun contrat officiel ;
+- aucun numéro ;
+- aucune révision.
+
+S00.6 Fin et sauvegarde
+- application configurée distinguée de génération disponible ;
+- Créer la sauvegarde ;
+- Terminer sans sauvegarde ;
+- avertissement avant sortie sans sauvegarde ;
+- rappel persistant sur l’accueil jusqu’à la première sauvegarde.
+
+Persistance du wizard :
+- progression enregistrée localement ;
+- fermeture et réouverture → première étape incomplète ;
+- étapes précédentes conservées.
+
+============================================================
+4. SURFACES TRANSVERSALES
+============================================================
+
+DRAWER CHANGER LE CLIENT
+- recherche ;
+- fiches existantes ;
+- annonce de la cascade ;
+- sélection immédiate ;
+- création présentée comme action distincte.
+
+DRAWER CRÉER UN CLIENT
+- Personne ou Organisation ;
+- champs adaptés ;
+- coordonnées ;
+- repères internes ;
+- aucun régime contractuel permanent ;
+- enregistrement et sélection dans le brouillon.
+
+DRAWER CHANGER LE SITE
+- sites existants du client ;
+- annonce de la remise à zéro des équipements et observations ;
+- création distincte.
+
+DRAWER AJOUTER UN SITE
+- nom ;
+- adresse ;
+- reprise facultative de l’adresse client ;
+- contact sur site ;
+- consignes internes.
+
+DRAWER AJOUTER UN ÉQUIPEMENT
+- type contrôlé + Autre ;
+- marque ;
+- modèle ;
+- série ;
+- puissance ;
+- localisation requise ;
+- date d’installation ;
+- notes internes ;
+- équipement automatiquement sélectionné et ajouté en dernier dans le contrat courant.
+
+DRAWER OBSERVATION CONTRACTUELLE
+- observation facultative propre au contrat ;
+- peut être reprise dans l’annexe ;
+- ne modifie jamais la fiche maître.
+
+MODALES
+- confirmer une génération ;
+- échec de génération ;
+- espace insuffisant ;
+- génération interrompue ;
+- échec d’enregistrement ;
+- marquer une révision comme envoyée ;
+- enregistrer une signature ;
+- préparer un nouveau contrat lié ;
+- confirmer une reconduction ;
+- programmer une résiliation ;
+- abandonner un contrat ;
+- créer une fiche d’intervention ;
+- modifier les conditions de fin anticipée ;
+- modification verrouillée ;
+- archiver une fiche utilisée ;
+- restaurer une sauvegarde ;
+- sauvegarde invalide ;
+- ajouter un modèle ;
+- ajouter une version ;
+- préparer la disponibilité ;
+- corriger le prochain numéro ;
+- déplacer le dossier ;
+- test de diagnostic.
+
+TOASTS
+- succès ou information ponctuelle uniquement ;
+- jamais seuls pour une erreur bloquante ;
+- disparition automatique ;
+- aucun message trompeur d’envoi ou d’enregistrement.
+
+NOTICES PERSISTANTES
+- stockage inaccessible ;
+- fichier signé introuvable ;
+- modèle indisponible ;
+- génération indisponible ;
+- modifications non enregistrées ;
+- rappel de première sauvegarde.
+
+============================================================
+5. RÈGLES DE CYCLE DE VIE
+============================================================
+
+Brouillon
+- créé dès l’entrée dans le parcours ;
+- auto-enregistré si l’écriture réussit ;
+- modifiable ;
+- sans numéro officiel ;
+- génération possible après revue valide et chaîne disponible ;
+- abandon possible.
+
+À signer
+- atteint après première génération DOCX + PDF réussie ;
+- au moins une révision existe ;
+- correction par « Corriger le contrat » ;
+- correction → retour Brouillon ;
+- nouvelle révision seulement après une nouvelle génération complète ;
+- envoi lié à une révision ;
+- signature liée à une révision choisie ;
+- abandon possible si non conclu.
+
+Signé
+- signature enregistrée ;
+- prise d’effet future ;
+- données structurantes verrouillées ;
+- copie signée recommandée mais non bloquante.
+
+Actif
+- signature enregistrée ;
+- date de prise d’effet atteinte ;
+- résiliation future affichée comme signal ;
+- échéances calculées ;
+- aucune activation manuelle.
+
+Résilié
+- date effective atteinte ;
+- état terminal ;
+- historique et documents conservés.
+
+Expiré
+- terme atteint ;
+- pas de reconduction applicable ou enregistrée ;
+- état terminal sauf correction administrative tracée.
+
+Abandonné
+- projet non conclu avant activation ;
+- état terminal ;
+- documents éventuellement émis conservés.
+
+============================================================
+6. GÉNÉRATION, NUMÉROS ET RÉVISIONS
+============================================================
+
+Avant génération :
+- revue structurée ;
+- données métier complètes ;
+- régime confirmé ;
+- modèle Disponible et compatible ;
+- signataire complet ;
+- au moins un équipement ;
+- dates et prix cohérents ;
+- état du dossier, DOCX et PDF lisible ;
+- Numéro prévu et prochaine révision visibles.
+
+Préflight documentaire :
+- contrôles profonds exécutés au lancement ;
+- aucun jargon technique exposé dans la revue ;
+- toute donnée non traitée fait échouer l’ensemble ;
+- message métier et diagnostic si utile.
+
+Succès complet :
+- DOCX présent et lisible ;
+- PDF présent et lisible ;
+- données documentaires traitées ;
+- révision enregistrée ;
+- numéro attribué lors de la première génération ;
+- statut À signer ;
+- documents ouvrables.
+
+Échec :
+- aucune révision officielle ;
+- aucun faux état généré ;
+- aucun numéro consommé lors de la première génération ;
+- ancienne révision intacte ;
+- brouillon et données conservés ;
+- problème nommé ;
+- action immédiate proposée.
+
+Rendu documentaire :
+- date de signature réelle enregistrée par l’événement de signature ;
+- aucune régénération silencieuse après signature ;
+- blocs facultatifs masqués proprement ;
+- aucun libellé orphelin ;
+- aucun code interne imprimé directement ;
+- aucune donnée d’intervention requise dans le contrat initial.
+
+============================================================
+7. RENOUVELLEMENT, RECONDUCTION ET FIN
+============================================================
+
+Trois notions séparées :
+- délai contractuel ;
+- alerte interne ;
+- action réellement effectuée.
+
+Manuel :
+- alerte ;
+- nouveau brouillon lié ;
+- préremplissage ;
+- contrôle obligatoire des dates, équipements, régime et conditions.
+
+Reconduction tacite :
+- échéance calculée ;
+- alerte interne ;
+- aucune communication automatique ;
+- signal Reconduction à confirmer ;
+- confirmation explicite ;
+- nouvelle période dans l’historique ;
+- aucun document automatique si les conditions restent identiques.
+
+Résiliation future :
+- date de notification facultative ;
+- date effective requise ;
+- motif et note ;
+- contrat Signé ou Actif jusqu’à la date effective ;
+- signal dans la liste ;
+- passage à Résilié à la date effective.
+
+Abandon :
+- réservé aux Brouillons ou À signer non conclus ;
+- passage à Abandonné ;
+- historique et documents conservés.
+
+============================================================
+8. ERREURS ET ÉTATS DÉGRADÉS
+============================================================
+
+Quatre familles internes structurent la couverture. Elles ne sont pas affichées comme jargon à l’utilisateur.
+
+FAMILLE 1 — DONNÉES DU CONTRAT
+- champ requis ;
+- équipement absent ;
+- incohérence dates ou prix ;
+- régime absent ;
+- modèle absent ou défensivement incompatible.
+
+FAMILLE 2 — GÉNÉRATION DOCUMENTAIRE
+- modèle indisponible ;
+- donnée documentaire non traitée ;
+- échec DOCX ;
+- échec PDF ;
+- génération interrompue.
+
+FAMILLE 3 — STOCKAGE / INTÉGRITÉ
+- dossier inaccessible ;
+- espace insuffisant ;
+- fichier manquant ;
+- désynchronisation entre fichiers et base ;
+- échec d’écriture.
+
+FAMILLE 4 — SAUVEGARDE / RESTAURATION
+- sauvegarde invalide ;
+- destination impossible ;
+- restauration interrompue ;
+- contenu incomplet.
+
+Tout message bloquant répond à quatre questions :
+1. Quel est le problème ?
+2. Qu’est-ce qui n’a pas été effectué ?
+3. Les données sont-elles conservées ?
+4. Que peut faire l’utilisateur maintenant ?
+
+Espace disque insuffisant
+- titre « Espace disponible insuffisant » ;
+- aucun document créé ;
+- contrat et brouillon conservés ;
+- aucun numéro ni révision ;
+- actions Ouvrir le dossier et Réessayer ;
+- même garantie pour sauvegarde, déplacement ou restauration.
+
+Fichier attendu introuvable
+- titre « Un fichier du contrat est introuvable » ;
+- révision historique conservée ;
+- fichier DOCX, PDF, copie signée ou modèle source manquant signalé sans supprimer l’objet ;
+- actions Localiser le fichier, Ouvrir le dossier, Voir les sauvegardes.
+
+Génération interrompue au redémarrage
+- titre « La dernière génération a été interrompue » ;
+- aucun document officiel ni nouvelle révision ;
+- données conservées ;
+- R01 existante intacte si R02 échoue ;
+- aucun fichier temporaire exposé comme officiel ;
+- actions Reprendre le contrat et Ouvrir le diagnostic.
+
+Échec d’enregistrement
+- aucun succès affiché ;
+- notice persistante « Les dernières modifications ne sont pas encore enregistrées » ;
+- instruction de ne pas fermer le contrat ;
+- actions Réessayer et Vérifier le stockage ;
+- pas de toast de succès trompeur.
+
+Archivage d’une fiche utilisée
+- message informatif, pas erreur ;
+- contrats existants inchangés et accessibles ;
+- fiche retirée des nouveaux choix ;
+- action Archiver explicite ;
+- restauration possible.
+
+Copie signée
+- signature sans pièce jointe et fichier auparavant archivé devenu introuvable restent deux cas distincts ;
+- aucune fusion de leurs messages ou actions.
+
+Persistance des erreurs :
+- toast : succès ou information ponctuelle ;
+- erreur de formulaire : dans la section et la revue ;
+- échec ponctuel : modale possible ;
+- anomalie toujours présente : notice persistante jusqu’à résolution.
+
+============================================================
+9. COMPOSANTS RÉUTILISÉS
+============================================================
+
+Structure :
+- barre de revue hors produit ;
+- sidebar trois entrées ;
+- en-tête d’écran ;
+- en-tête contrat ;
+- rail quatre étapes ;
+- panneau de contenu ;
+- résumé latéral ;
+- drawer ;
+- modale ;
+- toast.
+
+Données :
+- table de contrats ;
+- table d’équipements sélectionnables et ordonnables ;
+- liste clients ;
+- carte site ;
+- carte révision ;
+- timeline ;
+- groupe de diagnostic ;
+- définition label/valeur.
+
+Formulaires :
+- champ texte ;
+- date française ;
+- select contrôlé ;
+- radio cards ;
+- checkbox ;
+- textarea ;
+- zone de dépôt ;
+- champ calculé ;
+- aperçu de numéro ;
+- sélecteur de fiche existante.
+
+Feedback :
+- notice information ;
+- notice succès ;
+- notice attention ;
+- notice erreur ;
+- statut ;
+- signal d’action ;
+- signal d’information ;
+- état de sauvegarde ;
+- verrouillage ;
+- état de disponibilité documentaire.
+
+============================================================
+10. DIRECTION VISUELLE ET ACCESSIBILITÉ
+============================================================
+
+Direction :
+- application desktop métier ;
+- fond gris très clair ;
+- surfaces blanches ;
+- navigation graphite / bleu sombre ;
+- accent bleu-vert ;
+- couleurs statut limitées ;
+- typographie sans-serif ;
+- densité modérée ;
+- angles et ombres contenus ;
+- continuité avec V1.1.
+
+Responsive :
+- cible 1366 à 1600 px ;
+- utilisable à 1280 px ;
+- colonne Documents masquable à largeur réduite ;
+- navigation compacte et résumé latéral masqué sous 1160 px ;
+- aucune cible mobile V1.
+
+Accessibilité :
+- labels visibles ;
+- focus clavier ;
+- lignes de contrat ouvertes avec Entrée ;
+- fermeture Escape des modales et drawers ;
+- contraste textuel ;
+- aucune icône seule pour une information critique ;
+- CTA libellés ;
+- tableaux avec en-têtes ;
+- erreur indiquée par texte et icône, pas seulement couleur.
+
+============================================================
+11. FIXTURE DE DÉMONSTRATION
+============================================================
+
+Prestataire :
+- ICP Renov — entreprise générale du bâtiment ;
+- données connues uniquement ;
+- inconnues affichées À compléter ;
+- aucune forme juridique inventée.
+
+Clients maîtres :
+- Jean Martin — Personne ;
+- Hôtel Azur SAS — Organisation fictive ;
+- Résidence Le Levant — Organisation fictive ;
+- Cabinet Horizon — Organisation fictive ;
+- Sophie Durand — Personne fictive.
+
+Régimes démontrés au niveau des contrats :
+- Consommateur ;
+- Non-professionnel ;
+- Professionnel ;
+- absence de régime comme erreur bloquante.
+
+Multi-sites :
+- Résidence Le Levant ;
+- Bâtiment A ;
+- Bâtiment B ;
+- listes d’équipements distinctes.
+
+Contrats :
+- brouillon sans numéro ni document ;
+- À signer avec R01 et R02 ;
+- Signé à prise d’effet future ;
+- Actif proche du renouvellement ;
+- Actif avec résiliation programmée ;
+- Expiré ;
+- Résilié.
+
+Scénarios dégradés accessibles dans le prototype :
+- données manquantes ;
+- aucun modèle compatible ;
+- conversion PDF indisponible ;
+- espace insuffisant ;
+- génération interrompue ;
+- dossier inaccessible ;
+- échec d’enregistrement ;
+- fichier de révision introuvable ;
+- signature sans copie ;
+- copie signée devenue introuvable ;
+- archivage d’une fiche utilisée ;
+- sauvegarde invalide.
+
+============================================================
+12. DÉCISIONS UX CONSOLIDÉES
+============================================================
+
+DUX-01 — Quatre étapes dans un espace contrat unique.
+DUX-02 — Drawers pour les créations et sélections inline.
+DUX-03 — Résumé latéral non éditable.
+DUX-04 — Revue en neuf blocs métier.
+DUX-05 — Documents et historique dans la même étape, Autres documents séparés des révisions.
+DUX-06 — Liste et fiche client sur un même écran.
+DUX-07 — Paramètres en navigation secondaire interne.
+DUX-08 — Scénarios de revue hors produit.
+DUX-09 — Dates françaises explicites.
+DUX-10 — Aucun bouton d’activation après signature.
+DUX-11 — Actions utilisateur distinctes des informations de suivi.
+DUX-12 — Changer une sélection distinct de créer une fiche.
+DUX-13 — Cascades explicites client → site → équipements.
+DUX-14 — Signataire propre au contrat.
+DUX-15 — Modèles filtrés selon leurs compatibilités confirmées.
+DUX-16 — Renouvellement dynamique et reconduction toujours confirmée.
+DUX-17 — Complétude métier distincte de disponibilité de génération.
+DUX-18 — Correction d’un contrat À signer par retour Brouillon, sans révision automatique.
+DUX-19 — Envoi et signature liés à une révision précise.
+DUX-20 — Archivage / restauration, sans suppression normale.
+DUX-21 — Application configurée distincte de génération disponible.
+DUX-22 — Erreurs persistantes tant que leur cause demeure.
+
+============================================================
+13. PRODUCT QUESTIONS RESTANTES
+============================================================
+
+Seules les quatre questions suivantes restent ouvertes.
+
+PQ-05 — VARIANTES JURIDIQUES FINALES
+État : partiellement ouverte.
+
+À trancher :
+- variantes réelles de lancement ;
+- régimes réellement confirmés pour chaque modèle ;
+- conditions exactes des annexes ;
+- contenu final validé hors application.
+
+La V1.2 ne déduit aucune équivalence entre régimes.
+
+PQ-06 — CONVERTISSEUR PDF OFFICIEL
+État : ouverte.
+
+À trancher :
+- moteur unique ;
+- version et mode d’utilisation ;
+- test sur le poste Windows cible ;
+- validation des cas multi-équipements et du rendu visuel.
+
+La V1.2 utilise « Conversion PDF — moteur à confirmer ».
+
+PQ-08 — NUMÉROTATION RÉELLE
+État : ouverte.
+
+À trancher :
+- préfixe réel ;
+- compteur de départ ;
+- continuité ou remise à zéro annuelle ;
+- traitement des contrats historiques.
+
+L’aperçu du prototype ne constitue pas une décision.
+
+PQ-09 — REPRISE DES CONTRATS EXISTANTS
+État : ouverte.
+
+À trancher :
+- nouveaux contrats uniquement ;
+- ou saisie manuelle des contrats actifs existants ;
+- volume justifiant ou non un traitement complémentaire.
+
+Aucun import massif n’est ajouté sans besoin démontré.
+
+============================================================
+14. CRITÈRES D’ACCEPTATION UX V1.2
+============================================================
+
+La baseline V1.2 est acceptable lorsque :
+
+1. La navigation conserve exactement trois entrées permanentes.
+2. L’espace contrat conserve exactement quatre étapes.
+3. Le compteur et le filtre Actions utilisent la même logique d’intervention réelle.
+4. Une information de suivi n’entre pas dans les Actions à traiter.
+5. Un brouillon jamais généré affiche Aucun document.
+6. Une ligne de contrat s’ouvre au clic et avec Entrée.
+7. Changer et Créer sont des actions distinctes pour clients et sites.
+8. Les cascades retirent site, équipements et observations devenus hors contexte.
+9. Les checkboxes d’équipement mettent réellement à jour compteur, ordre, résumé et revue.
+10. Zéro équipement bloque la génération.
+11. Un nouvel équipement est sélectionné et ajouté en dernier.
+12. Le signataire est propre au contrat.
+13. Aucun régime permanent n’est stocké sur une fiche client maître.
+14. Les modèles proposés sont filtrés selon leurs compatibilités réellement confirmées.
+15. Aucun modèle compatible produit un état explicite avec accès aux Paramètres.
+16. Le formulaire de renouvellement varie entre Aucun, Manuel et Reconduction tacite.
+17. Les modalités de non-renouvellement et le prix au renouvellement sont structurés.
+18. Les conditions d’intervention sont préremplies puis copiées dans le contrat.
+19. La date de fin est calculée depuis la prise d’effet et la durée standard.
+20. Le taux de TVA est sélectionné sans prétention de détermination juridique automatique.
+21. La revue contient exactement neuf blocs métier.
+22. La complétude du contrat et la disponibilité de génération sont distinctes.
+23. Les contrôles documentaires profonds ne sont pas exposés dans la revue.
+24. La confirmation de génération détaille tous ses effets et sa garantie d’échec.
+25. Numéro prévu est utilisé avant succès.
+26. Corriger le contrat retourne à Brouillon et ne crée aucune révision.
+27. Une nouvelle révision n’existe qu’après nouvelle génération réussie.
+28. Envoi et signature sont attachés à la révision choisie.
+29. La date de prise d’effet reste informative dans la modale de signature.
+30. Le statut après signature dépend de la date de prise d’effet, sans action Activer.
+31. Signature sans copie et copie auparavant archivée devenue introuvable restent deux états distincts.
+32. L’historique ne journalise pas les consultations ou ouvertures.
+33. La reconduction tacite n’est jamais considérée automatiquement comme certaine.
+34. Brouillon et À signer non conclu utilisent Abandonner, pas Résilier.
+35. La fiche d’intervention apparaît dans Autres documents.
+36. Résidence Le Levant démontre réellement deux sites et leurs équipements propres.
+37. Chaque site permet Créer un contrat pour ce site sans préremplir le régime.
+38. La fiche Organisation couvre les champs administratifs attendus.
+39. Les modifications maîtres n’ont aucune propagation silencieuse.
+40. L’usage normal propose Archiver et Restaurer, sans suppression permanente.
+41. Les archives sont accessibles sans nouvel écran.
+42. Société affiche les valeurs connues et À compléter pour les inconnues.
+43. Une donnée société n’est requise que par les modèles utilisés.
+44. Ajouter un modèle et Nouvelle version restent deux parcours distincts.
+45. Rendre disponible exige structure, test et confirmation externe.
+46. Le prochain compteur est en lecture seule après première attribution.
+47. Les alertes configurables sont des seuils ; les anomalies structurelles restent visibles.
+48. Le déplacement du dossier conserve l’ancien emplacement actif jusqu’au succès complet.
+49. Une sauvegarde existante n’est jamais écrasée silencieusement.
+50. La restauration présente date, taille et contenu reconnu avant confirmation.
+51. Le diagnostic sépare État du poste et Test d’un modèle.
+52. Le moteur PDF reste à confirmer tant que PQ-06 est ouverte.
+53. La première utilisation offre Configurer ou Restaurer.
+54. Le dossier par défaut est un dossier utilisateur visible.
+55. Le premier modèle commence à À valider et peut être différé.
+56. Les tests du wizard ne créent ni contrat, ni numéro, ni révision.
+57. Application configurée et génération disponible sont deux états distincts.
+58. La progression du wizard est persistée.
+59. Terminer sans sauvegarde crée un rappel persistant.
+60. Les erreurs suivent les quatre familles et nomment conservation et prochaine action.
+61. Un échec d’écriture ne produit jamais un faux état de succès.
+62. PQ-05, PQ-06, PQ-08 et PQ-09 restent les seules questions ouvertes.
+63. La direction graphique générale de V1.1 est conservée.
+64. Aucun écran permanent ou module métier n’est ajouté.
+
+FIN DE UX_SPEC_V1_2

@@ -1,0 +1,45 @@
+ICP RENOV - DOCUMENT SPIKE FINAL PRE-COMMIT MICRO-CLOSURE DIFF
+
+CODE CHANGES
+- spike/render.py
+  - Added DEFAULT_CONVERTER = "libreoffice".
+  - Changed the --converter CLI default from word to libreoffice.
+  - Added create_converter() so the default converter selection is deterministic and directly testable.
+  - Retained explicit --converter word support.
+- spike/validation.py
+  - Scoped INTERVENTION_SHEET required fields to its document context.
+  - Excluded contract-only controlled values, duration/renewal rules, service/pricing rules, and legal-context authorization checks from INTERVENTION_SHEET validation.
+  - Left the CONTRACT validation branch and its frozen requiredness rules intact.
+- spike/tests/test_spike.py
+  - Added a direct test that the CLI default creates LibreOfficeConverter.
+  - Added tests for INTERVENTION_SHEET without client.regime and without unused contract/service/pricing data.
+  - Added failure tests for missing intervention.date and missing equipment.
+  - Added a CONTRACT regression proving client.regime remains required.
+- .gitignore
+  - Added only: **/__pycache__/, *.py[cod], and spike/tmp/.
+
+CLEANUP PERFORMED
+- Removed every __pycache__ directory.
+- Removed every *.pyc file.
+- Removed spike/tmp/ entirely, including qa_deps, pq06_regen, and test scratch.
+- Removed spike/qa_libreoffice/ from the failed acceptance pass.
+- No QA dependencies were vendored.
+
+HANDOFF FILES UPDATED
+- spike/recap.txt
+- spike/diff.txt
+
+RETAINED UNCHANGED IN THIS MICRO-CLOSURE
+- spike/output current final four DOCX and four PDF.
+- spike/qa_libreoffice_final/.
+- spike/historical_evidence/.
+- spike/diagnostic_evidence/.
+- Authoritative documentation under docs/.
+- Production source DOCX templates under templates/.
+- PQ06_RECOMMENDATION_READY.
+
+NOT PERFORMED
+- No converter research.
+- No Microsoft Word COM execution.
+- No PDF regeneration.
+- No desktop application implementation.

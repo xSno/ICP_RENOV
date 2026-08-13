@@ -1,0 +1,199 @@
+=== PAGE 1 ===
+Prestataire Démo  |  01 00 00 00 00  |  contact@example.invalid
+Prestataire Démo  |  DEMO-PRO-PARTNER  |  R01  |  Page 1 / 5
+CONTRAT D'ENTRETIEN DE CLIMATISATION
+Entretien annuel - Professionnel
+Contrat n°
+DEMO-PRO-PARTNER
+Révision
+R01
+Date d'émission
+12 août 2026
+Client
+Société Boréale Démonstration
+Site entretenu
+30 boulevard du Scenario, 69000 Lyon, France
+Date de prise d'effet
+1 septembre 2026
+Échéance initiale
+31 août 2027
+Prix annuel TTC
+1 200,00 €
+1. Parties au contrat
+Le Prestataire
+Dénomination
+Prestataire Démo
+Immatriculation
+SIREN 000 000 000, SIRET 000 000 000 00000
+Siège
+10 rue de la Démonstration, 75000 Paris, France
+Téléphone
+01 00 00 00 00
+E-mail
+contact@example.invalid
+Ci-après désigné « le Prestataire ».
+Le Client
+Nom / raison sociale
+Société Boréale Démonstration
+Adresse
+30 boulevard du Scenario, 69000 Lyon, France
+Forme juridique : Société fictive - SIRET : 000 000 000 00001 - Représentant : Morgan Exemple, Direction fictive.
+Régime contractuel confirmé : Professionnel.
+Ci-après désigné « le Client ». Le Prestataire et le Client sont ensemble désignés « les Parties ».
+Article 1 - Objet et périmètre
+Le présent contrat définit les conditions dans lesquelles le Prestataire assure l'entretien préventif des équipements de 
+climatisation, pompes à chaleur air/air ou systèmes thermodynamiques expressément listés en annexe 1.
+Le contrat porte sur un seul site situé à 30 boulevard du Scenario, 69000 Lyon, France. Toute extension du périmètre à un 
+autre site ou à des équipements supplémentaires nécessite un accord écrit et, le cas échéant, une adaptation du prix.
+Sauf stipulation expresse contraire, le présent contrat est un contrat d'entretien préventif. Il ne constitue ni une garantie totale 
+contre les pannes, ni un contrat de dépannage illimité, ni une garantie constructeur.
+Article 2 - Prestations incluses
+Le Prestataire réalise 1 visite(s) d'entretien préventif par période contractuelle, sur rendez-vous et sous réserve d'un accès 
+normal et sécurisé aux équipements.
+La visite comprend, selon la configuration de l'installation et les opérations techniquement pertinentes :
+
+vérification générale du fonctionnement et contrôle visuel des éléments accessibles ;
+
+nettoyage courant des filtres et éléments accessibles lorsque cela entre dans la visite prévue ;
+
+contrôle de l'écoulement des condensats lorsque l'accès le permet ;
+
+contrôle des commandes, télécommandes ou thermostats ;
+
+contrôle des températures de soufflage et/ou de reprise lorsque cela est pertinent ;
+
+signalement des anomalies apparentes et conseils d'utilisation ou d'amélioration.
+
+=== PAGE 2 ===
+Prestataire Démo  |  01 00 00 00 00  |  contact@example.invalid
+Prestataire Démo  |  DEMO-PRO-PARTNER  |  R01  |  Page 2 / 5
+Pour les systèmes thermodynamiques entrant dans le champ des dispositions réglementaires relatives à l'entretien, les 
+opérations réglementaires applicables sont réalisées dans les conditions prévues par les textes en vigueur. Lorsqu'une 
+attestation réglementaire d'entretien est requise, elle est établie par la personne ayant réalisé l'entretien et remise au 
+commanditaire dans le délai réglementaire.
+Article 3 - Prestations exclues
+Sauf mention expresse contraire dans les conditions particulières, ne sont pas compris dans le prix annuel :
+
+les dépannages curatifs, recherches de panne et diagnostics approfondis ;
+
+les réparations, pièces, accessoires et remplacements ;
+
+les recherches de fuite approfondies, réparations du circuit frigorifique et opérations distinctes de la visite d'entretien ;
+
+les recharges, récupérations ou transferts de fluide frigorigène lorsqu'ils ne sont pas explicitement inclus ;
+
+les nettoyages lourds, désinfections approfondies, réseaux de gaines et opérations nécessitant un démontage 
+important ;
+
+les travaux de mise en conformité, modification, déplacement ou remplacement de l'installation ;
+
+les moyens d'accès spécifiques tels que nacelle, échafaudage ou intervention en toiture, sauf accord écrit ;
+
+les interventions hors horaires habituels et urgences, sauf option souscrite.
+Article 4 - Conditions d'intervention
+Zone d’intervention incluse : Paris intra-muros. Horaires habituels : du lundi au vendredi, 9 h - 17 h.
+Déplacements : déplacements inclus. Dépannage prioritaire : non incluse.
+Le Client garantit au technicien un accès suffisant et sécurisé aux équipements et signale avant le rendez-vous toute 
+contrainte particulière susceptible d'affecter la sécurité ou la réalisation de la prestation.
+Si l'intervention ne peut être réalisée du fait du Client, le Prestataire en informe celui-ci et une nouvelle intervention est 
+programmée selon les disponibilités.
+Article 5 - Obligations des Parties
+Le Prestataire s'engage à exécuter les prestations avec diligence et dans la limite du périmètre convenu. Il signale les 
+anomalies apparentes constatées et recueille l'accord du Client avant toute prestation complémentaire payante.
+Le Client s'engage à fournir des informations exactes, permettre l'accès sécurisé aux équipements, utiliser l'installation 
+conformément à sa destination, signaler les anomalies connues et régler les sommes dues aux échéances convenues.
+Article 6 - Prix et paiement
+Le prix du contrat est fixé à 1 000,00 € HT, TVA 20 %, soit un montant de TVA de 200,00 € et un prix annuel de 1 200,00 € 
+TTC par période contractuelle.
+Modalités de paiement : paiement sous 30 jours. Moyens de paiement acceptés : virement bancaire.
+Les prestations non comprises au forfait font l'objet d'un devis ou d'un accord complémentaire avant exécution, sauf mesure 
+conservatoire strictement nécessaire à la sécurité immédiate.
+En cas de retard de paiement entre professionnels, les pénalités de retard et l'indemnité forfaitaire de recouvrement 
+applicables sont celles prévues dans les conditions de paiement convenues et sur les factures, sous réserve des règles 
+impératives applicables.
+Article 7 - Durée et renouvellement
+Le contrat prend effet le 1 septembre 2026 et sa période initiale prend fin le 31 août 2027.
+À l'issue de la période initiale, le contrat est reconduit tacitement pour des périodes successives de 12 mois, sauf notification 
+de non-reconduction adressée selon les modalités suivantes : courrier, dans le délai contractuel suivant : 30 jours. Prix au 
+renouvellement : prix inchangé.
+Article 8 - Résiliation et fin du contrat
+Chaque Partie peut mettre fin au contrat dans les cas et selon les modalités prévus par la loi et le présent contrat. En cas de 
+manquement grave, la résiliation peut intervenir après mise en demeure restée sans effet pendant 15 jours, sauf urgence ou 
+disposition impérative contraire.
+Lorsque des prestations ont déjà été exécutées avant la date effective de fin, les sommes correspondant aux prestations 
+effectivement dues restent exigibles, sous réserve des droits impératifs du Client.
+Article 9 - Fluides frigorigènes
+Manipulation confiée à un partenaire habilité lorsque nécessaire.
+
+=== PAGE 3 ===
+Prestataire Démo  |  01 00 00 00 00  |  contact@example.invalid
+Prestataire Démo  |  DEMO-PRO-PARTNER  |  R01  |  Page 3 / 5
+Les opérations nécessitant une manipulation de fluides frigorigènes sont confiées au partenaire identifié pour ce contrat : 
+Partenaire Frigorifique Fictif. Les prestations non incluses font l'objet d'un devis ou d'un accord complémentaire.
+Article 10 - Responsabilité et assurance
+Le Prestataire répond des dommages directement imputables à une faute dans l'exécution de ses prestations, dans les 
+conditions du droit applicable. Il ne garantit pas l'absence future de panne après une visite d'entretien.
+Sa responsabilité ne saurait être engagée pour un défaut résultant notamment d'une usure normale, d'un vice du matériel, 
+d'une mauvaise utilisation, d'une intervention d'un tiers, d'un défaut d'alimentation, d'un sinistre ou d'une cause extérieure à 
+la prestation, sauf faute imputable au Prestataire.
+Assurance responsabilité civile professionnelle : Assureur Fictif, police DEMO-RC-001, Responsabilité civile professionnelle - 
+donnée de test, valide jusqu'au 31 décembre 2027.
+Article 11 - Données personnelles
+Les données personnelles nécessaires à la relation contractuelle sont utilisées pour la gestion du contrat, la planification des 
+interventions, la facturation, le suivi des réclamations et le respect des obligations légales du Prestataire. Elles sont 
+conservées pendant les durées nécessaires à ces finalités et aux obligations légales applicables.
+Pour exercer ses droits relatifs à ses données personnelles, le Client peut contacter : privacy@example.invalid.
+Article 12 - Réclamations et règlement des litiges
+Toute réclamation relative à l’exécution du contrat est adressée au Prestataire à : reclamations@example.invalid.
+Le contrat est soumis au droit français. Les Parties recherchent en priorité une solution amiable. À défaut, le litige relève des 
+juridictions compétentes selon les règles légales applicables.
+Article 13 - Dispositions applicables au Client professionnel
+Le présent contrat est conclu dans le cadre de l'activité professionnelle du Client. Les stipulations particulières applicables à 
+cette relation professionnelle restent soumises aux règles impératives qui gouvernent leur validité et leur opposabilité.
+
+=== PAGE 4 ===
+Prestataire Démo  |  01 00 00 00 00  |  contact@example.invalid
+Prestataire Démo  |  DEMO-PRO-PARTNER  |  R01  |  Page 4 / 5
+Article 15 - Signature
+Fait à Paris, le ____________________.
+Le Client reconnaît avoir pris connaissance du contrat, de ses annexes présentes dans la version finale et des conditions 
+particulières éventuelles avant signature.
+Le Prestataire
+Le Client
+Nom / qualité : Alex Démo - Responsable fictif
+Signature :
+Nom / qualité : Morgan Exemple - Direction fictive
+Mention : « Lu et approuvé, bon pour accord »
+Signature :
+
+=== PAGE 5 ===
+Prestataire Démo  |  01 00 00 00 00  |  contact@example.invalid
+Prestataire Démo  |  DEMO-PRO-PARTNER  |  R01  |  Page 5 / 5
+Annexe 1 - Équipements couverts
+Contrat : DEMO-PRO-PARTNER - Site : 30 boulevard du Scenario, 69000 Lyon, France
+Les équipements ci-dessous constituent le périmètre matériel du contrat pour la révision concernée.
+Équipement
+N° de série
+Puissance
+Localisation
+Installation
+Unité murale - Marque Démo - MODELE-01
+DEMO-SN-0001
+2,5 kW
+Zone fictive 01
+11 février 2022
+Unité murale - Marque Démo - MODELE-02
+DEMO-SN-0002
+3,0 kW
+Zone fictive 02
+12 mars 2023
+Groupe extérieur - Marque Démo - MODELE-03
+DEMO-SN-0003
+3,5 kW
+Zone fictive 03
+13 avril 2024
+Unité murale - Marque Démo - MODELE-04
+DEMO-SN-0004
+4,0 kW
+Zone fictive 04
+14 mai 2025

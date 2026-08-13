@@ -1,0 +1,99 @@
+=== PAGE 1 ===
+Prestataire Démo  |  01 00 00 00 00  |  contact@example.invalid
+Prestataire Démo  |  Contrat DEMO-EXISTANT-042  |  Fiche d’intervention  |  Page 1 / 2
+FICHE D'INTERVENTION
+Entretien de climatisation
+Contrat n°
+DEMO-EXISTANT-042
+Client
+Camille Exemple
+Site
+20 avenue du Test, 75000 Paris, France
+Date d'intervention
+12 août 2026
+Technicien
+Technicien Démo
+Équipements concernés
+Équipement
+N° de série
+Puissance
+Localisation
+Installation
+Unité murale - Marque 
+Démo - MODELE-01
+DEMO-SN-0001
+2,5 kW
+Zone fictive 01
+11 février 2022
+Observations contractuelles : Accès par trappe technique.
+Prévoir une protection de sol.
+Unité murale - Marque 
+Démo - MODELE-02
+DEMO-SN-0002
+3,0 kW
+Zone fictive 02
+12 mars 2023
+Groupe extérieur - Marque 
+Démo - MODELE-03
+DEMO-SN-0003
+3,5 kW
+Zone fictive 03
+13 avril 2024
+Unité murale - Marque 
+Démo - MODELE-04
+DEMO-SN-0004
+4,0 kW
+Zone fictive 04
+14 mai 2025
+Observations contractuelles : Accès par trappe technique.
+Prévoir une protection de sol.
+Unité murale - Marque 
+Démo - MODELE-05
+DEMO-SN-0005
+2,0 kW
+Zone fictive 05
+15 juin 2021
+Groupe extérieur - Marque 
+Démo - MODELE-06
+DEMO-SN-0006
+2,5 kW
+Zone fictive 06
+16 juillet 2022
+Prestations réalisées
+ Vérification du fonctionnement général
+☐
+ Contrôle visuel des unités et éléments accessibles
+☐
+ Nettoyage courant des filtres / éléments accessibles
+☐
+ Contrôle de l'écoulement des condensats
+☐
+ Vérification des commandes / thermostats
+☐
+ Contrôle des températures si pertinent
+☐
+ Conseils d'utilisation et recommandations
+☐
+ Autre : Mesure complémentaire fictive
+☐
+Observations et anomalies
+Observations :
+Filtres nettoyés.
+Essai de fonctionnement réalisé.
+Anomalies constatées :
+Bruit intermittent sur l'unité 4.
+Contrôle complémentaire conseillé.
+Devis complémentaire recommandé : Oui.
+
+=== PAGE 2 ===
+Prestataire Démo  |  01 00 00 00 00  |  contact@example.invalid
+Prestataire Démo  |  Contrat DEMO-EXISTANT-042  |  Fiche d’intervention  |  Page 2 / 2
+Signatures
+Le présent document atteste des informations relevées lors de l'intervention. Il ne modifie pas à lui seul les conditions du 
+contrat d'entretien.
+Technicien
+Client / représentant
+Nom : ______________________________
+Signature :
+Nom : ______________________________
+Signature :

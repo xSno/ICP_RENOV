@@ -1,0 +1,32 @@
+ICP RENOV - DOCUMENT SPIKE FINAL PRE-COMMIT MICRO-CLOSURE
+
+LibreOffice CLI default
+- CONFIRMED: spike/render.py defaults --converter to libreoffice.
+- Running python -m spike.render without --converter deterministically creates LibreOfficeConverter.
+- The explicit --converter word option remains available only for historical/diagnostic use.
+- Official V1 PDF converter remains LibreOffice headless 26.2.5.2.
+
+INTERVENTION_SHEET validation scope
+- CONFIRMED: intervention validation no longer requires client.regime or contract-only type, issue/start/duration, renewal, service, pricing, or legal-context authorization data.
+- It continues to require the intervention/template context: company identity, client identity/address, site address, contract reference, intervention.date, and ordered non-empty equipment items with required equipment fields.
+- Tests prove absence of client.regime succeeds; absence of unused renewal/service/pricing contract data succeeds; missing intervention.date fails; missing equipment fails.
+- CONTRACT requiredness and controlled-value rules were not changed; regression proves client.regime remains required for CONTRACT.
+
+Automated regression
+- Command: ICP_SKIP_WORD_INTEGRATION=1; python -m unittest discover -s spike/tests -v
+- Discovered: 39; passed: 38; skipped: 1 (Microsoft Word integration intentionally disabled); failed: 0.
+- The four final PDFs were not regenerated.
+
+Repository cleanup
+- Removed all __pycache__ directories and *.pyc files.
+- Removed spike/tmp entirely, including QA dependencies and test/regeneration scratch.
+- Removed obsolete spike/qa_libreoffice evidence from the failed acceptance pass.
+- Retained the current four DOCX and four PDF outputs, spike/qa_libreoffice_final, historical_evidence, and diagnostic_evidence.
+- Added minimal ignore protection for Python caches and spike/tmp.
+
+PQ06_RECOMMENDATION_READY
+
+Recommended converter: LibreOffice headless
+
+Remaining risks only
+- LibreOffice 26.2.5.2 remains a required workstation dependency; another build requires re-acceptance.

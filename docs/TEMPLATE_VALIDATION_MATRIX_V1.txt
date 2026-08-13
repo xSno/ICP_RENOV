@@ -1,0 +1,602 @@
+TEMPLATE VALIDATION MATRIX V1
+Générateur local de contrats d’entretien de climatisation
+Projet : ICP Renov
+Date : 12 août 2026
+Statut : BASELINE DE VALIDATION DES VERSIONS DE MODÈLES — V1
+
+============================================================
+0. RÔLE ET AUTORITÉ
+============================================================
+
+Ce document définit la matrice de validation applicable à chaque version de modèle documentaire.
+
+Il s’appuie sur :
+1. FIELD_TEMPLATE_CONTRACT_V1_1.txt — registre canonique des données et règles de rendu ;
+2. UX_SPEC_V1_2.txt — baseline UX gelée ;
+3. les validations externes du contenu juridique et métier propres à chaque version.
+
+Il ne constitue pas :
+- un modèle DOCX ;
+- une validation juridique en lui-même ;
+- un moteur juridique ;
+- une architecture technique ;
+- un plan de développement ;
+- une résolution de PQ-05, PQ-06, PQ-08 ou PQ-09.
+
+Règle centrale :
+une version de modèle CONTRACT ne peut passer à AVAILABLE que si :
+1. sa structure est contrôlée ;
+2. son test DOCX/PDF de référence réussit ;
+3. son contenu externe a été confirmé ;
+4. au moins un régime client est explicitement confirmé ;
+5. toutes les données société requises par cette version sont disponibles ;
+6. les combinaisons de contexte et blocs autorisés sont explicitement renseignés.
+
+Aucune compatibilité n’est déduite par analogie entre régimes.
+
+============================================================
+1. STATUTS DE VERSION
+============================================================
+
+Statuts visibles :
+- TO_VALIDATE → « À valider »
+- AVAILABLE → « Disponible »
+- ARCHIVED → « Archivé »
+
+TO_VALIDATE
+- état initial après import ou création d’une nouvelle version ;
+- peut avoir zéro régime confirmé ;
+- peut avoir des régimes visés à titre de travail ;
+- ne peut jamais être utilisée pour générer un contrat officiel.
+
+AVAILABLE
+- structure contrôlée ;
+- test DOCX/PDF réussi ;
+- validation externe du contenu confirmée ;
+- au moins un régime explicitement confirmé pour document_kind = CONTRACT ;
+- données société requises présentes ;
+- compatibilités et autorisations de blocs explicitement renseignées ;
+- seule version sélectionnable pour un nouveau contrat.
+
+ARCHIVED
+- plus proposée pour de nouveaux contrats ;
+- compatibilités historiques conservées ;
+- révisions existantes toujours rattachées à cette version ;
+- source et métadonnées immuables si la version a produit un document officiel.
+
+============================================================
+2. FICHE DE VALIDATION PAR VERSION
+============================================================
+
+Chaque ContractTemplateVersion possède une fiche de validation contenant au minimum :
+
+IDENTITÉ
+- template.id
+- template.name
+- template.document_kind
+- template.contract_type_code si CONTRACT
+- template.version
+- template.version_status
+- template.source_hash
+- date de création/import
+- date de dernière validation
+- version précédente éventuelle
+
+RÉGIMES
+- régimes visés lors de la préparation
+- régimes confirmés : template.allowed_client_regimes
+- aucune équivalence implicite
+- justification/référence externe de la confirmation
+
+STRUCTURE
+- contrôle placeholders
+- contrôle blocs
+- contrôle boucles
+- contrôle images
+- contrôle en-têtes/pieds
+- contrôle tableaux
+- contrôle marqueurs éditoriaux
+- contrôle document_kind / contract_type_code
+
+DONNÉES SOCIÉTÉ REQUISES
+- liste explicite des company.* exigés par cette version
+- état présent/manquant
+- aucun champ société n’est requis globalement par le logiciel
+
+TEST DOCX/PDF
+- fixture utilisée
+- date du test
+- DOCX généré
+- PDF généré
+- ouverture DOCX
+- ouverture PDF
+- absence de marqueur non résolu
+- résultat visuel
+- validation 1/10/30 équipements si la version contient la boucle équipements
+
+VALIDATION EXTERNE
+- personne/source ayant validé le contenu
+- date
+- périmètre validé
+- réserves éventuelles
+- statut de chaque gate applicable
+
+BLOCS DE CONTEXTE
+- blocs explicitement autorisés
+- combinaisons de contexte autorisées
+- aucun calcul juridique runtime
+
+============================================================
+3. MATRICE DE STRUCTURE
+============================================================
+
+Pour chaque version, renseigner PASS / FAIL / N/A.
+
+STR-01 — Corps du document contrôlé
+STR-02 — Tous les placeholders reconnus par FIELD_TEMPLATE_CONTRACT_V1_1
+STR-03 — Aucun placeholder supprimé/obsolète
+STR-04 — Tous les blocs conditionnels reconnus
+STR-05 — Aucune condition libre ou script
+STR-06 — Boucle contract.equipment_items valide si requise
+STR-07 — En-tête de tableau équipements répétable
+STR-08 — Images reconnues et ressources contrôlées
+STR-09 — En-têtes contrôlés
+STR-10 — Pieds de page contrôlés
+STR-11 — Tableaux contrôlés
+STR-12 — Aucun marqueur de revue/conception
+STR-13 — Aucun token résiduel attendu après rendu
+STR-14 — document_kind cohérent
+STR-15 — contract_type_code cohérent si CONTRACT
+STR-16 — Aucun bloc générique non whitelisté
+STR-17 — Aucun enum technique destiné à être imprimé directement
+STR-18 — Les champs optionnels peuvent supprimer leur ligne/bloc proprement
+STR-19 — La date de signature initiale reste manuscrite/vide
+STR-20 — INTERVENTION_SHEET n’utilise ni numéro de révision Rxx ni workflow TO_SIGN
+STR-21 — BLOCK_OPTIONAL_COMPANY_FIELD, s’il est utilisé, est lié à une clé company.* canonique explicite
+
+Échec d’un contrôle obligatoire :
+version non AVAILABLE.
+
+============================================================
+4. MATRICE DE COMPATIBILITÉ CONTRACTUELLE
+============================================================
+
+Applicable uniquement à document_kind = CONTRACT.
+
+Pour chaque version :
+
+contract_type_code attendu :
+- CLIMATE_MAINTENANCE en V1
+
+RÉGIMES CONFIRMÉS
+- CONSUMER : YES / NO
+- NON_PROFESSIONAL : YES / NO
+- PROFESSIONAL : YES / NO
+
+Règles :
+- YES signifie confirmation explicite de cette version ;
+- NO signifie non compatible ou non validé ;
+- absence de confirmation = NO pour la sélection ;
+- TO_VALIDATE peut avoir 0 YES ;
+- AVAILABLE exige au moins 1 YES ;
+- CONSUMER ne vaut jamais NON_PROFESSIONAL ;
+- NON_PROFESSIONAL ne vaut jamais CONSUMER ;
+- PROFESSIONAL reste distinct.
+
+============================================================
+5. DONNÉES SOCIÉTÉ REQUISES PAR VERSION
+============================================================
+
+La requiredness est évaluée avant génération officielle pour la version sélectionnée.
+
+Pour chaque clé ci-dessous :
+REQUIRED / OPTIONAL / N/A + valeur présente YES/NO.
+
+Socle possible :
+- company.legal_name
+- company.trade_name
+- company.display_name
+- company.legal_form
+- company.share_capital
+- company.siren
+- company.siret
+- company.registration_summary
+- company.ape_code
+- company.registered_address
+- company.correspondence_address
+- company.phone
+- company.email
+- company.vat_number
+- company.signatory_name
+- company.signatory_role
+- company.logo
+
+Assurance :
+- company.insurer_name
+- company.insurance_policy_number
+- company.insurance_scope
+- company.insurance_valid_until
+
+Fluides :
+- company.refrigerant_capacity_number
+- company.refrigerant_capacity_body
+- company.refrigerant_capacity_until
+- company.refrigerant_partner_name
+
+Informations consommateur / contacts :
+- company.mediator_name
+- company.mediator_address
+- company.mediator_website
+- company.complaints_contact
+- company.withdrawal_contact
+- company.privacy_contact
+
+Règles :
+- aucune donnée de cette liste n’est requise globalement par l’application ;
+- la version déclare explicitement ses besoins ;
+- si une donnée REQUIRED pour cette version manque, cette version ne peut pas devenir AVAILABLE ;
+- pour une version déjà AVAILABLE, si une donnée société requise devient invalide/manquante, la génération est bloquée jusqu’à correction des paramètres ; la version elle-même n’est pas silencieusement modifiée.
+
+============================================================
+6. MATRICE DE CONTEXTE ET BLOCS AUTORISÉS
+============================================================
+
+La matrice de version est l’autorité déterministe autorisant les blocs juridiques/contextuels.
+
+Le moteur runtime :
+- lit le contexte enregistré ;
+- vérifie que la version AVAILABLE sélectionnée autorise explicitement le bloc pour cette combinaison ;
+- n’infère aucune règle juridique.
+
+Contexte minimal possible :
+- client.regime
+- contract.conclusion_mode
+- contract.early_performance_requested
+- contract.renewal_mode
+- service.refrigerant_handling_mode
+- présence/absence d’une donnée optionnelle structurée
+
+Blocs non juridiques simples, gouvernés par les données :
+- BLOCK_CLIENT_PERSON
+- BLOCK_CLIENT_ORGANIZATION
+- BLOCK_CLIENT_CONSUMER
+- BLOCK_CLIENT_NON_PROFESSIONAL
+- BLOCK_CLIENT_PROFESSIONAL
+- BLOCK_BILLING_ADDRESS_DIFFERENT
+- BLOCK_OPTIONAL_COMPANY_FIELD
+- BLOCK_INCLUDED_OPTIONS
+- BLOCK_ADDITIONAL_EXCLUSIONS
+- BLOCK_MISSED_APPOINTMENT_FEE
+- BLOCK_SPECIAL_TERMS
+- BLOCK_RENEWAL_NONE
+- BLOCK_RENEWAL_MANUAL
+- BLOCK_RENEWAL_TACIT
+- BLOCK_REFRIGERANT_IN_HOUSE
+- BLOCK_REFRIGERANT_PARTNER
+- BLOCK_REFRIGERANT_EXCLUDED
+- BLOCK_EQUIPMENT_OBSERVATIONS
+
+Blocs exigeant une autorisation explicite de la matrice :
+- BLOCK_WITHDRAWAL
+- BLOCK_EARLY_PERFORMANCE
+- BLOCK_ELECTRONIC_TERMINATION
+
+Règles spécifiques :
+
+BLOCK_OPTIONAL_COMPANY_FIELD
+- la version lie explicitement le bloc à une clé company.* canonique du FIELD_TEMPLATE_CONTRACT_V1_1 ;
+- le bloc dépend uniquement de la présence de cette donnée ;
+- aucune clé libre, expression arbitraire ou sélection runtime d’un champ non déclaré n’est admise.
+
+BLOCK_WITHDRAWAL
+- la version AVAILABLE doit autoriser explicitement le bloc pour la combinaison de contexte enregistrée.
+
+BLOCK_EARLY_PERFORMANCE
+- la version AVAILABLE doit autoriser explicitement BLOCK_EARLY_PERFORMANCE pour la combinaison de contexte ;
+- BLOCK_WITHDRAWAL doit être actif ;
+- contract.early_performance_requested = true.
+
+BLOCK_ELECTRONIC_TERMINATION
+- la version AVAILABLE doit autoriser explicitement le bloc pour la combinaison de contexte enregistrée.
+
+Aucune autorisation générique « si applicable » n’est admise.
+
+============================================================
+7. LEGAL / EXTERNAL VALIDATION GATES
+============================================================
+
+Les gates suivants sont des métadonnées de validation externe.
+Ils ne sont ni des règles calculées par l’application ni des clauses injectées dynamiquement.
+
+Valeurs :
+- NOT_APPLICABLE
+- TO_REVIEW
+- CONFIRMED
+- REJECTED
+
+Gates disponibles :
+
+LEGAL_BASE_CONTRACT_TERMS
+LEGAL_CLIENT_REGIME_CLASSIFICATION
+LEGAL_B2C_CONSUMER_TERMS
+LEGAL_NON_PROFESSIONAL_TERMS
+LEGAL_TACIT_RENEWAL
+LEGAL_WITHDRAWAL_INFORMATION
+LEGAL_WITHDRAWAL_FORM
+LEGAL_EARLY_PERFORMANCE_REQUEST
+LEGAL_ELECTRONIC_TERMINATION
+LEGAL_ELECTRONIC_WITHDRAWAL
+LEGAL_MEDIATOR
+LEGAL_B2B_PAYMENT
+LEGAL_B2B_JURISDICTION
+LEGAL_PRICE_REVISION
+LEGAL_REFRIGERANT_SCOPE
+LEGAL_INSURANCE_REPRESENTATION
+LEGAL_PRIVACY_NOTICE
+LEGAL_SPECIAL_TERMS_PRIORITY
+
+LEGAL_PRICE_INDEXATION
+- DEFERRED V1
+- ne peut pas être utilisé pour rendre INDEXED sélectionnable.
+
+Règles :
+- chaque gate applicable doit être CONFIRMED avant AVAILABLE ;
+- un gate REJECTED bloque AVAILABLE ;
+- un gate TO_REVIEW bloque AVAILABLE s’il est applicable ;
+- NOT_APPLICABLE doit être explicite, pas déduit par défaut ;
+- la preuve/référence de validation est enregistrée hors texte du contrat.
+
+============================================================
+8. TEST DE RENDU DOCX/PDF
+============================================================
+
+Une version ne peut devenir AVAILABLE qu’après un test documentaire réussi.
+
+Fixture minimale CONTRACT :
+- société complète selon les besoins de la version ;
+- client compatible ;
+- site ;
+- au moins un équipement ;
+- prix ;
+- paiement ;
+- période ;
+- renouvellement compatible ;
+- toutes les valeurs REQUIRED/REQUIRED_WHEN actives.
+
+Tests fonctionnels minimaux :
+- valeur simple
+- montant français
+- taux
+- date
+- texte multiligne
+- liste contrôlée
+- bloc facultatif présent
+- bloc facultatif absent
+- bloc conditionnel actif
+- bloc conditionnel inactif
+- logo présent
+- logo absent
+
+Équipements :
+- 1 équipement
+- 10 équipements
+- 30 équipements
+- observations présentes
+- observations absentes
+- pagination
+- répétition de l’en-tête du tableau
+
+Contrôles post-rendu :
+- aucun {{...}} restant
+- aucun [[...]] restant si cette syntaxe est utilisée
+- aucun marqueur de bloc/loop restant
+- aucune valeur enum brute
+- aucun libellé orphelin
+- DOCX ouvrable
+- PDF ouvrable
+- pagination acceptable
+- pas de corruption d’image/tableau/header/footer
+
+Rendu visuel :
+- état possible « À contrôler visuellement »
+- AVAILABLE seulement après confirmation visuelle si la version l’exige
+
+============================================================
+9. TEST INTERVENTION_SHEET
+============================================================
+
+Pour une version INTERVENTION_SHEET :
+
+- aucun contract number nouveau ;
+- aucun document.revision Rxx ;
+- aucun passage DRAFT → TO_SIGN ;
+- aucune copie signée ;
+- pas de règle de renouvellement ;
+- pas de bloc juridique contractuel sauf besoin explicitement prévu dans une future version du registre.
+
+Fixture :
+- contrat existant ;
+- client ;
+- site ;
+- équipements ;
+- intervention.date ;
+- intervention.technician facultatif ;
+- notes / issues facultatives.
+
+Contrôles :
+- DOCX/PDF ouvrables ;
+- aucune révision contractuelle créée ;
+- document historisable comme autre document.
+
+============================================================
+10. GATE DE PASSAGE TO_VALIDATE → AVAILABLE
+============================================================
+
+Pour CONTRACT, toutes les conditions suivantes doivent être vraies :
+
+GATE-A — source DOCX présente
+GATE-B — source_hash calculé
+GATE-C — structure PASS
+GATE-D — aucun placeholder/bloc/loop inconnu
+GATE-E — contract_type_code défini et compatible
+GATE-F — au moins un allowed_client_regime confirmé
+GATE-G — données société REQUIRED présentes
+GATE-H — matrice de contexte renseignée
+GATE-I — gates externes applicables CONFIRMED
+GATE-J — test DOCX réussi
+GATE-K — test PDF réussi
+GATE-L — post-rendu sans résidu
+GATE-M — contrôle visuel confirmé si requis
+GATE-N — confirmation externe du contenu enregistrée
+
+Si un gate obligatoire échoue :
+- rester TO_VALIDATE ;
+- ne pas rendre la version disponible ;
+- ne pas permettre une génération officielle avec cette version.
+
+Pour INTERVENTION_SHEET :
+- GATE-F et les gates juridiques contractuels peuvent être N/A selon le modèle ;
+- tous les gates structure/rendu applicables restent obligatoires.
+
+============================================================
+11. IMMUTABILITÉ ET NOUVELLE VERSION
+============================================================
+
+Une version ayant servi à générer au moins un ContractDocument historisé, quel que soit document_kind :
+- n’est plus modifiable ;
+- conserve source_hash ;
+- conserve allowed_client_regimes historiques ;
+- conserve sa matrice de contexte ;
+- conserve ses validations externes ;
+- conserve les données de validation utilisées au moment de sa mise à disposition.
+
+Toute modification de :
+- texte ;
+- placeholder ;
+- bloc ;
+- boucle ;
+- structure ;
+- régime confirmé ;
+- autorisation de contexte ;
+- clause juridique ;
+- rendu attendu ;
+
+→ crée une nouvelle ContractTemplateVersion.
+
+Archiver une version :
+- n’altère aucune révision existante ;
+- n’efface aucune validation historique ;
+- ne change aucune compatibilité historique.
+
+============================================================
+12. RÈGLES DE RÉGRESSION D’UNE VERSION
+============================================================
+
+Une version AVAILABLE n’est pas silencieusement modifiée en réponse à un problème du poste ou des paramètres.
+
+Exemples :
+
+Donnée société requise devenue manquante
+→ version reste AVAILABLE historiquement
+→ génération bloquée tant que la donnée n’est pas corrigée
+
+Moteur PDF indisponible
+→ version reste AVAILABLE
+→ disponibilité de génération du poste en erreur
+
+Fichier source du modèle introuvable
+→ anomalie d’intégrité
+→ version et historique conservés
+→ génération bloquée jusqu’à localisation/restauration
+
+Nouvelle exigence de contenu
+→ ne pas modifier la version utilisée
+→ créer une nouvelle version TO_VALIDATE
+
+============================================================
+13. PRODUCT QUESTIONS CONSERVÉES OUVERTES
+============================================================
+
+PQ-05 — Variantes juridiques finales
+La matrice fournit le mécanisme de confirmation version par version.
+Elle ne confirme aucun régime de lancement à elle seule.
+
+PQ-06 — Convertisseur PDF officiel
+Le champ de test PDF est générique.
+Le moteur sera décidé par le spike.
+
+PQ-08 — Numérotation réelle
+Aucune règle de préfixe, compteur ou reset annuel n’est ajoutée.
+
+PQ-09 — Reprise des contrats existants
+Aucune logique d’import/migration n’est ajoutée.
+
+============================================================
+14. PREMIÈRES FICHES DE MODÈLES — ÉTAT DOCUMENTAIRE
+============================================================
+
+Cette section ne vaut PAS validation juridique ni disponibilité de production.
+
+Elle enregistre uniquement les familles de modèles envisagées dans l’UX et doit rester prudente tant que PQ-05 et la validation externe ne sont pas closes.
+
+A. Entretien annuel — Habitation
+- document_kind : CONTRACT
+- contract_type_code : CLIMATE_MAINTENANCE
+- statut production initial recommandé : TO_VALIDATE
+- régimes visés possibles : CONSUMER
+- allowed_client_regimes confirmés : à confirmer par validation externe
+- disponibilité production : NON tant que les gates ne sont pas tous validés
+
+B. Entretien annuel — Copropriété
+- document_kind : CONTRACT
+- contract_type_code : CLIMATE_MAINTENANCE
+- statut production initial recommandé : TO_VALIDATE
+- régimes visés possibles : NON_PROFESSIONAL
+- allowed_client_regimes confirmés : aucun tant que PQ-05 / validation externe ne confirment pas la variante
+- disponibilité production : NON
+
+C. Entretien annuel — Professionnel
+- document_kind : CONTRACT
+- contract_type_code : CLIMATE_MAINTENANCE
+- statut production initial recommandé : TO_VALIDATE
+- régimes visés possibles : PROFESSIONAL
+- allowed_client_regimes confirmés : à confirmer par validation externe
+- disponibilité production : NON tant que les gates ne sont pas tous validés
+
+D. Fiche d’intervention
+- document_kind : INTERVENTION_SHEET
+- statut production initial recommandé : TO_VALIDATE
+- compatibilité contractuelle par régime : N/A
+- disponibilité production : NON tant que structure et rendu ne sont pas validés
+
+IMPORTANT :
+les états « Disponible » du prototype UX sont des fixtures de démonstration.
+Ils ne constituent pas une validation réelle des modèles de production.
+
+============================================================
+15. CRITÈRES D’ACCEPTATION DE LA MATRICE
+============================================================
+
+La matrice V1 est correcte si :
+
+1. elle sépare TO_VALIDATE / AVAILABLE / ARCHIVED ;
+2. elle porte les compatibilités par ContractTemplateVersion ;
+3. elle permet zéro régime confirmé en TO_VALIDATE ;
+4. elle exige au moins un régime confirmé avant AVAILABLE pour CONTRACT ;
+5. elle n’assimile aucun régime à un autre ;
+6. elle porte les données société requises version par version ;
+7. elle n’introduit aucune requiredness société globale ;
+8. elle porte explicitement les autorisations des blocs juridiques ;
+9. BLOCK_EARLY_PERFORMANCE exige sa propre autorisation explicite ;
+10. elle ne devient pas un moteur juridique runtime ;
+11. elle exige structure + DOCX + PDF + validation externe ;
+12. elle couvre 1/10/30 équipements ;
+13. elle traite INTERVENTION_SHEET séparément des Rxx ;
+14. elle ne rend aucun modèle de production artificiellement Disponible ;
+15. elle conserve PQ-05, PQ-06, PQ-08 et PQ-09 ouvertes ;
+16. elle respecte l’immutabilité des versions utilisées ;
+17. elle distingue indisponibilité du poste et invalidité d’une version ;
+18. elle reste indépendante du moteur PDF choisi.
+19. BLOCK_OPTIONAL_COMPANY_FIELD reste fermé à une clé company.* canonique explicitement liée par la version.
+
+FIN DE TEMPLATE_VALIDATION_MATRIX_V1

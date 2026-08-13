@@ -1,0 +1,172 @@
+{
+  "template": {
+    "document_kind": "INTERVENTION_SHEET",
+    "version_status": "TO_VALIDATE",
+    "context_authorizations": []
+  },
+  "company": {
+    "legal_name": "Entreprise Démonstration Documentaire",
+    "trade_name": "Prestataire Démo",
+    "registered_address": "10 rue de la Démonstration, 75000 Paris, France",
+    "phone": "01 00 00 00 00",
+    "email": "contact@example.invalid",
+    "siren": "000 000 000",
+    "siret": "000 000 000 00000",
+    "signatory_name": "Alex Démo",
+    "signatory_role": "Responsable fictif",
+    "privacy_contact": "privacy@example.invalid",
+    "complaints_contact": "reclamations@example.invalid",
+    "withdrawal_contact": "retractation@example.invalid",
+    "mediator_name": "Médiateur Fictif",
+    "mediator_address": "1 voie Exemple, 75000 Paris",
+    "mediator_website": "https://example.invalid/mediateur",
+    "insurer_name": "Assureur Fictif",
+    "insurance_policy_number": "DEMO-RC-001",
+    "insurance_scope": "Responsabilité civile professionnelle - donnée de test",
+    "insurance_valid_until": "2027-12-31"
+  },
+  "client": {
+    "party_type": "PERSON",
+    "regime": "CONSUMER",
+    "first_name": "Camille",
+    "last_name": "Exemple",
+    "postal_address": "20 avenue du Test, 75000 Paris, France",
+    "billing_address": "",
+    "email": "camille@example.invalid",
+    "signatory_name": "Camille Exemple",
+    "signatory_role": "Client fictif"
+  },
+  "site": {
+    "label": "Site démonstration",
+    "address_line1": "20 avenue du Test",
+    "address_line2": "",
+    "postal_code": "75000",
+    "city": "Paris",
+    "country": "France"
+  },
+  "contract": {
+    "type_code": "CLIMATE_MAINTENANCE",
+    "number": "DEMO-EXISTANT-043",
+    "issue_date": "2026-08-12",
+    "start_date": "2026-09-01",
+    "initial_duration_mode": "STANDARD",
+    "initial_duration_months": 12,
+    "visits_per_year": 1,
+    "conclusion_mode": "IN_PREMISES",
+    "early_performance_requested": false,
+    "signature_city": "Paris",
+    "special_terms": "",
+    "renewal_mode": "NONE",
+    "renewal_period_months": 12,
+    "non_renewal_notice_days": 30,
+    "non_renewal_notice_channels": [
+      "POSTAL_MAIL"
+    ],
+    "breach_cure_period_days": 15,
+    "equipment_items": [
+      {
+        "position": 1,
+        "type": "Unité murale",
+        "brand": "Marque Démo",
+        "model": "MODELE-01",
+        "serial_number": "DEMO-SN-0001",
+        "power_kw": "2.5",
+        "location": "Zone fictive 01",
+        "install_date": "2022-02-11",
+        "observations": "Accès par trappe technique.\nPrévoir une protection de sol.",
+        "internal_notes": "NOTE INTERNE INTERDITE 01"
+      },
+      {
+        "position": 2,
+        "type": "Unité murale",
+        "brand": "Marque Démo",
+        "model": "MODELE-02",
+        "serial_number": "DEMO-SN-0002",
+        "power_kw": "3.0",
+        "location": "Zone fictive 02",
+        "install_date": "2023-03-12",
+        "observations": "",
+        "internal_notes": "NOTE INTERNE INTERDITE 02"
+      },
+      {
+        "position": 3,
+        "type": "Groupe extérieur",
+        "brand": "Marque Démo",
+        "model": "MODELE-03",
+        "serial_number": "DEMO-SN-0003",
+        "power_kw": "3.5",
+        "location": "Zone fictive 03",
+        "install_date": "2024-04-13",
+        "observations": "",
+        "internal_notes": "NOTE INTERNE INTERDITE 03"
+      },
+      {
+        "position": 4,
+        "type": "Unité murale",
+        "brand": "Marque Démo",
+        "model": "MODELE-04",
+        "serial_number": "DEMO-SN-0004",
+        "power_kw": "4.0",
+        "location": "Zone fictive 04",
+        "install_date": "2025-05-14",
+        "observations": "Accès par trappe technique.\nPrévoir une protection de sol.",
+        "internal_notes": "NOTE INTERNE INTERDITE 04"
+      },
+      {
+        "position": 5,
+        "type": "Unité murale",
+        "brand": "Marque Démo",
+        "model": "MODELE-05",
+        "serial_number": "DEMO-SN-0005",
+        "power_kw": "2.0",
+        "location": "Zone fictive 05",
+        "install_date": "2021-06-15",
+        "observations": "",
+        "internal_notes": "NOTE INTERNE INTERDITE 05"
+      },
+      {
+        "position": 6,
+        "type": "Groupe extérieur",
+        "brand": "Marque Démo",
+        "model": "MODELE-06",
+        "serial_number": "DEMO-SN-0006",
+        "power_kw": "2.5",
+        "location": "Zone fictive 06",
+        "install_date": "2022-07-16",
+        "observations": "",
+        "internal_notes": "NOTE INTERNE INTERDITE 06"
+      }
+    ]
+  },
+  "service": {
+    "included_area": "Paris intra-muros",
+    "business_hours": "du lundi au vendredi, 9 h - 17 h",
+    "travel_included": true,
+    "priority_breakdown": false,
+    "priority_breakdown_delay": "48 heures",
+    "included_options": [],
+    "additional_exclusions": "",
+    "refrigerant_handling_mode": "EXCLUDED"
+  },
+  "pricing": {
+    "annual_ht": "1000.00",
+    "vat_rate": "0.20",
+    "payment_terms_code": "TEST_NET_DAYS",
+    "payment_due_days": 30,
+    "payment_methods": [
+      "BANK_TRANSFER"
+    ],
+    "missed_appointment_fee": null
+  },
+  "document": {
+    "revision": "R01"
+  },
+  "intervention": {
+    "date": "2026-08-12",
+    "technician": "",
+    "other": "",
+    "notes": "",
+    "issues": "",
+    "quote_recommended": false
+  }
+}

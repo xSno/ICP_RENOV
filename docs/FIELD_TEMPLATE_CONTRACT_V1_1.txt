@@ -1,0 +1,1828 @@
+FIELD & TEMPLATE CONTRACT V1.1
+Générateur local de contrats d’entretien de climatisation
+Projet : ICP Renov
+Date : 12 août 2026
+Statut : BASELINE DOCUMENTAIRE CANONIQUE V1.1 — à utiliser pour le spike et l’implémentation documentaire
+
+============================================================
+0. RÔLE ET AUTORITÉ
+============================================================
+
+Ce document remplace FIELD_TEMPLATE_CONTRACT_V1.txt pour toute nouvelle implémentation documentaire.
+
+Il réconcilie :
+- la revue autoritaire Lead Product du Field & Template Contract V1 ;
+- les arbitrages UX V1.2 gelés ;
+- le modèle documentaire de travail existant, utilisé uniquement comme source de contenu et de structure ;
+- les décisions de cycle de vie, versionnement, révisions et événements déjà validées.
+
+Le DOCX/PDF générateur V1 antérieur ne constitue pas un template activable.
+Le document CONTRAT_ENTRETIEN_CLIM_PRET_A_REMPLIR_V1_1.docx reste un outil de remplissage temporaire et ne constitue pas le contrat de données de production.
+
+Ordre d’autorité pour l’implémentation documentaire :
+1. le présent FIELD_TEMPLATE_CONTRACT_V1_1.txt ;
+2. la matrice de validation des modèles à produire ;
+3. les DOCX de production nettoyés ;
+4. les PDF générés depuis ces DOCX comme références visuelles ;
+5. UX_SPEC_V1_2 pour les comportements et la présentation utilisateur.
+
+============================================================
+1. PRINCIPES SÉMANTIQUES
+============================================================
+
+1. Les namespaces décrivent le contexte documentaire de rendu.
+   Ils ne correspondent pas nécessairement à des tables de stockage.
+
+2. Chaîne de source :
+
+   Fiche maître
+   → données de travail du contrat
+   → snapshot contractuel
+   → snapshot immuable de la révision documentaire
+
+3. Un template n’accède jamais directement à une fiche maître vivante.
+
+4. Les valeurs company.*, client.*, site.* et equipment.* injectées dans une révision
+   proviennent du snapshot de cette révision.
+
+5. Une fiche maître peut préremplir un contrat.
+   Une modification ultérieure de la fiche maître ne réécrit jamais silencieusement :
+   - un brouillon déjà créé ;
+   - une révision existante ;
+   - un contrat signé.
+
+6. Toute clé canonique doit avoir :
+   - un propriétaire métier ;
+   - une source ;
+   - un type ;
+   - une règle d’obligation ;
+   - une règle de rendu ;
+   - une utilisation documentaire définie.
+
+7. Convention d’obligation :
+   REQUIRED
+   OPTIONAL
+   CALCULATED
+   INTERNAL
+   REQUIRED_WHEN(<condition déterministe>)
+
+   PORTÉE :
+   - REQUIRED et REQUIRED_WHEN(...) expriment la complétude nécessaire à l’opération qui les évalue, notamment le préflight d’une génération officielle ;
+   - ces contraintes n’interdisent jamais la persistance d’un DRAFT incomplet ;
+   - une fiche maître ou un brouillon peuvent donc être enregistrés avant que toutes les données documentaires requises soient disponibles ;
+   - les données société ne sont requises que lorsqu’une version de modèle sélectionnée les exige.
+
+8. Aucune valeur technique brute ne doit être imprimée.
+   Les enums et listes utilisent toujours une clé de rendu calculée ou un bloc textuel validé.
+
+9. Une donnée OPTIONAL vide supprime le bloc, la ligne ou le paragraphe complet qui la porte.
+   Aucun libellé, ponctuation ou espace orphelin ne doit rester.
+
+10. Le registre est fermé en V1.
+    Un placeholder, un bloc ou une boucle non reconnu bloque la mise à disposition du modèle.
+
+11. La syntaxe illustrative reste :
+    {{ namespace.field }}
+
+    La syntaxe technique définitive des placeholders, blocs et boucles sera confirmée par le spike.
+    Les clés logiques du présent registre, elles, sont indépendantes du moteur retenu.
+
+============================================================
+2. COMPANY / PRESTATAIRE
+============================================================
+
+Clés de rendu et de snapshot société.
+
+company.legal_name
+  TYPE: text
+  SOURCE: CompanySettings → snapshot société
+  REQUIREDNESS: REQUIRED_WHEN(selected template version requires company.legal_name)
+  USE: identification du prestataire
+
+company.trade_name
+  TYPE: text
+  SOURCE: CompanySettings → snapshot société
+  REQUIREDNESS: OPTIONAL
+  USE: source éventuelle de company.display_name
+
+company.display_name
+  TYPE: text
+  SOURCE: calcul depuis trade_name, fallback legal_name
+  REQUIREDNESS: CALCULATED
+  USE: en-tête, pied de page, identification courte
+
+company.legal_form
+  TYPE: text
+  SOURCE: CompanySettings → snapshot société
+  REQUIREDNESS: OPTIONAL
+  USE: ligne conditionnelle d’identification
+
+company.share_capital
+  TYPE: money
+  SOURCE: CompanySettings → snapshot société
+  REQUIREDNESS: OPTIONAL
+  USE: ligne conditionnelle d’identification
+
+company.siren
+  TYPE: identifier_text
+  SOURCE: CompanySettings → snapshot société
+  REQUIREDNESS: REQUIRED_WHEN(selected template version requires company.siren)
+  USE: source du résumé d’identifiants
+
+company.siret
+  TYPE: identifier_text
+  SOURCE: CompanySettings → snapshot société
+  REQUIREDNESS: REQUIRED_WHEN(selected template version requires company.siret)
+  USE: source du résumé d’identifiants
+
+company.registration_identifiers_summary
+  TYPE: rendered_text
+  SOURCE: calcul depuis company.siren + company.siret
+  REQUIREDNESS: CALCULATED
+  USE: tableau prestataire
+
+company.registration_summary
+  TYPE: rendered_text
+  SOURCE: CompanySettings → snapshot société
+  REQUIREDNESS: OPTIONAL
+  USE: RCS/RM ou autre résumé d’immatriculation
+
+company.ape_code
+  TYPE: identifier_text
+  SOURCE: CompanySettings → snapshot société
+  REQUIREDNESS: OPTIONAL
+  USE: identification entreprise / pied de page si le modèle le prévoit
+
+company.registered_address
+  TYPE: rendered_address
+  SOURCE: adresse structurée CompanySettings → snapshot société
+  REQUIREDNESS: REQUIRED_WHEN(selected template version requires company.registered_address)
+  USE: identification du prestataire
+
+company.correspondence_address
+  TYPE: rendered_address
+  SOURCE: CompanySettings → snapshot société
+  REQUIREDNESS: OPTIONAL
+  USE: uniquement si un modèle validé l’utilise
+
+company.phone
+  TYPE: phone
+  SOURCE: CompanySettings → snapshot société
+  REQUIREDNESS: REQUIRED_WHEN(selected template version requires company.phone)
+  USE: identification / contact
+
+company.email
+  TYPE: email
+  SOURCE: CompanySettings → snapshot société
+  REQUIREDNESS: REQUIRED_WHEN(selected template version requires company.email)
+  USE: identification / contact
+
+company.vat_number
+  TYPE: identifier_text
+  SOURCE: CompanySettings → snapshot société
+  REQUIREDNESS: OPTIONAL
+  USE: ligne conditionnelle
+
+company.signatory_name
+  TYPE: text
+  SOURCE: valeur société par défaut, confirmable dans le contexte contractuel
+  REQUIREDNESS: REQUIRED_WHEN(template requires provider signatory prefill)
+  USE: bloc signature
+
+company.signatory_role
+  TYPE: text
+  SOURCE: même source
+  REQUIREDNESS: REQUIRED_WHEN(template requires provider signatory prefill)
+  USE: bloc signature
+
+company.logo
+  TYPE: image_resource
+  SOURCE: ressource locale gérée par l’application
+  REQUIREDNESS: OPTIONAL
+  USE: insertion d’image
+  RULE: si absent, le bloc image disparaît sans espace réservé visible
+
+company.insurer_name
+  TYPE: text
+  SOURCE: CompanySettings
+  REQUIREDNESS: REQUIRED_WHEN(selected template version requires insurer name)
+
+company.insurance_policy_number
+  TYPE: text
+  SOURCE: CompanySettings
+  REQUIREDNESS: REQUIRED_WHEN(selected template version requires insurance policy number)
+
+company.insurance_scope
+  TYPE: limited_plain_text
+  SOURCE: CompanySettings → snapshot société
+  REQUIREDNESS: REQUIRED_WHEN(selected template version requires insurance scope)
+  USE: source de company.insurance_summary
+
+company.insurance_valid_until
+  TYPE: date
+  SOURCE: CompanySettings
+  REQUIREDNESS: OPTIONAL
+
+company.insurance_summary
+  TYPE: rendered_text
+  SOURCE: calcul depuis assureur + police + couverture + validité
+  REQUIREDNESS: CALCULATED
+  USE: bloc assurance
+  RULE: bloc absent si la version de modèle ne l’utilise pas ou si les conditions de validation ne sont pas satisfaites
+
+company.refrigerant_capacity_number
+  TYPE: text
+  SOURCE: CompanySettings
+  REQUIREDNESS: REQUIRED_WHEN(service.refrigerant_handling_mode = IN_HOUSE_AUTHORIZED AND selected AVAILABLE template version explicitly requires capacity number)
+
+company.refrigerant_capacity_body
+  TYPE: text
+  SOURCE: CompanySettings
+  REQUIREDNESS: REQUIRED_WHEN(service.refrigerant_handling_mode = IN_HOUSE_AUTHORIZED AND selected AVAILABLE template version validation matrix explicitly requires capacity body)
+
+company.refrigerant_capacity_until
+  TYPE: date
+  SOURCE: CompanySettings
+  REQUIREDNESS: REQUIRED_WHEN(service.refrigerant_handling_mode = IN_HOUSE_AUTHORIZED AND selected AVAILABLE template version validation matrix explicitly requires capacity validity date)
+
+company.refrigerant_capacity_summary
+  TYPE: rendered_text
+  SOURCE: calcul depuis les données de capacité
+  REQUIREDNESS: CALCULATED
+  USE: identification / bloc fluides si la variante le prévoit
+
+company.refrigerant_partner_name
+  TYPE: text
+  SOURCE: CompanySettings → snapshot société
+  REQUIREDNESS: REQUIRED_WHEN(service.refrigerant_handling_mode = PARTNER AND selected AVAILABLE template version explicitly requires partner identity)
+  USE: source factuelle du bloc partenaire fluides
+  RULE: aucun objet partenaire, carnet fournisseur ou fonction CRM/fournisseur n’est créé en V1.
+
+company.mediator_name
+  TYPE: text
+  SOURCE: CompanySettings
+  REQUIREDNESS: REQUIRED_WHEN(selected AVAILABLE template version validation matrix explicitly requires consumer mediation)
+
+company.mediator_address
+  TYPE: rendered_address
+  SOURCE: CompanySettings
+  REQUIREDNESS: REQUIRED_WHEN(selected AVAILABLE template version validation matrix explicitly requires consumer mediation)
+
+company.mediator_website
+  TYPE: url
+  SOURCE: CompanySettings
+  REQUIREDNESS: REQUIRED_WHEN(selected AVAILABLE template version validation matrix explicitly requires consumer mediation)
+
+company.complaints_contact
+  TYPE: rendered_contact
+  SOURCE: CompanySettings
+  REQUIREDNESS: REQUIRED_WHEN(selected AVAILABLE template version requires complaint contact)
+
+company.withdrawal_contact
+  TYPE: rendered_contact
+  SOURCE: CompanySettings
+  REQUIREDNESS: REQUIRED_WHEN(selected AVAILABLE template version validation matrix enables BLOCK_WITHDRAWAL)
+
+company.privacy_contact
+  TYPE: rendered_contact
+  SOURCE: CompanySettings
+  REQUIREDNESS: REQUIRED_WHEN(selected AVAILABLE template version requires privacy contact)
+
+RÈGLE UX :
+Les informations conditionnelles ne sont pas « requises globalement ».
+Elles sont « requises par les modèles utilisés ».
+
+============================================================
+3. CLIENT / CONTEXTE CLIENT DU CONTRAT
+============================================================
+
+IMPORTANT :
+client.party_type provient de la fiche maître.
+client.regime et le signataire sont confirmés dans le contexte du contrat.
+client.regime n’est PAS une qualification permanente de la fiche Client.
+
+client.id
+  TYPE: id
+  SOURCE: Client master
+  REQUIREDNESS: INTERNAL
+  USE: jamais injecté
+
+client.party_type
+  TYPE: enum
+  VALUES: PERSON | ORGANIZATION
+  SOURCE: Client master → snapshot
+  REQUIREDNESS: REQUIRED
+  USE: sélection des blocs d’identité
+
+client.regime
+  TYPE: enum
+  VALUES: CONSUMER | NON_PROFESSIONAL | PROFESSIONAL
+  SOURCE: contexte contractuel → snapshot client de la révision
+  REQUIREDNESS: REQUIRED
+  USE: compatibilité modèle + blocs validés
+  RULE:
+    requis par le préflight de génération officielle ; un DRAFT peut être conservé sans régime confirmé ;
+    aucune valeur OTHER_REVIEW.
+
+client.regime_label
+  TYPE: rendered_text
+  SOURCE: calcul depuis client.regime
+  REQUIREDNESS: CALCULATED
+  USE: affichage/document si le modèle le prévoit
+
+client.first_name
+  TYPE: text
+  SOURCE: Client master → snapshot
+  REQUIREDNESS: REQUIRED_WHEN(client.party_type = PERSON)
+
+client.last_name
+  TYPE: text
+  SOURCE: Client master → snapshot
+  REQUIREDNESS: REQUIRED_WHEN(client.party_type = PERSON)
+
+client.organization_name
+  TYPE: text
+  SOURCE: Client master → snapshot
+  REQUIREDNESS: REQUIRED_WHEN(client.party_type = ORGANIZATION)
+
+client.legal_form
+  TYPE: text
+  SOURCE: Client master → snapshot
+  REQUIREDNESS: OPTIONAL
+  USE: ligne organisation conditionnelle
+
+client.siret
+  TYPE: identifier_text
+  SOURCE: Client master → snapshot
+  REQUIREDNESS: OPTIONAL
+  USE: ligne organisation conditionnelle
+
+client.representative_name
+  TYPE: text
+  SOURCE: valeur préremplie depuis le client, confirmable dans le contrat
+  REQUIREDNESS: OPTIONAL
+
+client.representative_role
+  TYPE: text
+  SOURCE: même source
+  REQUIREDNESS: OPTIONAL
+
+client.representative_summary
+  TYPE: rendered_text
+  SOURCE: calcul
+  REQUIREDNESS: CALCULATED
+  USE: ligne conditionnelle
+
+client.contract_name
+  TYPE: rendered_text
+  SOURCE: calcul depuis l’identité
+  REQUIREDNESS: CALCULATED
+  USE: couverture, parties, annexes
+
+client.postal_address
+  TYPE: rendered_address
+  SOURCE: adresse structurée du snapshot client
+  REQUIREDNESS: REQUIRED
+  USE: identification du client
+
+client.billing_address
+  TYPE: rendered_address
+  SOURCE: adresse structurée du snapshot
+  REQUIREDNESS: OPTIONAL
+  USE: uniquement si différente de client.postal_address
+
+client.phone
+  TYPE: phone
+  SOURCE: snapshot client
+  REQUIREDNESS: OPTIONAL
+  USE: ligne conditionnelle
+
+client.email
+  TYPE: email
+  SOURCE: snapshot client
+  REQUIREDNESS: REQUIRED_WHEN(selected template version requires client email)
+  USE: ligne conditionnelle
+  RULE: facultatif lorsque la version sélectionnée ne l’exige pas.
+
+client.signatory_name
+  TYPE: text
+  SOURCE: contexte contractuel, prérempli si possible depuis le client
+  REQUIREDNESS: REQUIRED_WHEN(selected template version requires identified client signatory)
+  USE: bloc signature
+
+client.signatory_role
+  TYPE: text
+  SOURCE: contexte contractuel
+  REQUIREDNESS: REQUIRED_WHEN(selected template version requires identified client signatory)
+  USE: bloc signature
+
+client.internal_reference
+  TYPE: text
+  SOURCE: Client master
+  REQUIREDNESS: INTERNAL
+  USE: jamais injecté par défaut
+
+client.notes
+  TYPE: text
+  SOURCE: Client master
+  REQUIREDNESS: INTERNAL
+  USE: jamais injecté
+
+client.archived
+  TYPE: boolean
+  SOURCE: Client master
+  REQUIREDNESS: INTERNAL
+  USE: jamais injecté
+
+============================================================
+4. SITE
+============================================================
+
+site.id
+  TYPE: id
+  SOURCE: Site master
+  REQUIREDNESS: INTERNAL
+
+site.client_id
+  TYPE: id
+  SOURCE: Site master
+  REQUIREDNESS: INTERNAL
+
+site.label
+  TYPE: text
+  SOURCE: Site master → snapshot
+  REQUIREDNESS: REQUIRED
+  USE: UX, éventuellement document
+
+site.address_line1
+  TYPE: text
+  SOURCE: Site master → snapshot
+  REQUIREDNESS: REQUIRED
+
+site.address_line2
+  TYPE: text
+  SOURCE: Site master → snapshot
+  REQUIREDNESS: OPTIONAL
+
+site.postal_code
+  TYPE: text
+  SOURCE: Site master → snapshot
+  REQUIREDNESS: REQUIRED
+
+site.city
+  TYPE: text
+  SOURCE: Site master → snapshot
+  REQUIREDNESS: REQUIRED
+
+site.country
+  TYPE: text
+  SOURCE: Site master → snapshot
+  REQUIREDNESS: REQUIRED
+  DEFAULT: France
+
+site.full_address
+  TYPE: rendered_address
+  SOURCE: calcul depuis l’adresse structurée
+  REQUIREDNESS: CALCULATED
+  USE: couverture, corps et annexes
+
+site.contact_name
+  TYPE: text
+  SOURCE: Site master
+  REQUIREDNESS: OPTIONAL
+  USE: non injecté par défaut
+
+site.contact_phone
+  TYPE: phone
+  SOURCE: Site master
+  REQUIREDNESS: OPTIONAL
+  USE: non injecté par défaut
+
+site.access_notes
+  TYPE: text
+  SOURCE: Site master
+  REQUIREDNESS: INTERNAL
+  USE: jamais injecté automatiquement
+
+site.archived
+  TYPE: boolean
+  SOURCE: Site master
+  REQUIREDNESS: INTERNAL
+
+RÈGLE V1 :
+Un contrat = exactement un site.
+
+============================================================
+5. EQUIPMENT / COLLECTION CONTRACTUELLE
+============================================================
+
+Données maîtres :
+
+equipment.id
+  TYPE: id
+  SOURCE: Equipment master
+  REQUIREDNESS: INTERNAL
+
+equipment.site_id
+  TYPE: id
+  SOURCE: Equipment master
+  REQUIREDNESS: INTERNAL
+
+equipment.type
+  TYPE: controlled_value
+  SOURCE: Equipment master → contract item snapshot
+  REQUIREDNESS: REQUIRED
+
+equipment.brand
+  TYPE: text
+  SOURCE: même source
+  REQUIREDNESS: OPTIONAL
+
+equipment.model
+  TYPE: text
+  SOURCE: même source
+  REQUIREDNESS: OPTIONAL
+
+equipment.serial_number
+  TYPE: text
+  SOURCE: même source
+  REQUIREDNESS: OPTIONAL
+
+equipment.power_kw
+  TYPE: decimal
+  SOURCE: même source
+  REQUIREDNESS: OPTIONAL
+
+equipment.location
+  TYPE: text
+  SOURCE: même source
+  REQUIREDNESS: REQUIRED
+
+equipment.install_date
+  TYPE: date
+  SOURCE: même source
+  REQUIREDNESS: OPTIONAL
+
+equipment.reference
+  TYPE: text
+  SOURCE: Equipment master
+  REQUIREDNESS: INTERNAL
+
+equipment.internal_notes
+  TYPE: text
+  SOURCE: Equipment master
+  REQUIREDNESS: INTERNAL
+  USE: jamais injecté
+
+equipment.archived
+  TYPE: boolean
+  SOURCE: Equipment master
+  REQUIREDNESS: INTERNAL
+
+Collection contractuelle :
+
+contract.equipment_items
+  TYPE: ordered_collection
+  SOURCE: Contract
+  REQUIREDNESS: REQUIRED
+  RULE: au moins un item avant génération officielle
+  USE: source de la boucle équipements
+
+contract.equipment_items[].source_equipment_id
+  TYPE: id
+  SOURCE: Contract equipment item snapshot
+  REQUIREDNESS: INTERNAL
+  USE: traçabilité vers la fiche maître
+
+contract.equipment_items[].position
+  TYPE: integer
+  SOURCE: Contract
+  REQUIREDNESS: REQUIRED
+  USE: ordre stable de rendu
+
+Alias de boucle pour chaque item :
+
+equipment.display_name
+  TYPE: rendered_text
+  SOURCE: calcul depuis type + brand + model
+  REQUIREDNESS: CALCULATED
+  USE: colonne principale
+
+equipment.power_label
+  TYPE: rendered_text
+  SOURCE: calcul depuis power_kw
+  REQUIREDNESS: CALCULATED
+  USE: colonne puissance
+
+equipment.observations
+  TYPE: multiline_text
+  SOURCE: valeur propre à l’item contractuel
+  REQUIREDNESS: OPTIONAL
+  USE: ligne fusionnée d’observations
+  RULE: ne jamais reprendre equipment.internal_notes automatiquement
+
+contract.equipment_count
+  TYPE: integer
+  SOURCE: calcul
+  REQUIREDNESS: CALCULATED
+  USE: UX / revue
+
+contract.total_power_kw
+  TYPE: decimal
+  SOURCE: calcul
+  REQUIREDNESS: INTERNAL
+  STATUS: DEFERRED V1
+  USE: aucun usage commercial V1
+
+RÈGLES DE BOUCLE :
+- ordre = position croissante ;
+- pas de relecture de la fiche maître lors d’une régénération historique ;
+- en-tête de tableau répétable sur nouvelle page ;
+- BLOCK_EQUIPMENT_OBSERVATIONS uniquement si observations non vides ;
+- tests obligatoires 1 / 10 / 30 équipements.
+
+============================================================
+6. CONTRACT CORE
+============================================================
+
+contract.id
+  TYPE: id
+  SOURCE: Contract
+  REQUIREDNESS: INTERNAL
+
+contract.predecessor_contract_id
+  TYPE: id
+  SOURCE: Contract
+  REQUIREDNESS: INTERNAL
+  RULE: facultatif ; renseigné lorsqu’un nouveau contrat est créé depuis un contrat précédent.
+
+contract.type_code
+  TYPE: controlled_code
+  SOURCE: Contract
+  REQUIREDNESS: REQUIRED
+  V1 VALUE: CLIMATE_MAINTENANCE
+  USE: compatibilité modèle
+
+contract.number
+  TYPE: identifier_text
+  SOURCE: attribué lors de la première génération officielle complètement réussie
+  REQUIREDNESS: CALCULATED
+  USE: couverture, footer, annexes
+  RULE:
+    - avant succès : seulement « Numéro prévu » dans l’UX ;
+    - si DOCX ou PDF échoue : aucun numéro officiel consommé ;
+    - jamais renuméroté rétroactivement.
+
+contract.status
+  TYPE: enum
+  VALUES: DRAFT | TO_SIGN | SIGNED | ACTIVE | TERMINATED | EXPIRED | ABANDONED
+  SOURCE: cycle de vie
+  REQUIREDNESS: INTERNAL
+
+contract.template_id
+  TYPE: id
+  SOURCE: Contract
+  REQUIREDNESS: REQUIRED
+  RULE: requis par le préflight de génération officielle ; un DRAFT peut exister sans modèle sélectionné.
+
+contract.template_version_id
+  TYPE: id
+  SOURCE: Contract
+  REQUIREDNESS: REQUIRED
+  RULE: requis par le préflight de génération officielle ; un DRAFT peut exister sans version sélectionnée.
+
+contract.issue_date
+  TYPE: date
+  SOURCE: Contract
+  REQUIREDNESS: REQUIRED
+  USE: couverture
+
+contract.start_date
+  TYPE: date
+  SOURCE: Contract
+  REQUIREDNESS: REQUIRED
+  USE: couverture + durée
+
+contract.initial_duration_mode
+  TYPE: enum
+  VALUES: STANDARD | CUSTOM
+  SOURCE: Contract
+  REQUIREDNESS: REQUIRED
+  USE: détermine la source de vérité de la durée initiale
+
+contract.initial_duration_months
+  TYPE: integer
+  SOURCE: Contract lorsque initial_duration_mode = STANDARD ; calcul informatif éventuel lorsque CUSTOM
+  REQUIREDNESS: REQUIRED_WHEN(contract.initial_duration_mode = STANDARD)
+  USE: calcul de la date de fin en durée standard
+  RULE:
+    en mode CUSTOM, cette valeur n’est jamais une saisie indépendante et ne peut être calculée qu’à titre informatif lorsqu’un calcul cohérent est possible.
+
+contract.initial_end_date
+  TYPE: date
+  SOURCE: calcul depuis start_date + initial_duration_months lorsque STANDARD ; saisie Contract lorsque CUSTOM
+  REQUIREDNESS: REQUIRED
+  USE: couverture + durée
+  RULE:
+    STANDARD : initial_end_date est calculée ;
+    CUSTOM : initial_end_date est renseignée explicitement ;
+    début, durée et fin ne sont jamais trois vérités indépendantes.
+
+contract.visits_per_year
+  TYPE: integer
+  VALIDATION: >= 1
+  SOURCE: Contract
+  REQUIREDNESS: REQUIRED
+  USE: article prestations
+
+contract.conclusion_mode
+  TYPE: enum
+  VALUES:
+    IN_PREMISES
+    OFF_PREMISES
+    DISTANCE_EMAIL
+    ONLINE_INTERFACE
+    OTHER_DISTANCE
+  SOURCE: Contract
+  REQUIREDNESS: REQUIRED_WHEN(selected AVAILABLE template version validation matrix requires conclusion mode for the recorded context)
+  USE: sélection de blocs validés
+  RULE:
+    absent de l’UX ordinaire lorsqu’il n’est pas requis ;
+    l’application ne déduit pas juridiquement son applicabilité.
+
+contract.early_performance_requested
+  TYPE: boolean
+  SOURCE: Contract
+  REQUIREDNESS: REQUIRED_WHEN(selected AVAILABLE template version validation matrix enables early-performance question for the recorded context)
+  USE: BLOCK_EARLY_PERFORMANCE
+  RULE:
+    n’est jamais demandé hors contexte de rétractation validé.
+
+contract.signature_city
+  TYPE: text
+  SOURCE: Contract
+  REQUIREDNESS: OPTIONAL
+  USE: ligne de signature
+
+contract.signature_date
+  TYPE: date
+  SOURCE: projection en lecture seule depuis SIGNATURE_RECORDED.effective_date
+  REQUIREDNESS: CALCULATED
+  USE: consultation métier uniquement ; jamais injecté dans le document contractuel initial
+  RULE:
+    aucune saisie indépendante ;
+    le DOCX initial laisse la date de signature manuscrite vide.
+
+contract.special_terms
+  TYPE: multiline_plain_text
+  SOURCE: Contract
+  REQUIREDNESS: OPTIONAL
+  USE: BLOCK_SPECIAL_TERMS
+  RULE:
+    aucun HTML, Markdown, image ou contenu riche interprété.
+
+RÈGLES D’INTÉGRITÉ DU CYCLE DE VIE :
+- une nouvelle révision CONTRACT est générée uniquement depuis DRAFT ;
+- une génération CONTRACT officiellement réussie fait passer DRAFT → TO_SIGN ;
+- corriger un TO_SIGN exige un événement REOPENED_FOR_CORRECTION puis un retour à DRAFT ; ce retour ne crée aucune révision ;
+- après SIGNATURE_RECORDED, les données structurantes sont verrouillées et aucune nouvelle Rxx du même contrat n’est créée ;
+- une résiliation future conserve SIGNED ou ACTIVE jusqu’à sa date effective, puis produit TERMINATED ;
+- une échéance TACIT ne provoque ni renouvellement certain ni EXPIRED automatique : une confirmation explicite reste requise ;
+- ABANDONED est réservé aux contrats DRAFT ou TO_SIGN non conclus.
+
+============================================================
+7. RENEWAL / TERMINATION CONDITIONS
+============================================================
+
+contract.renewal_mode
+  TYPE: enum
+  VALUES: NONE | MANUAL | TACIT
+  SOURCE: Contract
+  REQUIREDNESS: REQUIRED
+  USE: sélection des blocs de renouvellement
+
+contract.renewal_mode_label
+  TYPE: rendered_text
+  SOURCE: calcul
+  REQUIREDNESS: CALCULATED
+
+contract.renewal_period_months
+  TYPE: integer
+  SOURCE: Contract
+  REQUIREDNESS: REQUIRED_WHEN(contract.renewal_mode != NONE)
+
+contract.renewal_period_label
+  TYPE: rendered_text
+  SOURCE: calcul
+  REQUIREDNESS: CALCULATED
+  RULE: absent lorsque renewal_mode = NONE
+
+contract.non_renewal_notice_days
+  TYPE: integer
+  SOURCE: Contract
+  REQUIREDNESS: REQUIRED_WHEN(contract.renewal_mode = TACIT AND selected AVAILABLE template version requires notice period)
+
+contract.non_renewal_notice_label
+  TYPE: rendered_text
+  SOURCE: calcul
+  REQUIREDNESS: CALCULATED
+
+contract.non_renewal_notice_channels
+  TYPE: controlled_list
+  EXAMPLE VALUES: EMAIL | POSTAL_MAIL
+  SOURCE: Contract
+  REQUIREDNESS: REQUIRED_WHEN(contract.renewal_mode = TACIT AND selected AVAILABLE template version requires notice channels)
+
+contract.non_renewal_notice_channels_label
+  TYPE: rendered_text
+  SOURCE: calcul
+  REQUIREDNESS: CALCULATED
+  EXAMPLE RENDER: « E-mail ou courrier »
+
+contract.non_renewal_deadline
+  TYPE: date
+  SOURCE: calcul depuis current period end + contractual notice
+  REQUIREDNESS: CALCULATED
+  USE: UX / suivi
+  RULE: distinct de l’alerte interne
+
+contract.internal_alert_days
+  TYPE: integer
+  SOURCE: Contract / valeur par défaut de l’application
+  REQUIREDNESS: REQUIRED_WHEN(contract.renewal_mode != NONE)
+  USE: UX uniquement, jamais injecté
+
+contract.next_attention_date
+  TYPE: date
+  SOURCE: calcul
+  REQUIREDNESS: CALCULATED
+  USE: liste des actions
+
+contract.current_period_start
+  TYPE: date
+  SOURCE: calcul depuis contrat + événements de renouvellement
+  REQUIREDNESS: CALCULATED
+
+contract.current_period_end
+  TYPE: date
+  SOURCE: calcul depuis contrat + événements de renouvellement
+  REQUIREDNESS: CALCULATED
+
+contract.early_termination_reason_codes
+  TYPE: controlled_list
+  SOURCE: Contract
+  REQUIREDNESS: OPTIONAL
+
+contract.early_termination_custom_text
+  TYPE: limited_plain_text
+  SOURCE: Contract
+  REQUIREDNESS: OPTIONAL
+
+contract.early_termination_reasons_label
+  TYPE: rendered_text
+  SOURCE: calcul
+  REQUIREDNESS: CALCULATED
+  USE: bloc conditionnel de fin anticipée
+
+contract.breach_cure_period_days
+  TYPE: integer
+  SOURCE: Contract / valeur modèle préremplie
+  REQUIREDNESS: REQUIRED_WHEN(selected AVAILABLE template version requires cure-period value)
+  USE: clause de fin anticipée
+  RULE: modifiable seulement via la surface secondaire prévue par l’UX.
+
+============================================================
+8. SERVICE / OFFRE
+============================================================
+
+Ces données appartiennent au contrat.
+Elles peuvent être préremplies depuis les paramètres ou le modèle.
+
+service.included_area
+  TYPE: rendered_text
+  SOURCE: Contract
+  REQUIREDNESS: REQUIRED
+  USE: conditions d’intervention
+
+service.business_hours
+  TYPE: rendered_text
+  SOURCE: Contract
+  REQUIREDNESS: REQUIRED
+  USE: conditions d’intervention
+
+service.travel_included
+  TYPE: boolean
+  SOURCE: Contract
+  REQUIREDNESS: REQUIRED
+  USE: source du résumé
+
+service.travel_summary
+  TYPE: rendered_text
+  SOURCE: calcul depuis service.travel_included et les conditions de déplacement du Contract
+  REQUIREDNESS: CALCULATED
+  USE: contrat
+
+service.priority_breakdown
+  TYPE: boolean
+  SOURCE: Contract
+  REQUIREDNESS: REQUIRED
+  USE: source du rendu « Dépannage prioritaire »
+
+service.priority_breakdown_delay
+  TYPE: duration
+  SOURCE: Contract
+  REQUIREDNESS: REQUIRED_WHEN(service.priority_breakdown = true)
+  USE: source du rendu
+  UX RULE:
+    si priority_breakdown = false, le champ délai est absent.
+
+service.priority_breakdown_label
+  TYPE: rendered_text
+  SOURCE: calcul depuis service.priority_breakdown et son délai éventuel
+  REQUIREDNESS: CALCULATED
+  USE: contrat
+  RULE:
+    aucun enum ou booléen brut imprimé.
+
+service.included_options
+  TYPE: controlled_list
+  SOURCE: Contract
+  VALUES V1:
+    DEEP_CLEANING
+    DISINFECTION
+  REQUIREDNESS: OPTIONAL
+
+service.included_options_summary
+  TYPE: rendered_text_or_list
+  SOURCE: calcul depuis service.included_options
+  REQUIREDNESS: CALCULATED
+  USE: BLOCK_INCLUDED_OPTIONS
+  RULE: bloc absent si liste vide
+
+service.additional_exclusions
+  TYPE: limited_multiline_plain_text
+  SOURCE: Contract
+  REQUIREDNESS: OPTIONAL
+  USE: BLOCK_ADDITIONAL_EXCLUSIONS
+
+service.refrigerant_handling_mode
+  TYPE: enum
+  SOURCE: Contract
+  VALUES:
+    IN_HOUSE_AUTHORIZED
+    PARTNER
+    EXCLUDED
+  REQUIREDNESS: REQUIRED
+  USE: sélection du bloc fluides
+
+service.refrigerant_handling_summary
+  TYPE: rendered_text
+  SOURCE: calcul factuel contrôlé depuis service.refrigerant_handling_mode et les données société applicables
+  REQUIREDNESS: CALCULATED
+  USE: résumé factuel dans le contrat
+  RULE:
+    aucune valeur IN_HOUSE_AUTHORIZED / PARTNER / EXCLUDED imprimée directement ;
+    aucune clause substantielle n’est générée ici : le texte juridique reste statique et versionné dans le modèle validé.
+
+NE FONT PAS PARTIE DE service.included_options EN V1 :
+- dépannage prioritaire ;
+- visite supplémentaire ;
+- petite fourniture avec plafond ;
+- remise dépannage hors forfait.
+
+============================================================
+9. PRICING
+============================================================
+
+pricing.annual_ht
+  TYPE: money
+  SOURCE: Contract pricing
+  REQUIREDNESS: REQUIRED
+
+pricing.vat_rate
+  TYPE: controlled_rate
+  SOURCE: valeur sélectionnée parmi les taux configurés/admis
+  REQUIREDNESS: REQUIRED
+  RULE:
+    l’application ne décide pas automatiquement du taux juridiquement applicable.
+
+pricing.vat_amount
+  TYPE: money
+  SOURCE: calcul annual_ht × vat_rate
+  REQUIREDNESS: CALCULATED
+
+pricing.annual_ttc
+  TYPE: money
+  SOURCE: calcul annual_ht + vat_amount
+  REQUIREDNESS: CALCULATED
+
+pricing.payment_terms_code
+  TYPE: controlled_code
+  SOURCE: Contract pricing
+  REQUIREDNESS: REQUIRED
+
+pricing.payment_due_days
+  TYPE: integer
+  SOURCE: Contract pricing
+  REQUIREDNESS: REQUIRED_WHEN(selected payment term needs a day count)
+
+pricing.payment_terms_custom_text
+  TYPE: limited_plain_text
+  SOURCE: Contract pricing
+  REQUIREDNESS: REQUIRED_WHEN(selected controlled payment term explicitly allows custom review text)
+
+pricing.payment_terms_label
+  TYPE: rendered_text
+  SOURCE: calcul
+  REQUIREDNESS: CALCULATED
+  USE: contrat
+
+pricing.payment_methods
+  TYPE: controlled_list
+  SOURCE: Contract pricing
+  REQUIREDNESS: REQUIRED
+
+pricing.payment_methods_label
+  TYPE: rendered_text
+  SOURCE: calcul
+  REQUIREDNESS: CALCULATED
+  USE: contrat
+
+pricing.missed_appointment_fee
+  TYPE: money
+  SOURCE: Contract pricing
+  REQUIREDNESS: OPTIONAL
+
+pricing.missed_appointment_fee_label
+  TYPE: rendered_text
+  SOURCE: calcul
+  REQUIREDNESS: CALCULATED
+  USE: BLOCK_MISSED_APPOINTMENT_FEE
+
+pricing.renewal_price_rule
+  TYPE: enum
+  SOURCE: Contract pricing
+  ACTIVE VALUES V1:
+    FIXED
+    NEW_PRICE_ON_RENEWAL
+  RESERVED / NOT SELECTABLE V1:
+    INDEXED
+  REQUIREDNESS: REQUIRED_WHEN(contract.renewal_mode != NONE)
+
+pricing.renewal_price_rule_label
+  TYPE: rendered_text
+  SOURCE: calcul factuel depuis pricing.renewal_price_rule
+  REQUIREDNESS: CALCULATED
+  USE: libellé utilisateur / résumé factuel
+  RULE: toute clause substantielle de révision du prix reste statique et versionnée dans le modèle validé.
+
+pricing.index_reference
+pricing.extra_indoor_unit_price
+pricing.extra_outdoor_unit_price
+pricing.out_of_area_fee
+  STATUS: DEFERRED V1
+  USE: aucun usage V1
+
+RÈGLE DE COHÉRENCE :
+HT + TVA + TTC ne sont jamais saisis comme trois vérités indépendantes.
+
+============================================================
+10. TEMPLATE / MODEL VERSION
+============================================================
+
+template.id
+  TYPE: id
+  OBJECT: ContractTemplate
+  SOURCE: ContractTemplate
+  REQUIREDNESS: INTERNAL
+
+template.name
+  TYPE: text
+  OBJECT: ContractTemplate
+  SOURCE: ContractTemplate
+  REQUIREDNESS: REQUIRED
+  USE: UX
+
+template.document_kind
+  TYPE: enum
+  SOURCE: ContractTemplate
+  VALUES:
+    CONTRACT
+    INTERVENTION_SHEET
+  REQUIREDNESS: REQUIRED
+
+template.contract_type_code
+  TYPE: controlled_code
+  SOURCE: ContractTemplate
+  REQUIREDNESS: REQUIRED_WHEN(template.document_kind = CONTRACT)
+  RULE: doit correspondre à contract.type_code
+
+template.allowed_client_regimes
+  TYPE: enum_set
+  OBJECT: ContractTemplateVersion
+  SOURCE: ContractTemplateVersion validation metadata
+  VALUES:
+    CONSUMER
+    NON_PROFESSIONAL
+    PROFESSIONAL
+  REQUIREDNESS: REQUIRED_WHEN(template.document_kind = CONTRACT AND template.version_status = AVAILABLE)
+  RULE:
+    contient uniquement les régimes explicitement confirmés pour cette version ;
+    les régimes simplement visés lors d’un import TO_VALIDATE ne créent aucune compatibilité ;
+    une version TO_VALIDATE peut avoir zéro régime confirmé ;
+    une compatibilité n’est jamais déduite par analogie entre régimes.
+
+template.version
+  TYPE: version
+  OBJECT: ContractTemplateVersion
+  SOURCE: ContractTemplateVersion
+  REQUIREDNESS: REQUIRED
+
+template.version_status
+  TYPE: enum
+  OBJECT: ContractTemplateVersion
+  SOURCE: ContractTemplateVersion
+  VALUES:
+    TO_VALIDATE
+    AVAILABLE
+    ARCHIVED
+  UI LABELS:
+    À valider
+    Disponible
+    Archivé
+  REQUIREDNESS: INTERNAL
+
+template.source_hash
+  TYPE: hash
+  OBJECT: ContractTemplateVersion
+  SOURCE: calcul depuis le DOCX source de la version
+  REQUIREDNESS: INTERNAL
+
+RÈGLES :
+- seules les versions AVAILABLE sont proposées dans un contrat ;
+- une version TO_VALIDATE n’est jamais utilisable et peut avoir zéro régime confirmé ;
+- avant passage à AVAILABLE, une version CONTRACT possède au moins un régime explicitement confirmé ;
+- une version ARCHIVED n’est plus proposée pour les nouveaux contrats mais conserve ses compatibilités historiques ;
+- une version ayant servi à générer au moins un ContractDocument historisé, quel que soit document_kind, est immuable ;
+- toute modification crée une nouvelle version ;
+- les contrôles « structure / test DOCX-PDF / confirmation externe » sont suivis par la matrice de validation et ne créent pas de nouveaux statuts UX.
+
+============================================================
+11. DOCUMENT / REVISION CONTRACTUELLE
+============================================================
+
+document.id
+  TYPE: id
+  OBJECT: ContractDocument
+  SOURCE: ContractDocument
+  REQUIREDNESS: INTERNAL
+
+document.contract_id
+  TYPE: id
+  SOURCE: ContractDocument
+  REQUIREDNESS: INTERNAL
+
+document.document_kind
+  TYPE: enum
+  SOURCE: ContractDocument
+  VALUES:
+    CONTRACT
+    INTERVENTION_SHEET
+  REQUIREDNESS: INTERNAL
+
+document.revision
+  TYPE: rendered_revision
+  SOURCE: calcul séquentiel des documents CONTRACT du contrat
+  EXAMPLE: R01, R02
+  REQUIREDNESS: CALCULATED
+  RULE: calculé uniquement lorsque document.document_kind = CONTRACT ; absent pour INTERVENTION_SHEET.
+
+document.generated_at
+  TYPE: datetime
+  SOURCE: ContractDocument
+  REQUIREDNESS: INTERNAL
+
+document.docx_path
+  TYPE: relative_path
+  SOURCE: ContractDocument
+  REQUIREDNESS: INTERNAL
+
+document.pdf_path
+  TYPE: relative_path
+  SOURCE: ContractDocument
+  REQUIREDNESS: INTERNAL
+
+document.snapshot
+  TYPE: immutable_structured_data
+  SOURCE: ContractDocument
+  REQUIREDNESS: INTERNAL
+  MUST CONTAIN:
+    - valeurs sources utilisées ;
+    - valeurs calculées de rendu ;
+    - contract.equipment_items ordonnés ;
+    - blocs retenus ;
+    - modèle/version exacts ;
+    - références de fichiers.
+
+document.template_version_id
+  TYPE: id
+  SOURCE: ContractDocument
+  REQUIREDNESS: INTERNAL
+
+document.docx_hash
+  TYPE: hash
+  SOURCE: ContractDocument
+  REQUIREDNESS: INTERNAL
+
+document.pdf_hash
+  TYPE: hash
+  SOURCE: ContractDocument
+  REQUIREDNESS: INTERNAL
+
+document.signed_pdf_path
+  TYPE: relative_path
+  SOURCE: ContractDocument
+  REQUIREDNESS: OPTIONAL
+  RULE: applicable uniquement à document.document_kind = CONTRACT ; copie signée liée à cette révision.
+
+document.signed_pdf_hash
+  TYPE: hash
+  SOURCE: ContractDocument
+  REQUIREDNESS: OPTIONAL
+  RULE: applicable uniquement à document.document_kind = CONTRACT.
+
+document.signed_pdf_attached_at
+  TYPE: datetime
+  SOURCE: ContractDocument
+  REQUIREDNESS: OPTIONAL
+  RULE: horodatage d’ajout de la copie signée ; n’ajoute pas de nouveau type de ContractEvent.
+
+SUPPRIMÉ :
+document.signed_revision
+
+RÈGLE :
+La révision signée est identifiée par l’événement SIGNATURE_RECORDED via event.document_id.
+Cette relation ne s’applique qu’à un ContractDocument de kind CONTRACT.
+
+============================================================
+12. CONTRACT EVENTS
+============================================================
+
+Un seul objet ContractEvent en V1.
+Aucun RenewalEvent distinct.
+
+event.type
+  TYPE: enum
+  SOURCE: ContractEvent
+  VALUES V1:
+    CREATED
+    DOCUMENT_GENERATED
+    CONTRACT_SENT
+    REOPENED_FOR_CORRECTION
+    SIGNATURE_RECORDED
+    ACTIVATED
+    RENEWAL_NOTICE_RECORDED
+    RENEWAL_CONFIRMED
+    TERMINATION_SCHEDULED
+    TERMINATED
+    EXPIRED
+    ABANDONED
+    ADMIN_CORRECTION
+  REQUIREDNESS: REQUIRED
+
+event.occurred_at
+  TYPE: datetime
+  SOURCE: ContractEvent
+  REQUIREDNESS: REQUIRED
+  RULE: horodatage d’enregistrement de l’événement dans l’application, distinct de la date métier déclarée.
+
+event.effective_date
+  TYPE: date
+  SOURCE: ContractEvent
+  REQUIREDNESS: REQUIRED_WHEN(event = CONTRACT_SENT | RENEWAL_NOTICE_RECORDED | SIGNATURE_RECORDED | ACTIVATED | TERMINATION_SCHEDULED | TERMINATED | EXPIRED)
+  SEMANTICS:
+    - CONTRACT_SENT : date réelle d’envoi ;
+    - RENEWAL_NOTICE_RECORDED : date réelle de notification de non-renouvellement ;
+    - SIGNATURE_RECORDED : date réelle de signature ;
+    - ACTIVATED : date de prise d’effet ;
+    - TERMINATION_SCHEDULED / TERMINATED : date effective de fin ;
+    - EXPIRED : date contractuelle d’expiration.
+
+event.document_id
+  TYPE: id
+  SOURCE: ContractEvent
+  REQUIREDNESS: REQUIRED_WHEN(event = DOCUMENT_GENERATED | CONTRACT_SENT | SIGNATURE_RECORDED)
+
+event.period_start
+  TYPE: date
+  SOURCE: ContractEvent
+  REQUIREDNESS: REQUIRED_WHEN(event = RENEWAL_CONFIRMED)
+
+event.period_end
+  TYPE: date
+  SOURCE: ContractEvent
+  REQUIREDNESS: REQUIRED_WHEN(event = RENEWAL_CONFIRMED)
+
+event.renewal_annual_ht
+  TYPE: money
+  SOURCE: ContractEvent
+  REQUIREDNESS: REQUIRED_WHEN(event = RENEWAL_CONFIRMED)
+  RULE: FIXED reprend le HT de la période précédente ; NEW_PRICE_ON_RENEWAL est confirmé au renouvellement.
+
+event.renewal_vat_rate
+  TYPE: controlled_rate
+  SOURCE: ContractEvent
+  REQUIREDNESS: REQUIRED_WHEN(event = RENEWAL_CONFIRMED)
+  RULE:
+    - FIXED : reprend le taux de TVA de la période précédente ;
+    - NEW_PRICE_ON_RENEWAL : le taux est confirmé au renouvellement ;
+    - aucune décision fiscale automatique.
+
+event.renewal_vat_amount
+  TYPE: money
+  SOURCE: calcul depuis event.renewal_annual_ht × event.renewal_vat_rate
+  REQUIREDNESS: CALCULATED
+
+event.renewal_annual_ttc
+  TYPE: money
+  SOURCE: calcul depuis event.renewal_annual_ht + event.renewal_vat_amount
+  REQUIREDNESS: CALCULATED
+  RULE: ces valeurs décrivent la période reconduite et ne réécrivent jamais le pricing de la période initiale.
+
+event.notification_date
+  TYPE: date
+  SOURCE: ContractEvent
+  REQUIREDNESS: OPTIONAL
+  RULE: utilisé pour TERMINATION_SCHEDULED / TERMINATED lorsque la date de notification doit être conservée distinctement de la date effective.
+
+event.reason_code
+  TYPE: controlled_code
+  SOURCE: ContractEvent
+  REQUIREDNESS: REQUIRED_WHEN(event type requires structured reason)
+
+event.reason_text
+  TYPE: limited_plain_text
+  SOURCE: ContractEvent
+  REQUIREDNESS: OPTIONAL
+
+event.note
+  TYPE: limited_plain_text
+  SOURCE: ContractEvent
+  REQUIREDNESS: OPTIONAL
+
+RÈGLES :
+- consultation, ouverture d’écran, changement d’onglet ou ouverture de fichier ne créent pas d’événement métier ;
+- envoi et signature référencent la révision exacte ;
+- une reconduction tacite n’est jamais enregistrée sans confirmation explicite.
+
+============================================================
+13. INTERVENTION SHEET — DOCUMENT KIND SÉPARÉ
+============================================================
+
+La fiche d’intervention n’est pas une annexe contractuelle et ne crée pas une révision Rxx du contrat.
+
+template.document_kind = INTERVENTION_SHEET
+
+Elle peut réutiliser :
+- contract.number ;
+- client.contract_name ;
+- site.full_address ;
+- contract.equipment_items.
+
+Champs propres :
+
+intervention.date
+  TYPE: date
+  SOURCE: données de création de la fiche d’intervention
+  REQUIREDNESS: REQUIRED
+
+intervention.technician
+  TYPE: text
+  SOURCE: données de création de la fiche d’intervention
+  REQUIREDNESS: OPTIONAL
+  RULE: peut être exigé par le modèle d’intervention sélectionné via son préflight, sans changer la requiredness UX par défaut.
+
+intervention.other
+  TYPE: plain_text
+  SOURCE: données de création de la fiche d’intervention
+  REQUIREDNESS: OPTIONAL
+
+intervention.notes
+  TYPE: multiline_plain_text
+  SOURCE: données de création de la fiche d’intervention
+  REQUIREDNESS: OPTIONAL
+
+intervention.issues
+  TYPE: multiline_plain_text
+  SOURCE: données de création de la fiche d’intervention
+  REQUIREDNESS: OPTIONAL
+
+intervention.quote_recommended
+  TYPE: boolean
+  SOURCE: données de création de la fiche d’intervention
+  REQUIREDNESS: OPTIONAL
+
+RÈGLE :
+la V1 génère/imprime cette fiche sans devenir une GMAO.
+
+============================================================
+14. CONDITIONAL BLOCKS — LISTE BLANCHE V1
+============================================================
+
+Le moteur n’accepte :
+- aucune expression libre ;
+- aucun script dans le DOCX ;
+- aucune condition utilisateur arbitraire ;
+- aucune règle juridique créée dans l’interface.
+
+Le modèle compatible est le premier gate.
+Un bloc ne peut jamais rendre compatible un modèle qui ne l’est pas.
+
+Blocs autorisés :
+
+BLOCK_CLIENT_PERSON
+  CONDITION: client.party_type = PERSON
+
+BLOCK_CLIENT_ORGANIZATION
+  CONDITION: client.party_type = ORGANIZATION
+
+BLOCK_CLIENT_CONSUMER
+  CONDITION: client.regime = CONSUMER + modèle compatible
+
+BLOCK_CLIENT_NON_PROFESSIONAL
+  CONDITION: client.regime = NON_PROFESSIONAL + modèle compatible
+
+BLOCK_CLIENT_PROFESSIONAL
+  CONDITION: client.regime = PROFESSIONAL + modèle compatible
+
+BLOCK_BILLING_ADDRESS_DIFFERENT
+  CONDITION: billing address présente et différente
+
+BLOCK_OPTIONAL_COMPANY_FIELD
+  CONDITION: le champ company.* canonique explicitement lié à ce bloc dans la version de modèle est présent
+  RULE:
+    le validateur connaît explicitement la clé company.* liée au bloc ;
+    aucune clé libre, expression arbitraire ou sélection runtime d’un champ non déclaré n’est admise.
+
+BLOCK_INCLUDED_OPTIONS
+  CONDITION: service.included_options non vide
+
+BLOCK_ADDITIONAL_EXCLUSIONS
+  CONDITION: service.additional_exclusions non vide
+
+BLOCK_MISSED_APPOINTMENT_FEE
+  CONDITION: pricing.missed_appointment_fee présent
+
+BLOCK_SPECIAL_TERMS
+  CONDITION: contract.special_terms non vide
+
+BLOCK_RENEWAL_NONE
+  CONDITION: contract.renewal_mode = NONE
+
+BLOCK_RENEWAL_MANUAL
+  CONDITION: contract.renewal_mode = MANUAL
+
+BLOCK_RENEWAL_TACIT
+  CONDITION: contract.renewal_mode = TACIT
+
+BLOCK_WITHDRAWAL
+  CONDITION: la matrice de validation de la version AVAILABLE sélectionnée autorise explicitement ce bloc pour la combinaison de contexte enregistrée
+  RULE: aucune règle runtime ne détermine juridiquement l’applicabilité.
+
+BLOCK_EARLY_PERFORMANCE
+  CONDITION: la matrice de validation de la version AVAILABLE sélectionnée autorise explicitement BLOCK_EARLY_PERFORMANCE pour la combinaison de contexte enregistrée + BLOCK_WITHDRAWAL actif + contract.early_performance_requested = true
+  RULE: aucune règle runtime ne détermine juridiquement l’applicabilité.
+
+BLOCK_ELECTRONIC_TERMINATION
+  CONDITION: la matrice de validation de la version AVAILABLE sélectionnée autorise explicitement ce bloc pour la combinaison de contexte enregistrée
+  RULE: aucune règle runtime ne détermine juridiquement l’applicabilité.
+
+BLOCK_REFRIGERANT_IN_HOUSE
+  CONDITION: service.refrigerant_handling_mode = IN_HOUSE_AUTHORIZED
+
+BLOCK_REFRIGERANT_PARTNER
+  CONDITION: service.refrigerant_handling_mode = PARTNER
+
+BLOCK_REFRIGERANT_EXCLUDED
+  CONDITION: service.refrigerant_handling_mode = EXCLUDED
+
+BLOCK_EQUIPMENT_OBSERVATIONS
+  CONDITION: equipment.observations non vide pour l’item courant
+
+============================================================
+15. LEGAL / EXTERNAL VALIDATION METADATA
+============================================================
+
+Les validations juridiques ne sont PAS des statuts du contrat ni des règles déterminées automatiquement par l’application.
+
+Elles sont portées par la matrice de validation d’une version de modèle.
+
+Gates documentaires possibles à suivre dans cette matrice :
+
+LEGAL_BASE_CONTRACT_TERMS
+LEGAL_CLIENT_REGIME_CLASSIFICATION
+LEGAL_B2C_CONSUMER_TERMS
+LEGAL_NON_PROFESSIONAL_TERMS
+LEGAL_TACIT_RENEWAL
+LEGAL_WITHDRAWAL_INFORMATION
+LEGAL_WITHDRAWAL_FORM
+LEGAL_EARLY_PERFORMANCE_REQUEST
+LEGAL_ELECTRONIC_TERMINATION
+LEGAL_ELECTRONIC_WITHDRAWAL
+LEGAL_MEDIATOR
+LEGAL_B2B_PAYMENT
+LEGAL_B2B_JURISDICTION
+LEGAL_PRICE_REVISION
+LEGAL_REFRIGERANT_SCOPE
+LEGAL_INSURANCE_REPRESENTATION
+LEGAL_PRIVACY_NOTICE
+LEGAL_SPECIAL_TERMS_PRIORITY
+
+LEGAL_PRICE_INDEXATION
+  STATUS: DEFERRED V1
+
+RÈGLE :
+Le logiciel ne décide pas qu’un gate juridique est satisfait.
+Il utilise uniquement le résultat de validation associé à la version de modèle.
+
+Le texte légal versionné appartient au DOCX de modèle validé.
+Il ne doit pas être récupéré dynamiquement à chaque génération par une IA ou par une source web.
+
+============================================================
+16. VALIDATION D’UN MODÈLE AVANT AVAILABLE
+============================================================
+
+Le validateur inspecte au minimum :
+- corps du document ;
+- tableaux ;
+- en-têtes ;
+- pieds de page ;
+- placeholders ;
+- blocs conditionnels ;
+- boucles ;
+- ressources images.
+
+Bloque la mise à disposition :
+- placeholder inconnu ;
+- placeholder supprimé ;
+- bloc inconnu ;
+- boucle équipements absente ou invalide lorsqu’elle est requise ;
+- instruction éditoriale interdite ;
+- marqueur de revue dans un template de production ;
+- incohérence document_kind / contract_type_code ;
+- régime annoncé hors allowed_client_regimes ;
+- version dont les contrôles requis ne sont pas validés ;
+- échec du test DOCX/PDF de référence.
+
+Conditions UX avant « Rendre disponible » :
+1. Structure contrôlée ;
+2. Test DOCX/PDF réussi ;
+3. Validation externe du contenu confirmée ;
+4. toutes les données société que cette version déclare nécessaires sont présentes dans la configuration locale.
+
+Une version ne peut devenir AVAILABLE si une donnée société qu’elle exige manque.
+
+Seule une version template.version_status = AVAILABLE peut être sélectionnée pour un contrat.
+
+============================================================
+17. RENDU STRICT / GÉNÉRATION OFFICIELLE
+============================================================
+
+Avant rendu :
+- contrat complet selon la version choisie ;
+- version AVAILABLE ;
+- contract.type_code compatible ;
+- client.regime autorisé ;
+- données société requises par cette version présentes ;
+- au moins un équipement ;
+- données dates/prix cohérentes.
+
+Pendant le préflight :
+- tous les placeholders doivent être connus ;
+- tous les blocs doivent être connus ;
+- les boucles doivent être valides ;
+- aucune valeur REQUIRED / REQUIRED_WHEN active ne doit manquer.
+
+Pendant le rendu :
+- aucun enum interne imprimé ;
+- aucun placeholder restant ;
+- aucun marqueur de bloc restant ;
+- aucun texte éditorial de conception ;
+- blocs optionnels supprimés proprement ;
+- valeurs françaises formatées de manière cohérente.
+
+Succès officiel d’un document CONTRACT uniquement si :
+1. DOCX généré et lisible ;
+2. PDF généré et lisible ;
+3. contrôles post-rendu réussis ;
+4. document CONTRACT, révision Rxx et snapshot enregistrés.
+
+EFFETS RÉSERVÉS À document.document_kind = CONTRACT :
+- attribution du numéro officiel lors de la première génération réussie ;
+- création de R01, R02… ;
+- passage DRAFT → TO_SIGN.
+
+Pour INTERVENTION_SHEET :
+- DOCX/PDF peuvent être générés et historisés comme autre document ;
+- aucun numéro officiel de contrat n’est consommé ;
+- aucune Rxx n’est créée ;
+- le statut du contrat n’est pas modifié.
+
+Si le PDF échoue après succès DOCX :
+- génération NON officielle ;
+- aucune nouvelle révision ;
+- aucun nouveau numéro officiel ;
+- ancienne révision intacte ;
+- temporaires nettoyés ou isolés.
+
+Aucune révision précédente n’est écrasée.
+
+============================================================
+18. FORMATAGE DE RENDU
+============================================================
+
+Dates :
+- format utilisateur/document français explicite ;
+- format canonique interne librement choisi par l’implémentation ;
+- rendu déterministe.
+
+Montants :
+- deux décimales lorsque nécessaire ;
+- séparateur décimal français dans le document ;
+- symbole monétaire ajouté par le renderer ou le template, jamais dupliqué.
+
+Taux :
+- rendu lisible avec symbole % ;
+- aucune valeur brute technique.
+
+Durées :
+- renderer vers libellé lisible, ex. « 12 mois ».
+
+Listes :
+- libellés contrôlés ;
+- pas de codes internes.
+
+Texte multiligne :
+- texte brut seulement ;
+- retours à la ligne conservés ;
+- aucun HTML/Markdown interprété.
+
+============================================================
+19. MAPPING DU DOCX SOURCE V1 → V1.1
+============================================================
+
+Renommages / suppressions autoritaires :
+
+company.trade_name utilisé comme nom court
+  → company.display_name
+
+company.siren_siret
+  → company.registration_identifiers_summary
+
+company.registration
+  → company.registration_summary
+
+equipment.notes
+  → equipment.internal_notes côté maître
+  → equipment.observations côté snapshot contractuel
+
+contract.equipments
+  → contract.equipment_items
+
+contract.duration_months
+  → contract.initial_duration_mode
+  + contract.initial_duration_months / contract.initial_end_date selon STANDARD ou CUSTOM
+
+contract.termination_channels
+  → contract.non_renewal_notice_channels
+  + contract.non_renewal_notice_channels_label
+
+contract.early_termination_reasons
+  → contract.early_termination_reason_codes
+  + contract.early_termination_custom_text
+  + contract.early_termination_reasons_label
+
+contract.default_notice_days
+  → contract.breach_cure_period_days
+
+service.missed_appointment_fee
+  → pricing.missed_appointment_fee
+  + pricing.missed_appointment_fee_label
+
+service.refrigerant_handling_mode imprimé
+  → conserver enum interne
+  → service.refrigerant_handling_summary pour le document
+
+pricing.payment_terms
+  → pricing.payment_terms_code
+  + pricing.payment_due_days
+  + pricing.payment_terms_custom_text
+  + pricing.payment_terms_label
+
+pricing.payment_methods
+  → conserver liste structurée
+  → pricing.payment_methods_label pour le document
+
+pricing.renewal_price_rule imprimé
+  → conserver enum interne
+  → pricing.renewal_price_rule_label
+
+template.audience
+  → template.allowed_client_regimes
+
+template.active / template.validated
+  → template.version_status + matrice de validation
+
+document.signed_revision
+  → SUPPRIMÉ
+  → event.document_id sur SIGNATURE_RECORDED
+
+event.date
+  → event.occurred_at
+
+intervention.*
+  → retiré du template CONTRACT
+  → document kind INTERVENTION_SHEET
+
+contract.signature_date dans le contrat initial
+  → SUPPRIMÉ du rendu initial
+  → ligne manuscrite vide
+  → date réelle dans SIGNATURE_RECORDED
+
+legal.tacit_renewal_statutory_text dynamique
+  → pas de placeholder runtime de production
+  → texte légal intégré et versionné dans le modèle validé concerné
+
+============================================================
+20. OPTIONS ET ÉLÉMENTS DEFERRED V1
+============================================================
+
+Hors V1 :
+- indexation automatique de prix ;
+- formule d’index complète ;
+- tarification par ligne ou équipement ;
+- prix additionnel unité intérieure/extérieure ;
+- tarification hors zone générique ;
+- puissance totale comme règle commerciale ;
+- moteur de clauses libre ;
+- champs personnalisés ;
+- éditeur de placeholders ;
+- fusion arbitraire d’annexes ;
+- GMAO ;
+- signature électronique ;
+- contrats multisites ;
+- moteur juridique automatique.
+
+============================================================
+21. PRODUCT QUESTIONS NON RÉSOLUES PAR CE DOCUMENT
+============================================================
+
+PQ-05 — Variantes juridiques finales
+Le registre permet les trois régimes mais ne déclare aucune équivalence.
+Les allowed_client_regimes de chaque version doivent venir de la validation de cette version.
+
+PQ-06 — Convertisseur PDF officiel
+Le registre est indépendant du moteur.
+Le spike doit choisir et valider le moteur Windows cible.
+
+PQ-08 — Numérotation réelle
+Le cycle d’attribution est défini.
+Le préfixe, compteur initial et politique annuelle restent à décider.
+
+PQ-09 — Reprise des contrats existants
+Aucun import massif ni logique de migration n’est ajouté ici.
+
+============================================================
+22. CRITÈRES D’ACCEPTATION DU REGISTRE
+============================================================
+
+Le registre V1.1 est considéré exploitable lorsque :
+
+1. aucune clé obsolète listée en section 19 n’est utilisée par un nouveau template ;
+2. client.regime est sourcé du contrat, jamais du client maître ;
+3. contract.conclusion_mode est conditionnel selon la version et le contexte validé ;
+4. contract.equipment_items est la seule collection ordonnée de rendu des équipements ;
+5. equipment.internal_notes et equipment.observations sont séparés ;
+6. seules DEEP_CLEANING et DISINFECTION existent comme options incluses V1 ;
+7. le délai de dépannage est requis uniquement lorsque le dépannage prioritaire est inclus ;
+8. INDEXED n’est pas sélectionnable en V1 ;
+9. un modèle TO_VALIDATE n’est jamais utilisable ;
+10. seules les versions AVAILABLE sont proposées ;
+11. document.signed_revision n’existe plus ;
+12. la signature référence document.id via event.document_id ;
+13. l’intervention est un document kind séparé, sans numéro officiel, sans Rxx et sans changement de statut ;
+14. les requiredness documentaires n’empêchent jamais la persistance d’un DRAFT incomplet ;
+15. STANDARD utilise start_date + initial_duration_months pour calculer initial_end_date ; CUSTOM utilise une end_date explicite ;
+16. les compatibilités sont confirmées version par version et une version TO_VALIDATE peut avoir zéro régime confirmé ;
+17. aucun enum interne n’est imprimé ;
+18. un champ optionnel vide supprime son bloc complet ;
+19. le numéro n’est attribué qu’après succès documentaire complet d’un CONTRACT ;
+20. DOCX réussi + PDF échoué n’est pas un succès officiel ;
+21. aucune révision n’est écrasée ;
+22. le verrouillage après SIGNATURE_RECORDED empêche toute nouvelle Rxx du même contrat ;
+23. un renouvellement confirmé conserve sa période et son prix sans réécrire le pricing initial ;
+24. contract.signature_date est une projection calculée depuis SIGNATURE_RECORDED ;
+25. aucune Product Question ouverte n’est résolue silencieusement ;
+26. le registre reste indépendant du moteur DOCX/PDF.
+
+FIN DE FIELD_TEMPLATE_CONTRACT_V1_1
