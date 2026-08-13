@@ -2,6 +2,8 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 from .styles import SPACING
+from .clients_view import ClientsInstallationsView
+from ..services import MasterDataService
 
 
 class PlaceholderSurface(QWidget):
@@ -26,19 +28,15 @@ class PlaceholderSurface(QWidget):
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
 
-def build_surfaces() -> dict[str, PlaceholderSurface]:
+def build_surfaces(master_data: MasterDataService) -> dict[str, QWidget]:
     return {
         "Contrats": PlaceholderSurface(
             "Contrats",
             "Créez, retrouvez et suivez les contrats d’entretien depuis cet accueil opérationnel.",
         ),
-        "Clients & installations": PlaceholderSurface(
-            "Clients & installations",
-            "Gérez ici les fiches clients, leurs sites et leurs équipements associés.",
-        ),
+        "Clients & installations": ClientsInstallationsView(master_data),
         "Paramètres": PlaceholderSurface(
             "Paramètres",
             "Configurez ultérieurement la société, les modèles, la numérotation et le stockage local.",
         ),
     }
-

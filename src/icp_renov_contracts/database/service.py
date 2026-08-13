@@ -28,6 +28,82 @@ MIGRATIONS = (
             """,
         ),
     ),
+    Migration(
+        2,
+        (
+            """
+            CREATE TABLE clients (
+                id TEXT PRIMARY KEY,
+                party_type TEXT NOT NULL CHECK (party_type IN ('PERSON', 'ORGANIZATION')),
+                first_name TEXT,
+                last_name TEXT,
+                organization_name TEXT,
+                legal_form TEXT,
+                siret TEXT,
+                address_line1 TEXT NOT NULL,
+                address_line2 TEXT,
+                postal_code TEXT NOT NULL,
+                city TEXT NOT NULL,
+                country TEXT NOT NULL DEFAULT 'France',
+                billing_address TEXT,
+                phone TEXT,
+                email TEXT,
+                internal_reference TEXT,
+                internal_notes TEXT,
+                proposed_contact_name TEXT,
+                proposed_contact_role TEXT,
+                archived INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0, 1)),
+                created_at_utc TEXT NOT NULL,
+                updated_at_utc TEXT NOT NULL,
+                CHECK (
+                    (party_type = 'PERSON' AND first_name IS NOT NULL AND last_name IS NOT NULL AND organization_name IS NULL)
+                    OR
+                    (party_type = 'ORGANIZATION' AND organization_name IS NOT NULL AND first_name IS NULL AND last_name IS NULL)
+                )
+            )
+            """,
+            """
+            CREATE TABLE sites (
+                id TEXT PRIMARY KEY,
+                client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE RESTRICT,
+                label TEXT NOT NULL,
+                address_line1 TEXT NOT NULL,
+                address_line2 TEXT,
+                postal_code TEXT NOT NULL,
+                city TEXT NOT NULL,
+                country TEXT NOT NULL DEFAULT 'France',
+                contact_name TEXT,
+                contact_phone TEXT,
+                internal_notes TEXT,
+                archived INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0, 1)),
+                created_at_utc TEXT NOT NULL,
+                updated_at_utc TEXT NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE equipment (
+                id TEXT PRIMARY KEY,
+                site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE RESTRICT,
+                equipment_type TEXT NOT NULL,
+                brand TEXT,
+                model TEXT,
+                serial_number TEXT,
+                power_kw REAL,
+                location TEXT NOT NULL,
+                installation_date TEXT,
+                internal_reference TEXT,
+                internal_notes TEXT,
+                archived INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0, 1)),
+                created_at_utc TEXT NOT NULL,
+                updated_at_utc TEXT NOT NULL,
+                CHECK (power_kw IS NULL OR power_kw >= 0)
+            )
+            """,
+            "CREATE INDEX idx_clients_archived_name ON clients(archived, organization_name, last_name, first_name)",
+            "CREATE INDEX idx_sites_client ON sites(client_id)",
+            "CREATE INDEX idx_equipment_site ON equipment(site_id)",
+        ),
+    ),
 )
 
 
@@ -97,4 +173,3 @@ class DatabaseService:
                 return int(row[0])
         except sqlite3.Error as exc:
             raise DatabaseInitializationError(str(self.path)) from exc
-

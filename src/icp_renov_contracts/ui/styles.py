@@ -46,6 +46,31 @@ def application_stylesheet() -> str:
     }}
     QLabel#screenTitle {{ font-size: 28px; font-weight: 700; }}
     QLabel#screenDescription {{ color: {COLORS['muted']}; font-size: 15px; }}
+    QFrame#panel, QFrame#siteCard {{
+        background: {COLORS['surface']};
+        border: 1px solid {COLORS['border']};
+        border-radius: {RADII['md']}px;
+    }}
+    QFrame#masterDataDrawer {{
+        background: {COLORS['surface']};
+        border-left: 1px solid {COLORS['border']};
+        border-radius: {RADII['md']}px 0 0 {RADII['md']}px;
+    }}
+    QLabel#drawerTitle {{ font-size: 21px; font-weight: 700; }}
+    QFrame#equipmentRow {{
+        background: #F7F9FA;
+        border: 1px solid {COLORS['border']};
+        border-radius: {RADII['sm']}px;
+    }}
+    QLabel#detailTitle {{ font-size: 22px; font-weight: 700; }}
+    QLabel#sectionTitle, QLabel#siteTitle {{ font-size: 16px; font-weight: 700; }}
+    QLabel#archivedBadge {{ color: #8A5A14; background: #FFF2D9; padding: 4px 8px; border-radius: 4px; }}
+    QLabel#emptyState, QLabel#emptySites, QLabel#emptyEquipment {{ color: {COLORS['muted']}; padding: 14px; }}
+    QLabel#successFeedback {{ color: #0B6758; background: #E4F5F0; padding: 10px; border-radius: 6px; }}
+    QLabel#formError {{ color: #9F2D2D; background: #FCE9E9; padding: 10px; border-radius: 6px; }}
+    QLineEdit, QComboBox, QPlainTextEdit {{
+        background: white; border: 1px solid {COLORS['border']}; border-radius: 5px; padding: 7px;
+    }}
     QPushButton#primaryButton {{
         color: white;
         background: {COLORS['accent']};
@@ -64,4 +89,3 @@ def application_stylesheet() -> str:
         font-weight: 600;
     }}
     """
-

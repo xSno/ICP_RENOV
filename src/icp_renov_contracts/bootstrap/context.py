@@ -6,6 +6,8 @@ from enum import Enum
 
 from ..config import BootstrapConfig, MachineConfigStore
 from ..database import DatabaseService
+from ..repositories import MasterDataRepository
+from ..services import MasterDataService
 from ..storage import Workspace, WorkspaceService
 
 
@@ -22,6 +24,7 @@ class ApplicationContext:
     workspace_service: WorkspaceService
     workspace: Workspace | None
     database: DatabaseService | None
+    master_data: MasterDataService | None
     logger: logging.Logger
 
 
@@ -43,12 +46,14 @@ def build_application_context(
             workspaces,
             None,
             None,
+            None,
             application_logger,
         )
 
     workspace = workspaces.ensure(config.active_workspace)
     database = DatabaseService(workspace.database_path)
     database.initialize()
+    master_data = MasterDataService(MasterDataRepository(database))
     application_logger.info("Local workspace and database initialized")
     return ApplicationContext(
         ApplicationState.READY,
@@ -57,6 +62,6 @@ def build_application_context(
         workspaces,
         workspace,
         database,
+        master_data,
         application_logger,
     )
-

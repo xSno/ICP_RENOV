@@ -23,3 +23,18 @@ class NetworkWorkspaceRejectedError(ApplicationError):
 class DatabaseInitializationError(ApplicationError):
     user_message = "La base de données locale ne peut pas être initialisée."
 
+
+class MasterDataValidationError(ApplicationError):
+    user_message = "Certaines informations sont manquantes ou invalides."
+
+    def __init__(self, field_errors: dict[str, str]) -> None:
+        self.field_errors = field_errors
+        super().__init__(self.user_message)
+
+
+class MasterDataNotFoundError(ApplicationError):
+    user_message = "La fiche demandée est introuvable."
+
+
+class MasterDataPersistenceError(ApplicationError):
+    user_message = "Les données ne peuvent pas être enregistrées."

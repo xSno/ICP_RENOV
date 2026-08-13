@@ -13,13 +13,14 @@ from PySide6.QtWidgets import (
 
 from .styles import SPACING
 from .surfaces import build_surfaces
+from ..services import MasterDataService
 
 
 NAVIGATION_LABELS = ("Contrats", "Clients & installations", "Paramètres")
 
 
 class ApplicationShell(QWidget):
-    def __init__(self) -> None:
+    def __init__(self, master_data: MasterDataService) -> None:
         super().__init__()
         self.setObjectName("applicationRoot")
         root = QHBoxLayout(self)
@@ -56,7 +57,7 @@ class ApplicationShell(QWidget):
         sidebar_layout.addStretch(1)
 
         self.stack = QStackedWidget()
-        self._surfaces = build_surfaces()
+        self._surfaces = build_surfaces(master_data)
         self._indices: dict[str, int] = {}
         for label in NAVIGATION_LABELS:
             self._indices[label] = self.stack.addWidget(self._surfaces[label])
@@ -78,6 +79,9 @@ class ApplicationShell(QWidget):
     def current_surface(self) -> str:
         return self.stack.currentWidget().title
 
+    def surface(self, destination: str) -> QWidget:
+        return self._surfaces[destination]
+
     def navigate(self, destination: str) -> None:
         if destination not in self._indices:
             raise ValueError(f"Unknown navigation destination: {destination}")
@@ -88,4 +92,3 @@ class ApplicationShell(QWidget):
             button.setProperty("active", active)
             button.style().unpolish(button)
             button.style().polish(button)
-

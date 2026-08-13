@@ -1,52 +1,65 @@
-ICP RENOV - CONTRACT MANAGEMENT APP - S0 FOUNDATION RECAP
+ICP RENOV - CONTRACT MANAGEMENT APP - S1 MASTER DATA RECAP
 
-Project/package structure
-- Conventional src-layout created under src/icp_renov_contracts with explicit bootstrap, config, storage, database, UI, error, logging, and application-entry modules.
-- Installable package metadata is defined in pyproject.toml.
-- Deterministic developer entry point: python -m icp_renov_contracts after editable installation.
-- The frozen document spike remains separate and was not migrated into application code.
+Migration and schema
+- S0 migration 1 is preserved unchanged; explicit migration 2 adds clients, sites, and equipment.
+- Migration 1 -> 2 and reopen are deterministic and idempotent; schema_migrations and PRAGMA user_version report version 2.
+- SQLite foreign keys remain enabled. Parent relationships use ON DELETE RESTRICT; no cascade archive or physical-delete workflow exists.
+- The client table contains no contract regime column. The equipment table contains internal_notes and deliberately contains no contract observations column.
 
-Python / PySide6 baseline
-- Python package version: 0.1.0.
-- PySide6 is the real desktop UI runtime; tested with PySide6 6.11.1 on Python 3.14.3.
-- Runtime dependencies remain limited to PySide6; SQLite, pathlib, JSON, and logging use the Python standard library.
+Domain / repository / service structure
+- domain/master_data.py defines explicit immutable drafts, persisted entities, summaries, display names, and rendered structured addresses.
+- repositories/master_data.py owns all SQLite queries, including bounded aggregate client counts without a client-list N+1 pattern.
+- services/master_data.py owns UUID creation, validation, create/edit, search/list, Archive/Restore, and relationship orchestration.
+- The S0 application composition context constructs and injects MasterDataService; UI widgets execute no SQL, open no database connection, and construct no persistence service.
+- Structured validation/not-found/persistence errors prevent raw SQLite errors from reaching normal UI messaging.
 
-Workspace and machine configuration
-- Machine-only JSON configuration is stored by default under %LOCALAPPDATA%\ICP Renov\Contrats\bootstrap.json and contains only its schema version and active workspace path.
-- Default user workspace resolves to Documents\ICP Renov\Contrats.
-- Workspace layout is stable and backup-friendly: data/, documents/, backups/, with SQLite under data/.
-- Workspace validation rejects obvious UNC/network paths, distinguishes unavailable and non-writable paths, creates only required directories, and verifies real write access.
-- Structured application errors cover invalid bootstrap configuration, unavailable/non-writable/network workspaces, and database initialization failures.
+Client semantics
+- Supports only PERSON and ORGANIZATION master classifications.
+- PERSON requires first and last name. ORGANIZATION requires its organization name and supports optional legal form, SIRET, billing address, and proposed reusable contact.
+- Common structured address, optional phone/e-mail, internal reference/notes, opaque UUID, timestamps, and archived state persist.
+- The proposed organization contact is labelled as requiring confirmation in a future contract; it is not a permanent legal signatory.
+- Existing party type remains stable during edit. No consumer/non-professional/professional regime is stored or shown.
 
-Database and migrations
-- Explicit DatabaseService owns SQLite connections and transactions; UI widgets contain no SQL and construct no storage services.
-- Every connection enables foreign keys.
-- Version 0 initializes through migration 1 into schema_migrations and PRAGMA user_version.
-- Reopening and re-running initialization is idempotent; no premature business schema was introduced.
+Site semantics
+- Each site belongs to exactly one client and stores its label, structured address, optional contact and access/instruction notes, UUID/timestamps, and archived state.
+- A client supports zero, one, or multiple sites. Site creation from the client detail binds the selected client automatically.
+- No standalone Sites navigation entry was added.
 
-Shell and navigation
-- Global PySide6 shell implemented with reusable visual tokens: light content, graphite/blue sidebar, blue-green accent, contained borders/radii, and system sans-serif typography.
-- Permanent navigation contains exactly: Contrats; Clients & installations; Paramètres.
-- Contrats is the deterministic default surface.
-- Navigation switches deterministically among the three bounded placeholder surfaces; no rich business screen or forbidden navigation entry was added.
+Equipment semantics
+- Each equipment belongs to exactly one site and supports an evolvable equipment-type string, optional brand/model/serial/power/install date/reference/notes, required location, UUID/timestamps, and archived state.
+- Optional power must be numeric and non-negative.
+- Master internal notes remain separate from future contract observations. No maintenance history, planning, ticketing, or GMAO model was added.
 
-Bootstrap / no-workspace state
-- Missing active workspace is represented explicitly as BOOTSTRAP_REQUIRED.
-- A temporary surface outside permanent navigation presents exactly the two frozen directions: Configurer ce poste and Restaurer une sauvegarde existante.
-- Full setup and restore workflows remain intentionally unimplemented in S0.
+Archive / Restore
+- Client, site, and equipment expose Archive and Restore; the application service exposes no Delete operation.
+- Archiving a client does not change its sites or equipment. Archiving a site does not change its equipment. Equipment archive affects only that equipment.
+- Relationships and counts remain intact throughout archive/restore operations.
+
+Clients & installations UI
+- Replaced only the S0 Clients & installations placeholder with a functional PySide6 split workspace.
+- Left pane: real search, Actifs/Archivés filter, persisted selectable clients, party label, site/equipment counts, and clean empty state.
+- Right pane: selected identity/admin detail, multi-site cards, correctly nested equipment, real empty states, and bounded « Aucun contrat lié » structural reserve.
+- Client, Site, and Equipment creation/editing all use the same scrollable right-side drawer embedded inside the Clients & installations workspace; no editor creates a separate native/top-level window.
+- Every drawer exposes Enregistrer, Annuler, an explicit Fermer action, and Escape dismissal. Validation keeps the drawer open with entered values intact, while Escape/Annuler leave persisted data unchanged.
+- Client fields adapt to Personne/Organisation and keep party type fixed during edit. Nouveau client uses the same primary blue-green treatment as Ajouter un site.
+- Create/edit refreshes and selects sensibly; Archive/Restore respects the current filter. No regime control, Delete action, fake row, or contract-creation action exists.
+- Permanent navigation remains exactly Contrats, Clients & installations, Paramètres; Contrats and Paramètres remain S0 placeholders.
 
 Automated tests
-- S0 command: QT_QPA_PLATFORM=offscreen; python -W error::ResourceWarning -m unittest discover -s tests -v
-- S0 result: 15 discovered, 15 passed, 0 skipped, 0 failed.
-- Frozen-spike regression: ICP_SKIP_WORD_INTEGRATION=1; python -m unittest discover -s spike/tests -v
-- Spike result: 39 discovered, 38 passed, 1 Word integration test skipped as requested, 0 failed.
+- Command: QT_QPA_PLATFORM=offscreen; python -W error::ResourceWarning -m unittest discover -s tests -v
+- Result: 40 discovered, 40 passed, 0 skipped, 0 failed.
+
+Frozen-spike regression
+- Command: ICP_SKIP_WORD_INTEGRATION=1; python -m unittest discover -s spike/tests -v
+- Result: 39 discovered, 38 passed, 1 Microsoft Word integration test skipped as required, 0 failed.
+- LibreOffice and Microsoft Word were not invoked.
 
 Manual smoke
-- PASS: local PySide6 offscreen smoke opened the no-workspace bootstrap surface, opened a ready workspace shell, confirmed the three navigation destinations, switched Clients & installations -> Paramètres -> Contrats, and exited cleanly through the Qt event loop.
-- No traceback or console crash occurred. No LibreOffice or Microsoft Word invocation was performed.
+- PASS using a configured isolated local workspace and the real PySide6 event loop/offscreen platform.
+- Verified a persisted Client -> Site -> Equipment context with an Equipment edit drawer visibly hosted inside the application, French actions, no top-level editor, Escape dismissal without persistence change, and clean application exit.
+- Temporary smoke data was removed.
 
-Remaining S0 risks only
-- A human-visible Windows display pass is still recommended for subjective typography, spacing, and active-state appearance; functional rendering was exercised with Qt offscreen.
-- The two first-use actions are intentionally placeholders until the dedicated setup/restore slice.
-- PySide6 is installed for the current user environment; distributable Windows packaging is intentionally deferred.
-
+Remaining S1 risks only
+- Final subjective visual acceptance on a visible Windows desktop remains for the user; functional UI behavior was exercised through Qt offscreen.
+- SIRET, phone, date, and equipment type intentionally use only bounded/light validation pending later product decisions.
+- The linked-contract area is intentionally an empty structural state until the Contract slice.
