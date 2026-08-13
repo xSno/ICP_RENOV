@@ -14,6 +14,7 @@ from ..domain import Contract
 from ..errors import ApplicationError, MasterDataValidationError
 from ..services import ContractService
 from .master_forms import BaseEditor, ClientEditor, EquipmentEditor, SiteEditor
+from .conditions_view import ConditionsView
 from .styles import SPACING
 
 
@@ -118,11 +119,18 @@ class ContractsView(QWidget):
         steps = QHBoxLayout(); self.step_buttons = []
         for index, label in enumerate(self.STEP_LABELS):
             button = QPushButton(f"{index + 1}. {label.replace('&', '&&')}"); button.setObjectName("secondaryButton")
-            button.setEnabled(index == 0); self.step_buttons.append(button); steps.addWidget(button)
+            button.setEnabled(index < 2)
+            button.clicked.connect(lambda checked=False, target=index: self.navigate_step(target))
+            self.step_buttons.append(button); steps.addWidget(button)
         layout.addLayout(steps)
+        self.step_pages = QStackedWidget()
         scroll = QScrollArea(); scroll.setWidgetResizable(True); scroll.setFrameShape(QScrollArea.Shape.NoFrame)
         self.step_content = QWidget(); self.step_content.setObjectName("contractStepOne")
-        self.step_layout = QVBoxLayout(self.step_content); scroll.setWidget(self.step_content); layout.addWidget(scroll, 1)
+        self.step_layout = QVBoxLayout(self.step_content); scroll.setWidget(self.step_content)
+        self.conditions_view = ConditionsView(self.service, self._condition_feedback, self._conditions_drawer)
+        conditions_scroll = QScrollArea(); conditions_scroll.setWidgetResizable(True); conditions_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        conditions_scroll.setWidget(self.conditions_view)
+        self.step_pages.addWidget(scroll); self.step_pages.addWidget(conditions_scroll); layout.addWidget(self.step_pages, 1)
         self.feedback = QLabel(); self.feedback.setWordWrap(True); self.feedback.hide(); layout.addWidget(self.feedback)
         return page
 
@@ -143,7 +151,21 @@ class ContractsView(QWidget):
         if item: self.open_contract(item.data(Qt.ItemDataRole.UserRole))
 
     def open_contract(self, contract_id: str) -> None:
-        self.contract_id = contract_id; self.pages.setCurrentWidget(self.workspace); self.render_contract()
+        self.contract_id = contract_id; self.pages.setCurrentWidget(self.workspace); self.step_pages.setCurrentIndex(0); self.render_contract()
+
+    def navigate_step(self, index: int) -> None:
+        if index not in (0, 1): return
+        self.step_pages.setCurrentIndex(index)
+        if index == 0: self.render_contract()
+        elif self.contract_id: self.conditions_view.load(self.contract_id)
+
+    def _condition_feedback(self, success: bool, message: str) -> None:
+        self.save_state.setText("Enregistré" if success else "Non enregistré")
+        self._feedback(message, not success)
+
+    def _conditions_drawer(self, editor: QWidget | None) -> None:
+        if editor is None: self.close_drawer()
+        else: self._open_drawer(editor)
 
     def show_landing(self) -> None:
         self.close_drawer(); self.refresh_drafts(); self.pages.setCurrentWidget(self.landing)

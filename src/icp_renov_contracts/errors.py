@@ -50,3 +50,11 @@ class ContractNotFoundError(ApplicationError):
 
 class ContractPersistenceError(ApplicationError):
     user_message = "Le brouillon ne peut pas être enregistré."
+
+
+class ContractConditionsValidationError(ApplicationError):
+    user_message = "Certaines conditions sont invalides."
+
+    def __init__(self, field_errors: dict[str, str]) -> None:
+        self.field_errors = field_errors
+        super().__init__(self.user_message)

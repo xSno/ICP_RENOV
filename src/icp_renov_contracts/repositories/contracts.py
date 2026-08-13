@@ -11,7 +11,8 @@ from ..domain import (
 
 CONTRACT_COLUMNS = """
     id, status, type_code, client_source_id, site_source_id, client_snapshot_json,
-    site_snapshot_json, signatory_name, signatory_role, regime, created_at_utc, updated_at_utc
+    site_snapshot_json, signatory_name, signatory_role, regime, template_id,
+    template_version_id, created_at_utc, updated_at_utc
 """
 
 
@@ -23,6 +24,7 @@ def _contract(row: sqlite3.Row, items: tuple[ContractEquipmentItem, ...]) -> Con
         site_snapshot=SiteSnapshot.from_json(row["site_snapshot_json"]) if row["site_snapshot_json"] else None,
         signatory_name=row["signatory_name"], signatory_role=row["signatory_role"],
         regime=ContractRegime(row["regime"]) if row["regime"] else None,
+        template_id=row["template_id"], template_version_id=row["template_version_id"],
         equipment_items=items, created_at_utc=row["created_at_utc"], updated_at_utc=row["updated_at_utc"],
     )
 
@@ -40,6 +42,9 @@ class ContractRepository:
             connection.execute(
                 "INSERT INTO contracts(id,status,type_code,created_at_utc,updated_at_utc) VALUES (?,?,?,?,?)",
                 (contract_id, ContractStatus.DRAFT.value, ContractType.CLIMATE_MAINTENANCE.value, now, now),
+            )
+            connection.execute(
+                "INSERT INTO contract_conditions(contract_id,updated_at_utc) VALUES (?,?)", (contract_id, now)
             )
 
     def get(self, contract_id: str) -> Contract | None:
@@ -80,11 +85,16 @@ class ContractRepository:
         with self.database.transaction() as connection:
             cursor = connection.execute(
                 "UPDATE contracts SET client_source_id=?,client_snapshot_json=?,site_source_id=NULL,"
-                "site_snapshot_json=NULL,signatory_name=?,signatory_role=?,regime=NULL,updated_at_utc=? WHERE id=?",
+                "site_snapshot_json=NULL,signatory_name=?,signatory_role=?,regime=NULL,template_id=NULL,"
+                "template_version_id=NULL,updated_at_utc=? WHERE id=?",
                 (source_id, snapshot.to_json(), signatory_name, signatory_role, now, contract_id),
             )
             if cursor.rowcount != 1: raise LookupError(contract_id)
             connection.execute("DELETE FROM contract_equipment_items WHERE contract_id=?", (contract_id,))
+            connection.execute(
+                "UPDATE contract_conditions SET conclusion_mode=NULL,early_performance_requested=NULL WHERE contract_id=?",
+                (contract_id,),
+            )
 
     def select_site(self, contract_id: str, source_id: str, snapshot: SiteSnapshot, now: str) -> None:
         with self.database.transaction() as connection:

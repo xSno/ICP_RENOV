@@ -1,50 +1,55 @@
-ICP RENOV - CONTRACT MANAGEMENT APP - S2 DIFF
+ICP RENOV - CONTRACT MANAGEMENT APP - S3 DIFF
 
 FILES CREATED
-- src/icp_renov_contracts/domain/contract.py
-  - Controlled DRAFT/type/regime enums, typed deterministic snapshots, Contract aggregate, ordered item and list projection.
-- src/icp_renov_contracts/repositories/contracts.py
-  - Contract SQL, snapshot-only draft list, transactional cascades, equipment selection/order/observation and signatory persistence.
-- src/icp_renov_contracts/services/contracts.py
-  - DRAFT orchestration, master-data snapshotting, active/ownership validation, signatory prefill, cascades and MasterDataService-backed creation flows.
-- src/icp_renov_contracts/ui/contracts_view.py
-  - Persisted Contracts landing, four-step workspace shell, functional step 1 and in-app selection/creation/observation drawers.
-- tests/test_contracts.py
-  - Migration, DRAFT/restart, snapshots, non-propagation/non-leakage, cascades/rollback, signatory, archive, ordered equipment and Qt UI regressions.
+- src/icp_renov_contracts/domain/conditions.py
+  - Controlled S3 enums, typed template metadata/catalogs/defaults, ContractConditions, deterministic date and Decimal price calculations.
+- src/icp_renov_contracts/repositories/conditions.py
+  - 1:1 Conditions reads/writes and atomic regime/template/dependent-state persistence.
+- src/icp_renov_contracts/repositories/template_catalog.py
+  - Minimal catalog SQL and bounded AVAILABLE/type/regime query.
+- src/icp_renov_contracts/services/template_catalog.py
+  - Typed metadata creation/query/status API with no production seed or management UI.
+- src/icp_renov_contracts/ui/conditions_view.py
+  - Functional seven-section Conditions form, dynamic controls, calculated displays and in-app early-termination drawer.
+- tests/test_conditions.py
+  - Migration, compatibility, exact context, defaults, services, dates, pricing/payment, renewal and Qt UI regressions.
 
 FILES MODIFIED
 - src/icp_renov_contracts/database/service.py
-  - Added explicit migration 3 for contracts and ordered contract_equipment_items; migrations 1 and 2 unchanged.
+  - Added explicit migration 4 and migration of existing S2 drafts to empty Conditions rows; migrations 1–3 unchanged.
 - src/icp_renov_contracts/domain/__init__.py
-  - Exported S2 Contract domain types.
+  - Exported S3 domain/catalog types and calculations.
+- src/icp_renov_contracts/domain/contract.py
+  - Added nullable selected template/version references to the DRAFT aggregate.
 - src/icp_renov_contracts/repositories/__init__.py
-  - Exported ContractRepository.
+  - Exported Conditions and template-catalog repositories.
+- src/icp_renov_contracts/repositories/contracts.py
+  - Creates empty Conditions with new drafts and extends the accepted client-change cascade to clear S3 model/context state.
 - src/icp_renov_contracts/services/__init__.py
-  - Exported ContractService.
+  - Exported TemplateCatalogService.
+- src/icp_renov_contracts/services/contracts.py
+  - Added ContractService orchestration for regime/model selection, defaults, Conditions validation/normalization/calculation and dependent cascades.
 - src/icp_renov_contracts/errors.py
-  - Added bounded Contract validation, not-found and persistence errors.
+  - Added structured field-level Conditions validation error.
 - src/icp_renov_contracts/bootstrap/context.py
-  - Composes and injects ContractRepository/ContractService for ready workspaces.
-- src/icp_renov_contracts/ui/surfaces.py
-  - Replaced only the Contrats placeholder with ContractsView.
-- src/icp_renov_contracts/ui/shell.py
-  - Passes the injected Contract service while preserving the exact three-entry navigation.
-- src/icp_renov_contracts/ui/main_window.py
-  - Injects both master-data and Contract services into the shell.
-- src/icp_renov_contracts/ui/styles.py
-  - Added only the bounded Contract step background treatment; existing S1 styling remains the basis.
+  - Composes/injects minimal catalog and Conditions persistence into ContractService.
+- src/icp_renov_contracts/ui/contracts_view.py
+  - Enables only step 2 in addition to step 1 and hosts the Conditions surface/drawer while leaving steps 3/4 unavailable.
 - tests/test_foundation.py
-  - Updated latest migration expectations from 2 to 3; S0 behavior assertions unchanged.
+  - Updated latest migration expectation to 4; S0 behavior unchanged.
 - tests/test_master_data.py
-  - Updated latest migration expectations from 2 to 3; S1 semantics/assertions unchanged.
+  - Updated latest migration expectation to 4; S1 behavior unchanged.
+- tests/test_contracts.py
+  - Updated latest migration/step availability expectations for S3; S2 behavior unchanged.
 - recap.txt
 - diff.txt
 
 FILES REMOVED
-- Generated tests/tmp and spike/tmp runtime scratch directories.
-- Generated __pycache__ directories and *.pyc files outside .venv.
+- Temporary visible-smoke helper and isolated smoke workspace.
+- Generated tests/tmp, spike/tmp, __pycache__ directories and *.pyc files outside .venv.
 
-PRESERVED / NOT ADDED
-- Authoritative docs, production templates, frozen spike sources/evidence and S1 master semantics unchanged.
-- No official numbering, revision, lifecycle beyond DRAFT, Conditions fields, regime UI, model selection, pricing, generation, document integration, signature, renewal, termination, dashboard, backup/restore, first-use or packaging implementation.
+PRESERVED / OUT OF SCOPE
+- Authoritative docs, production DOCX templates, frozen spike, production template availability and accepted S0/S1/S2 snapshot/master semantics unchanged.
+- No production template seeded AVAILABLE.
+- No Review/readiness, Company/Model management UI, generation, LibreOffice/Word invocation, numbering, revision, Documents & suivi, signature, renewal/termination event, intervention sheet, dashboard, backup/restore, first-use or packaging implementation.
 - No commit created.

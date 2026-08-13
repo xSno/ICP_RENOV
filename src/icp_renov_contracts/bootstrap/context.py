@@ -6,8 +6,10 @@ from enum import Enum
 
 from ..config import BootstrapConfig, MachineConfigStore
 from ..database import DatabaseService
-from ..repositories import ContractRepository, MasterDataRepository
-from ..services import ContractService, MasterDataService
+from ..repositories import (
+    ContractConditionsRepository, ContractRepository, MasterDataRepository, TemplateCatalogRepository,
+)
+from ..services import ContractService, MasterDataService, TemplateCatalogService
 from ..storage import Workspace, WorkspaceService
 
 
@@ -26,6 +28,7 @@ class ApplicationContext:
     database: DatabaseService | None
     master_data: MasterDataService | None
     contracts: ContractService | None
+    template_catalog: TemplateCatalogService | None
     logger: logging.Logger
 
 
@@ -49,6 +52,7 @@ def build_application_context(
             None,
             None,
             None,
+            None,
             application_logger,
         )
 
@@ -56,7 +60,10 @@ def build_application_context(
     database = DatabaseService(workspace.database_path)
     database.initialize()
     master_data = MasterDataService(MasterDataRepository(database))
-    contracts = ContractService(ContractRepository(database), master_data)
+    template_catalog = TemplateCatalogService(TemplateCatalogRepository(database))
+    contracts = ContractService(
+        ContractRepository(database), master_data, ContractConditionsRepository(database), template_catalog
+    )
     application_logger.info("Local workspace and database initialized")
     return ApplicationContext(
         ApplicationState.READY,
@@ -67,5 +74,6 @@ def build_application_context(
         database,
         master_data,
         contracts,
+        template_catalog,
         application_logger,
     )

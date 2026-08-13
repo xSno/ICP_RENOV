@@ -141,6 +141,79 @@ MIGRATIONS = (
             "CREATE INDEX idx_contract_equipment_order ON contract_equipment_items(contract_id, position)",
         ),
     ),
+    Migration(
+        4,
+        (
+            """
+            CREATE TABLE contract_templates (
+                id TEXT PRIMARY KEY,
+                functional_name TEXT NOT NULL,
+                document_kind TEXT NOT NULL,
+                contract_type_code TEXT NOT NULL,
+                created_at_utc TEXT NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE contract_template_versions (
+                id TEXT PRIMARY KEY,
+                template_id TEXT NOT NULL REFERENCES contract_templates(id) ON DELETE RESTRICT,
+                version TEXT NOT NULL,
+                version_status TEXT NOT NULL CHECK (version_status IN ('TO_VALIDATE','AVAILABLE','ARCHIVED')),
+                allowed_client_regimes_json TEXT NOT NULL,
+                validation_metadata_json TEXT NOT NULL,
+                defaults_json TEXT NOT NULL,
+                option_catalogs_json TEXT NOT NULL,
+                created_at_utc TEXT NOT NULL,
+                updated_at_utc TEXT NOT NULL,
+                UNIQUE(template_id, version)
+            )
+            """,
+            "ALTER TABLE contracts ADD COLUMN template_id TEXT REFERENCES contract_templates(id) ON DELETE RESTRICT",
+            "ALTER TABLE contracts ADD COLUMN template_version_id TEXT REFERENCES contract_template_versions(id) ON DELETE RESTRICT",
+            """
+            CREATE TABLE contract_conditions (
+                contract_id TEXT PRIMARY KEY REFERENCES contracts(id) ON DELETE RESTRICT,
+                conclusion_mode TEXT CHECK (conclusion_mode IS NULL OR conclusion_mode IN ('IN_PREMISES','OFF_PREMISES','DISTANCE_EMAIL','ONLINE_INTERFACE','OTHER_DISTANCE')),
+                early_performance_requested INTEGER CHECK (early_performance_requested IS NULL OR early_performance_requested IN (0,1)),
+                visits_per_year INTEGER CHECK (visits_per_year IS NULL OR visits_per_year >= 1),
+                refrigerant_handling_mode TEXT CHECK (refrigerant_handling_mode IS NULL OR refrigerant_handling_mode IN ('IN_HOUSE_AUTHORIZED','PARTNER','EXCLUDED')),
+                included_area TEXT NOT NULL DEFAULT '',
+                business_hours TEXT NOT NULL DEFAULT '',
+                travel_included INTEGER CHECK (travel_included IS NULL OR travel_included IN (0,1)),
+                priority_breakdown INTEGER CHECK (priority_breakdown IS NULL OR priority_breakdown IN (0,1)),
+                priority_breakdown_delay TEXT,
+                included_options_json TEXT NOT NULL DEFAULT '[]',
+                additional_exclusions TEXT NOT NULL DEFAULT '',
+                issue_date TEXT,
+                start_date TEXT,
+                initial_duration_mode TEXT CHECK (initial_duration_mode IS NULL OR initial_duration_mode IN ('STANDARD','CUSTOM')),
+                initial_duration_months INTEGER CHECK (initial_duration_months IS NULL OR initial_duration_months >= 1),
+                initial_end_date TEXT,
+                signature_city TEXT NOT NULL DEFAULT '',
+                annual_ht TEXT,
+                vat_rate TEXT,
+                payment_terms_code TEXT,
+                payment_due_days INTEGER CHECK (payment_due_days IS NULL OR payment_due_days >= 0),
+                payment_terms_custom_text TEXT NOT NULL DEFAULT '',
+                payment_methods_json TEXT NOT NULL DEFAULT '[]',
+                missed_appointment_fee TEXT,
+                renewal_mode TEXT CHECK (renewal_mode IS NULL OR renewal_mode IN ('NONE','MANUAL','TACIT')),
+                renewal_period_months INTEGER CHECK (renewal_period_months IS NULL OR renewal_period_months >= 1),
+                non_renewal_notice_days INTEGER CHECK (non_renewal_notice_days IS NULL OR non_renewal_notice_days >= 0),
+                non_renewal_notice_channels_json TEXT NOT NULL DEFAULT '[]',
+                internal_alert_days INTEGER CHECK (internal_alert_days IS NULL OR internal_alert_days >= 0),
+                renewal_price_rule TEXT CHECK (renewal_price_rule IS NULL OR renewal_price_rule IN ('FIXED','NEW_PRICE_ON_RENEWAL')),
+                early_termination_reason_codes_json TEXT NOT NULL DEFAULT '[]',
+                early_termination_custom_text TEXT NOT NULL DEFAULT '',
+                breach_cure_period_days INTEGER CHECK (breach_cure_period_days IS NULL OR breach_cure_period_days >= 0),
+                special_terms TEXT NOT NULL DEFAULT '',
+                updated_at_utc TEXT NOT NULL
+            )
+            """,
+            "INSERT INTO contract_conditions(contract_id,updated_at_utc) SELECT id,updated_at_utc FROM contracts",
+            "CREATE INDEX idx_template_versions_selection ON contract_template_versions(version_status, template_id)",
+        ),
+    ),
 )
 
 

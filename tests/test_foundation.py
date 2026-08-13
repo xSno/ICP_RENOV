@@ -105,9 +105,9 @@ class DatabaseTests(unittest.TestCase):
         with scratch() as temporary:
             database = DatabaseService(Path(temporary) / "app.sqlite3")
             database.initialize()
-            self.assertEqual(database.schema_version(), 3)
+            self.assertEqual(database.schema_version(), 4)
             with database.connection() as connection:
-                self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 3)
+                self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 4)
 
     def test_migration_reopen_is_idempotent(self):
         with scratch() as temporary:
@@ -116,7 +116,7 @@ class DatabaseTests(unittest.TestCase):
             database.initialize()
             with database.connection() as connection:
                 count = connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0]
-            self.assertEqual(count, 3)
+            self.assertEqual(count, 4)
 
 
 class ApplicationContextTests(unittest.TestCase):

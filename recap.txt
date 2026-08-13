@@ -1,58 +1,92 @@
-ICP RENOV - CONTRACT MANAGEMENT APP - S2 RECAP
+ICP RENOV - CONTRACT MANAGEMENT APP - S3 RECAP
 
 Migration / schema
-- Migrations 1 and 2 are unchanged. Explicit migration 3 adds contracts and contract_equipment_items.
-- Migration 2 -> 3 and repeated initialization are deterministic and idempotent; latest schema version is 3.
-- contracts supports DRAFT / CLIMATE_MAINTENANCE, nullable Contract-only regime, source references, typed JSON snapshots, signatory and timestamps. No business number or revision exists.
-- contract_equipment_items persists stable ids, source references, unique contiguous positions, deterministic snapshots and Contract-only observations.
+- Migrations 1, 2 and 3 are preserved unchanged. Explicit migration 4 adds contract_templates, contract_template_versions, contract_conditions and nullable Contract template/version references.
+- Existing S2 drafts receive one empty conditions row during migration. Migration 3 -> 4 and reopen are deterministic/idempotent; latest schema version is 4.
+- DRAFT conditions remain nullable/incomplete. No number, revision, lifecycle event, document or readiness structure was added.
 
-Contract domain / repository / service
-- domain/contract.py defines the controlled enums, typed client/site/equipment snapshots, Contract aggregate, ordered item and list projection.
-- repositories/contracts.py owns SQL, the snapshot-based list query and atomic client/site cascades, reorder, observation and signatory writes.
-- services/contracts.py owns empty draft creation/reopen, active master selection checks, snapshot orchestration, master creation reuse, cascades, equipment selection/order and Contract-only edits.
-- The application composition root injects ContractService; UI widgets contain no SQL or database construction.
+Template catalog foundation
+- Typed ContractTemplate and ContractTemplateVersion metadata covers functional name, document kind/type, exact status, exact allowed regimes, context authorization, defaults and controlled option catalogs.
+- Statuses remain TO_VALIDATE / AVAILABLE / ARCHIVED with no production seed. Current Habitation/Copropriété/Professionnel DOCX candidates were not registered as AVAILABLE.
+- Only AVAILABLE + exact contract type + exact regime matches are offered for new selection. CONSUMER, NON_PROFESSIONAL and PROFESSIONAL are never inferred or treated as equivalent.
+- A selected version later archived remains referenced and reopenable, with a visible unavailable warning; it is not silently replaced.
 
-DRAFT and snapshots
-- Nouveau contrat persists an incomplete DRAFT immediately with an opaque UUID only; empty drafts survive restart and are never auto-deleted.
-- Client, site and equipment snapshots serialize deterministically and exclude master internal notes/references not intended as contract-facing data.
-- Existing drafts and the Contracts list read stored snapshots, not live master rows. Later master edits or archives do not silently rewrite or remove selected Contract data.
+Regime / model / legal context
+- Regime remains nullable and Contract-only; Client master remains regime-free.
+- Regime changes atomically clear an incompatible model plus stale conclusion/early-performance context, while preserving unrelated entered Conditions.
+- Model changes apply typed defaults only to empty fields and never overwrite or destroy non-empty user values.
+- Conclusion mode appears only when the selected version metadata explicitly requires it for the recorded regime.
+- Early performance appears/is accepted only for an exact regime + conclusion combination authorizing both BLOCK_WITHDRAWAL and BLOCK_EARLY_PERFORMANCE. There is no legal inference fallback or expression engine.
 
-Cascades and signatory
-- Changing client atomically replaces its snapshot/reference, resets the signatory prefill, clears regime, site, equipment and observations; master rows remain untouched.
-- Changing site atomically replaces its snapshot/reference and clears equipment plus observations; master rows remain untouched.
-- PERSON prefill is « prénom nom » / « Client ». ORGANIZATION uses the proposed contact when present and otherwise remains blank.
-- Contract signatory edits never update the master client, and later master-contact edits never update an existing draft.
+Service Conditions
+- Persists visits, refrigerant mode, included area, business hours, travel included, priority breakdown/delay, DEEP_CLEANING, DISINFECTION and additional exclusions.
+- Baseline maintenance is displayed as included and cannot be unchecked. No extra V1 service option exists.
+- Priority delay is absent and cleared when priority breakdown is not included.
+- Travel canonical-field result: only service.included_area and service.travel_included are persisted. No undocumented service.travel_* detail field was invented.
 
-Ordered equipment and observations
-- Only active equipment from the selected site can be newly selected; cross-site and archived selections are rejected by the service.
-- Selections append last. Deselection removes its observation and compacts positions. Monter/Descendre persists contiguous order across restart.
-- Equipment created from the Contract reuses MasterDataService, is automatically selected and appended last.
-- Contract observations are stored only on contract_equipment_items; equipment.internal_notes is neither copied nor mutated.
-- Already selected archived equipment remains visible from its Contract snapshot.
+Period / pricing / payment
+- STANDARD stores start date + month count and calculates calendar end date as anniversary minus one day. CUSTOM stores start date + explicit Date de fin and clears the contradictory month source.
+- Covered examples: 01/09/2026 + 12 months = 31/08/2027, month-end and leap-year-safe cases.
+- Pricing persists only annual HT and a catalog-controlled VAT rate. VAT and TTC are calculated Decimal projections and cannot be independently overridden.
+- Payment terms/methods come only from typed version catalogs; raw codes are not rendered. Due days/custom text are shown and retained only when their selected term authorizes them.
+- Missed-appointment fee remains nullable (« Aucun ») or a validated non-negative amount.
 
-Contracts UI / workspace
-- The Contrats placeholder is replaced by a bounded persisted draft landing with Nouveau contrat, snapshot-derived client/site labels, Brouillon, last update and reopen.
-- The Contract header shows Retour aux contrats, Brouillon, Brouillon sans numéro, snapshot context and the real save state.
-- Exactly four steps exist: Client, site & équipements; Conditions du contrat; Revue; Documents & suivi. Only step 1 is enabled/functional.
-- Step 1 provides separate select/change and create actions for Client/Site, Contract signatory fields, equipment checkboxes/order/observation and the zero-equipment anomaly.
-- Selectors and reused S1 master editors are embedded right-side drawers with French actions and Escape/cancel closure; no QDialog/top-level editor is introduced.
-- No regime, conclusion mode, model, Conditions content, generation, numbering, revision or Delete action is exposed.
+Renewal / early termination / special terms
+- NONE clears/hides all dependent renewal data. MANUAL supports duration, price rule and internal alert while clearing notice/channels. TACIT additionally supports contractual notice/channels.
+- FIXED and NEW_PRICE_ON_RENEWAL are accepted; INDEXED is rejected and absent from the UI. Internal alert and non-renewal notice remain distinct.
+- Early-termination reasons, custom text and cure period use a secondary in-app right drawer backed by version catalogs; no termination action/event exists.
+- Special terms remain line-break-preserving plain text with no HTML/Markdown/rich interpretation.
+
+Conditions UI
+- Step 2 « Conditions du contrat » is functional with the seven bounded sections. Steps 1 and 2 are enabled; Revue and Documents & suivi remain unavailable.
+- Regime/model empty states, model filtering, conclusion/early-performance context, priority delay, STANDARD/CUSTOM dates, payment dependencies and renewal fields react by true show/hide behavior.
+- Save success appears only after a successful SQLite transaction; structured validation keeps visible entries available for correction.
+- No regime in Client master, Review content, generation button, numbering, revision, native dialog or top-level editor was introduced.
 
 Automated tests
 - QT_QPA_PLATFORM=offscreen; python -W error::ResourceWarning -m unittest discover -s tests -v
-- Result: 58 discovered, 58 passed, 0 skipped, 0 failed.
-- Coverage includes migration, restart, empty draft, snapshots/non-propagation, non-leakage, signatory, transactional rollback, cascades, archive behavior, equipment collection/order, new-master auto-selection and Qt UI boundaries.
+- Result: 80 discovered, 80 passed, 0 skipped, 0 failed.
+- S3 coverage includes migration, status/compatibility filtering, archived reference, regime/context cascades, defaults, services, dates, pricing, payment, renewal, early termination and dynamic Qt UI.
 
 Frozen-spike regression
 - ICP_SKIP_WORD_INTEGRATION=1; python -m unittest discover -s spike/tests -v
 - Result: 39 discovered, 38 passed, 1 Microsoft Word integration test skipped as required, 0 failed.
-- LibreOffice and Microsoft Word were not invoked; frozen spike sources and artifacts were not modified.
+- LibreOffice and Microsoft Word were not invoked. Frozen spike files were not modified.
 
 Manual smoke
-- PASS for a visible Windows launch using an isolated configured local workspace: the real application opened on Contrats and closed cleanly.
-- Detailed S2 interactions were exercised through the Qt offscreen regression suite. No screenshot automation was performed; temporary smoke data was removed.
+- PASS in a visible Windows application using an isolated disposable workspace and explicitly synthetic AVAILABLE metadata.
+- Exercised Conditions access, exact context controls, services/options, priority show/hide, STANDARD/CUSTOM, VAT/TTC, payment, NONE/MANUAL/TACIT, early termination, multiline terms, step navigation, reopen, context reconstruction/restart persistence and clean close.
+- Temporary smoke workspace and helper were removed; no screenshots were automated.
 
-Remaining S2 risks only
-- Final subjective visual acceptance of the complete representative Client/Site/Equipment draft flow remains for the user on the visible workstation.
-- S2 intentionally has direct per-interaction persistence rather than a queued autosave model.
-- Conditions, Review and Documents & suivi remain intentionally disabled for future slices.
+DEVELOPMENT VISUAL SMOKE ONLY
+Run these commands from the repository in one PowerShell session. They redirect both machine bootstrap state and business data to a disposable TEMP folder and create only explicitly synthetic metadata:
+
+$smokeRoot = Join-Path $env:TEMP 'ICP_RENOV_S3_VISUAL'
+$env:LOCALAPPDATA = Join-Path $smokeRoot 'LocalAppData'
+$env:ICP_S3_WORKSPACE = Join-Path $smokeRoot 'Workspace'
+@'
+import os
+from pathlib import Path
+from icp_renov_contracts.bootstrap import build_application_context
+from icp_renov_contracts.config import BootstrapConfig, MachineConfigStore
+from icp_renov_contracts.domain import ContextAuthorization, ControlledOption, PaymentTermOption, TemplateDefaults, TemplateOptionCatalogs, TemplateValidationMetadata, TemplateVersionStatus
+store = MachineConfigStore()
+store.save(BootstrapConfig(Path(os.environ['ICP_S3_WORKSPACE'])))
+ctx = build_application_context(config_store=store)
+template = ctx.template_catalog.create_template('SYNTHÉTIQUE — VISUEL S3')
+ctx.template_catalog.create_version(template, 'visual-1', TemplateVersionStatus.AVAILABLE, ('CONSUMER',), TemplateValidationMetadata(('CONSUMER',), (ContextAuthorization('CONSUMER', 'OFF_PREMISES', ('BLOCK_WITHDRAWAL', 'BLOCK_EARLY_PERFORMANCE')),)), TemplateDefaults(visits_per_year=2, included_area='Île-de-France', business_hours='8h–18h', travel_included=True), TemplateOptionCatalogs(('5.5', '20'), (PaymentTermOption('DUE', 'À échéance', True, False), PaymentTermOption('CUSTOM', 'Modalité personnalisée', False, True)), (ControlledOption('TRANSFER', 'Virement'), ControlledOption('CARD', 'Carte')), (ControlledOption('EMAIL', 'E-mail'), ControlledOption('POST', 'Courrier')), (ControlledOption('BREACH', 'Manquement'), ControlledOption('OTHER', 'Autre'))))
+print('Métadonnées SYNTHÉTIQUES S3 créées dans', os.environ['ICP_S3_WORKSPACE'])
+'@ | python -
+python -m icp_renov_contracts
+
+Cleanup after closing the application:
+
+Remove-Item -LiteralPath (Join-Path $env:TEMP 'ICP_RENOV_S3_VISUAL') -Recurse -Force
+Remove-Item Env:ICP_S3_WORKSPACE -ErrorAction SilentlyContinue
+Remove-Item Env:LOCALAPPDATA -ErrorAction SilentlyContinue
+
+Remaining S3 risks only
+- Real production versions legitimately remain unavailable until their separate validation/governance workflow marks them AVAILABLE.
+- Final subjective visual acceptance of the full Conditions form remains for the user on the target workstation.
+- Template/model management and company availability governance intentionally remain absent.
+- Review/generation will later own completeness and readiness checks; S3 deliberately saves incomplete drafts.

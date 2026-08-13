@@ -131,6 +131,8 @@ class Contract:
     signatory_name: str
     signatory_role: str
     regime: ContractRegime | None
+    template_id: str | None
+    template_version_id: str | None
     equipment_items: tuple[ContractEquipmentItem, ...]
     created_at_utc: str
     updated_at_utc: str
