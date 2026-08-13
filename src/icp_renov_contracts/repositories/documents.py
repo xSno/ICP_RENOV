@@ -28,6 +28,12 @@ class ContractDocumentRepository:
             ).fetchall()
             return tuple(_document(row) for row in rows)
 
+    def get(self, document_id: str) -> ContractDocument | None:
+        with self.database.connection() as connection:
+            connection.row_factory = sqlite3.Row
+            row = connection.execute("SELECT * FROM contract_documents WHERE id=?", (document_id,)).fetchone()
+            return _document(row) if row else None
+
     @staticmethod
     def insert(connection: sqlite3.Connection, document: ContractDocument) -> None:
         connection.execute(

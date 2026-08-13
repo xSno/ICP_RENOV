@@ -4,7 +4,7 @@ import sqlite3
 
 from ..database import DatabaseService
 from ..domain import (
-    ClientSnapshot, Contract, ContractEquipmentItem, ContractListItem, ContractRegime,
+    ClientSnapshot, Contract, ContractEquipmentItem, ContractEvent, ContractListItem, ContractRegime,
     ContractStatus, ContractType, EquipmentSnapshot, SiteSnapshot,
 )
 
@@ -37,7 +37,7 @@ class ContractRepository:
     def _rows(connection: sqlite3.Connection) -> None:
         connection.row_factory = sqlite3.Row
 
-    def create(self, contract_id: str, now: str) -> None:
+    def create(self, contract_id: str, now: str, created_event: ContractEvent | None = None) -> None:
         with self.database.transaction() as connection:
             connection.execute(
                 "INSERT INTO contracts(id,status,type_code,created_at_utc,updated_at_utc) VALUES (?,?,?,?,?)",
@@ -46,6 +46,9 @@ class ContractRepository:
             connection.execute(
                 "INSERT INTO contract_conditions(contract_id,updated_at_utc) VALUES (?,?)", (contract_id, now)
             )
+            if created_event is not None:
+                from .events import ContractEventRepository
+                ContractEventRepository.insert(connection, created_event)
 
     def get(self, contract_id: str) -> Contract | None:
         with self.database.connection() as connection:
@@ -68,7 +71,8 @@ class ContractRepository:
         with self.database.connection() as connection:
             self._rows(connection)
             rows = connection.execute(
-                "SELECT id,number,COALESCE(generation_status,status) AS status,client_snapshot_json,site_snapshot_json,updated_at_utc "
+                "SELECT id,number,COALESCE(generation_status,status) AS status,client_snapshot_json,site_snapshot_json,updated_at_utc,"
+                "(SELECT MAX(revision_index) FROM contract_documents d WHERE d.contract_id=contracts.id AND d.document_kind='CONTRACT') AS latest_revision "
                 "FROM contracts ORDER BY updated_at_utc DESC,id"
             ).fetchall()
             return [ContractListItem(
@@ -77,7 +81,7 @@ class ContractRepository:
                              if row["client_snapshot_json"] else "Client à sélectionner"),
                 site_label=(SiteSnapshot.from_json(row["site_snapshot_json"]).label
                             if row["site_snapshot_json"] else "Site à sélectionner"),
-                updated_at_utc=row["updated_at_utc"],
+                updated_at_utc=row["updated_at_utc"], latest_revision=(f"R{row['latest_revision']:02d}" if row["latest_revision"] else None),
             ) for row in rows]
 
     def select_client(self, contract_id: str, source_id: str, snapshot: ClientSnapshot,

@@ -52,6 +52,10 @@ class ContractPersistenceError(ApplicationError):
     user_message = "Le brouillon ne peut pas être enregistré."
 
 
+class ContractLifecycleError(ApplicationError):
+    user_message = "Le suivi du contrat ne peut pas être enregistré."
+
+
 class ContractConditionsValidationError(ApplicationError):
     user_message = "Certaines conditions sont invalides."
 

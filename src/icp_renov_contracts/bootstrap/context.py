@@ -7,11 +7,11 @@ from enum import Enum
 from ..config import BootstrapConfig, MachineConfigStore
 from ..database import DatabaseService
 from ..repositories import (
-    ContractConditionsRepository, ContractDocumentRepository, ContractRepository, MasterDataRepository, TemplateCatalogRepository,
+    ContractConditionsRepository, ContractDocumentRepository, ContractEventRepository, ContractRepository, MasterDataRepository, TemplateCatalogRepository,
 )
 from ..documents import (LibreOfficeConverter, ProductionDocxRenderer, TemplateSourceStore,
                          UnavailableCompanyDocumentDataProvider, UnavailableContractNumberAllocator)
-from ..services import ContractService, DocumentGenerationService, MasterDataService, ReviewService, TemplateCatalogService
+from ..services import ContractLifecycleService, ContractService, DocumentGenerationService, MasterDataService, ReviewService, TemplateCatalogService
 from ..storage import Workspace, WorkspaceService
 
 
@@ -33,6 +33,7 @@ class ApplicationContext:
     template_catalog: TemplateCatalogService | None
     review: ReviewService | None
     generation: DocumentGenerationService | None
+    lifecycle: ContractLifecycleService | None
     logger: logging.Logger
 
 
@@ -59,6 +60,7 @@ def build_application_context(
             None,
             None,
             None,
+            None,
             application_logger,
         )
 
@@ -76,6 +78,9 @@ def build_application_context(
         ProductionDocxRenderer(), LibreOfficeConverter(), UnavailableCompanyDocumentDataProvider(),
         UnavailableContractNumberAllocator(), workspace.root, application_logger,
     )
+    lifecycle = ContractLifecycleService(
+        database, contracts, ContractDocumentRepository(database), ContractEventRepository(database), workspace.root
+    )
     review.generation_ready = generation.available
     application_logger.info("Local workspace and database initialized")
     return ApplicationContext(
@@ -90,5 +95,6 @@ def build_application_context(
         template_catalog,
         review,
         generation,
+        lifecycle,
         application_logger,
     )

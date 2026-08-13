@@ -327,7 +327,7 @@ class GenerationUiTests(GenerationCase):
         with patch.object(GenerationConfirmationDialog,"exec",return_value=QDialog.DialogCode.Accepted):self.view.review_view.confirm_generation()
         self.assertIn("R01",self.view.feedback.text());self.assertEqual(self.view.status_label.text(),"À signer")
         self.assertFalse(self.view.review_view.generate_button.isEnabled());self.view.refresh_drafts();self.assertIn("SYNTH-S5-0001",self.view.draft_list.item(0).text());self.assertIn("À signer",self.view.draft_list.item(0).text())
-        self.view.navigate_step(1);self.assertFalse(self.view.conditions_view.isEnabled());self.assertFalse(self.view.step_buttons[3].isEnabled())
+        self.view.navigate_step(1);self.assertFalse(self.view.conditions_view.isEnabled());self.assertTrue(self.view.step_buttons[3].isEnabled())
     def test_default_production_boundaries_keep_generation_unavailable(self):
         self.assertTrue(self.generation.available(self.contract.id))
         self.context.review.generation_ready=self.context.generation.available

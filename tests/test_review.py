@@ -301,7 +301,7 @@ class ReviewUiTests(ReviewCase):
     def tearDown(self): self.window.close(); self.application.processEvents(); super().tearDown()
 
     def test_review_step_enabled_documents_disabled_and_empty_draft_enters(self):
-        self.assertEqual([button.isEnabled() for button in self.view.step_buttons], [True, True, True, False])
+        self.assertEqual([button.isEnabled() for button in self.view.step_buttons], [True, True, True, True])
         self.view.navigate_step(2); self.application.processEvents()
         self.assertEqual(self.view.step_pages.currentIndex(), 2); self.assertEqual(len(self.view.review_view.block_cards), 9)
         self.assertEqual(self.view.review_view.overall.text(), "Informations à compléter avant génération")

@@ -10,12 +10,15 @@ from ..services import DocumentGenerationService, ReviewService
 
 
 class GenerationConfirmationDialog(QDialog):
-    def __init__(self, preview: str | None, parent: QWidget | None = None) -> None:
+    def __init__(self, preview: str | None, parent: QWidget | None = None,
+                 revision: str = "R01", existing_number: bool = False) -> None:
         super().__init__(parent); self.setObjectName("generationConfirmation"); self.setWindowTitle("Confirmer la génération")
-        root = QVBoxLayout(self); title = QLabel("Créer la première révision officielle ?"); title.setObjectName("sectionTitle"); root.addWidget(title)
-        text = QLabel("Les données du contrat seront figées. Le DOCX et le PDF seront créés. Le numéro officiel sera attribué seulement après leur création complète. La première génération réussie créera R01 et placera le contrat À signer. En cas d’échec, aucun numéro ni aucune révision ne sera créé.")
+        root = QVBoxLayout(self); title = QLabel(f"Créer la révision {revision} ?" if existing_number else "Créer la première révision officielle ?"); title.setObjectName("sectionTitle"); root.addWidget(title)
+        message=("Le numéro officiel existant reste inchangé. Les données actuelles seront figées dans une nouvelle révision ; les révisions précédentes restent conservées. Le DOCX et le PDF seront créés et le contrat repassera À signer uniquement après un succès complet. En cas d’échec, la révision précédente reste intacte et aucune nouvelle révision n’est créée."
+                 if existing_number else "Les données du contrat seront figées. Le DOCX et le PDF seront créés. Le numéro officiel sera attribué seulement après leur création complète. La première génération réussie créera R01 et placera le contrat À signer. En cas d’échec, aucun numéro ni aucune révision ne sera créé.")
+        text = QLabel(message)
         text.setWordWrap(True); root.addWidget(text)
-        self.preview_label = QLabel(f"Numéro prévu : {preview}") if preview else QLabel("")
+        self.preview_label = QLabel((f"Numéro conservé : {preview} · Prochaine révision : {revision}" if existing_number else f"Numéro prévu : {preview}")) if preview else QLabel("")
         self.preview_label.setVisible(bool(preview)); root.addWidget(self.preview_label)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel | QDialogButtonBox.StandardButton.Ok)
         buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("Annuler"); buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Générer")
@@ -41,7 +44,7 @@ class ReviewView(QWidget):
         self.checks_host = QWidget(); self.checks_layout = QVBoxLayout(self.checks_host); self.checks_layout.setContentsMargins(0, 0, 0, 0)
         generation_layout.addWidget(self.checks_host); root.addWidget(generation)
         self.distinction = QLabel(); self.distinction.setWordWrap(True); root.addWidget(self.distinction)
-        number = QLabel("Numéro attribué après génération réussie"); number.setObjectName("screenDescription"); root.addWidget(number)
+        self.number_context = QLabel("Numéro attribué après génération réussie"); self.number_context.setObjectName("screenDescription"); root.addWidget(self.number_context)
         self.generate_button = QPushButton("Générer le DOCX et le PDF")
         self.generate_button.setObjectName("primaryButton"); self.generate_button.setEnabled(False)
         self.generate_button.clicked.connect(self.confirm_generation)
@@ -87,6 +90,9 @@ class ReviewView(QWidget):
         else: self.distinction.setText("Les informations et capacités techniques sont disponibles.")
         self.generate_button.setEnabled(bool(result.generation_available and self.generation and self.generation.available(contract_id)))
         contract = self.service.contracts.get(contract_id)
+        if self.generation and contract.number:
+            self.number_context.setText(f"Numéro conservé : {contract.number} · Prochaine révision : {self.generation.next_revision(contract_id)}")
+        else:self.number_context.setText("Numéro attribué après génération réussie")
         locked = contract.status.value == "TO_SIGN"
         for button in self.modify_buttons: button.setEnabled(not locked)
         if locked:
@@ -94,7 +100,8 @@ class ReviewView(QWidget):
 
     def confirm_generation(self) -> None:
         if not self.contract_id or not self.generation or not self.generation.available(self.contract_id): return
-        dialog = GenerationConfirmationDialog(self.generation.preview_number(), self)
+        contract=self.service.contracts.get(self.contract_id);revision=self.generation.next_revision(self.contract_id)
+        dialog = GenerationConfirmationDialog(self.generation.preview_number(self.contract_id), self, revision, bool(contract.number))
         if dialog.exec() != QDialog.DialogCode.Accepted: return
         try:
             result = self.generation.generate(self.contract_id)
@@ -102,4 +109,4 @@ class ReviewView(QWidget):
             if self.finished: self.finished(error.user_message + " Les données du contrat sont conservées.", True)
             return
         if self.finished:
-            self.finished(f"{result.contract_number} · R01 · DOCX et PDF créés · À signer", False)
+            self.finished(f"{result.contract_number} · {result.document.revision} · DOCX et PDF créés · À signer", False)

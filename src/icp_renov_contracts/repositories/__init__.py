@@ -3,5 +3,6 @@ from .contracts import ContractRepository
 from .template_catalog import TemplateCatalogRepository
 from .conditions import ContractConditionsRepository
 from .documents import ContractDocumentRepository
+from .events import ContractEventRepository
 
-__all__ = ["ContractConditionsRepository", "ContractDocumentRepository", "ContractRepository", "MasterDataRepository", "TemplateCatalogRepository"]
+__all__ = ["ContractConditionsRepository", "ContractDocumentRepository", "ContractEventRepository", "ContractRepository", "MasterDataRepository", "TemplateCatalogRepository"]

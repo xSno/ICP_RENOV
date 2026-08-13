@@ -8,7 +8,7 @@ import sqlite3
 import uuid
 
 from ..domain import (
-    ClientDraft, ClientSnapshot, ConclusionMode, Contract, ContractConditions, ContractStatus,
+    ClientDraft, ClientSnapshot, ConclusionMode, Contract, ContractConditions, ContractEvent, ContractEventType, ContractStatus,
     ContractEquipmentItem, ContractRegime, DurationMode, EquipmentDraft, EquipmentSnapshot,
     INCLUDED_OPTIONS, RefrigerantHandlingMode, RenewalMode, RenewalPriceRule, SiteDraft,
     SiteSnapshot, TemplateVersionStatus,
@@ -36,8 +36,9 @@ class ContractService:
         self.template_catalog = template_catalog
 
     def create_draft(self) -> Contract:
-        contract_id = str(uuid.uuid4())
-        self._persist(self.repository.create, contract_id, _now())
+        contract_id = str(uuid.uuid4()); now = _now()
+        event = ContractEvent(str(uuid.uuid4()), contract_id, ContractEventType.CREATED, now)
+        self._persist(self.repository.create, contract_id, now, event)
         return self.get(contract_id)
 
     def get(self, contract_id: str) -> Contract:

@@ -61,9 +61,9 @@ class ContractMigrationTests(unittest.TestCase):
                     connection.execute("INSERT OR REPLACE INTO schema_migrations VALUES (?,?)", (migration.version, "frozen"))
                 connection.execute("PRAGMA user_version=2"); connection.commit()
             database = DatabaseService(path); database.initialize(); database.initialize()
-            self.assertEqual(database.schema_version(), 5)
+            self.assertEqual(database.schema_version(), 6)
             with database.connection() as connection:
-                self.assertEqual(connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0], 5)
+                self.assertEqual(connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0], 6)
                 tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
             self.assertTrue({"contracts", "contract_equipment_items"}.issubset(tables))
 
@@ -205,7 +205,7 @@ class ContractUiTests(ContractCase):
         )
         self.assertEqual(self.view.step_buttons[0].text(), "1. Client, site && équipements")
         self.assertEqual(self.view.step_buttons[3].text(), "4. Documents && suivi")
-        self.assertEqual([button.isEnabled() for button in self.view.step_buttons], [True, True, True, False])
+        self.assertEqual([button.isEnabled() for button in self.view.step_buttons], [True, True, True, True])
         all_text = " ".join(widget.text() for widget in self.view.findChildren(QPushButton))
         for forbidden in ("Supprimer", "Régime", "Conclusion", "Modèle"):
             self.assertNotIn(forbidden, all_text)

@@ -148,3 +148,4 @@ class ContractListItem:
     client_name: str
     site_label: str
     updated_at_utc: str
+    latest_revision: str | None = None

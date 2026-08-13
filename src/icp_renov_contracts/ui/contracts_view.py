@@ -12,10 +12,11 @@ from PySide6.QtWidgets import (
 
 from ..domain import Contract, ContractStatus
 from ..errors import ApplicationError, MasterDataValidationError
-from ..services import ContractService, DocumentGenerationService, ReviewService
+from ..services import ContractLifecycleService, ContractService, DocumentGenerationService, ReviewService
 from .master_forms import BaseEditor, ClientEditor, EquipmentEditor, SiteEditor
 from .conditions_view import ConditionsView
 from .review_view import ReviewView
+from .documents_view import DocumentsView
 from .styles import SPACING
 
 
@@ -64,11 +65,13 @@ class ContractsView(QWidget):
     STEP_LABELS = ("Client, site & équipements", "Conditions du contrat", "Revue", "Documents & suivi")
 
     def __init__(self, service: ContractService, review_service: ReviewService,
-                 generation_service: DocumentGenerationService | None = None) -> None:
+                 generation_service: DocumentGenerationService | None = None,
+                 lifecycle_service: ContractLifecycleService | None = None) -> None:
         super().__init__()
         self.service = service
         self.review_service = review_service
         self.generation_service = generation_service
+        self.lifecycle_service = lifecycle_service
         self.contract_id: str | None = None
         self.active_drawer: QWidget | None = None
         self.setObjectName("contractsView")
@@ -123,7 +126,7 @@ class ContractsView(QWidget):
         steps = QHBoxLayout(); self.step_buttons = []
         for index, label in enumerate(self.STEP_LABELS):
             button = QPushButton(f"{index + 1}. {label.replace('&', '&&')}"); button.setObjectName("secondaryButton")
-            button.setEnabled(index < 3)
+            button.setEnabled(True)
             button.clicked.connect(lambda checked=False, target=index: self.navigate_step(target))
             self.step_buttons.append(button); steps.addWidget(button)
         layout.addLayout(steps)
@@ -137,7 +140,9 @@ class ContractsView(QWidget):
         self.review_view = ReviewView(self.review_service, self.navigate_step, self.generation_service, self._generation_finished)
         review_scroll = QScrollArea(); review_scroll.setWidgetResizable(True); review_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
         review_scroll.setWidget(self.review_view)
-        self.step_pages.addWidget(scroll); self.step_pages.addWidget(conditions_scroll); self.step_pages.addWidget(review_scroll)
+        self.documents_view = DocumentsView(self.lifecycle_service,self._documents_changed) if self.lifecycle_service else QWidget()
+        documents_scroll=QScrollArea();documents_scroll.setWidgetResizable(True);documents_scroll.setFrameShape(QScrollArea.Shape.NoFrame);documents_scroll.setWidget(self.documents_view)
+        self.step_pages.addWidget(scroll); self.step_pages.addWidget(conditions_scroll); self.step_pages.addWidget(review_scroll);self.step_pages.addWidget(documents_scroll)
         layout.addWidget(self.step_pages, 1)
         self.feedback = QLabel(); self.feedback.setWordWrap(True); self.feedback.hide(); layout.addWidget(self.feedback)
         return page
@@ -149,7 +154,8 @@ class ContractsView(QWidget):
             except ValueError: updated = draft.updated_at_utc
             number = draft.number or "Brouillon sans numéro"
             status = "À signer" if draft.status is ContractStatus.TO_SIGN else "Brouillon"
-            item = QListWidgetItem(f"{number}\n{draft.client_name} · {draft.site_label}\n{status} · {updated}")
+            documents=f"{draft.latest_revision} · non signé" if draft.latest_revision else "Aucun document"
+            item = QListWidgetItem(f"{number}\n{draft.client_name} · {draft.site_label}\n{status} · {documents} · {updated}")
             item.setData(Qt.ItemDataRole.UserRole, draft.id); self.draft_list.addItem(item)
         self.draft_empty.setVisible(not drafts); self.draft_list.setVisible(bool(drafts)); self.open_button.setEnabled(bool(drafts))
 
@@ -164,13 +170,14 @@ class ContractsView(QWidget):
         self.contract_id = contract_id; self.pages.setCurrentWidget(self.workspace); self.step_pages.setCurrentIndex(0); self.render_contract()
 
     def navigate_step(self, index: int) -> None:
-        if index not in (0, 1, 2): return
+        if index not in (0, 1, 2, 3): return
         self.step_pages.setCurrentIndex(index)
         if index == 0: self.render_contract()
         elif index == 1 and self.contract_id:
             self.conditions_view.load(self.contract_id)
             self.conditions_view.setEnabled(self.service.get(self.contract_id).status is ContractStatus.DRAFT)
         if index == 2 and self.contract_id: self.review_view.load(self.contract_id)
+        if index == 3 and self.contract_id and self.lifecycle_service:self.documents_view.load(self.contract_id)
 
     def _condition_feedback(self, success: bool, message: str) -> None:
         self.save_state.setText("Enregistré" if success else "Non enregistré")
@@ -221,6 +228,13 @@ class ContractsView(QWidget):
             self.render_contract(message); self.review_view.load(self.contract_id)
         else:
             self._feedback(message, error)
+
+    def _documents_changed(self,message:str,error:bool)->None:
+        if not error and self.contract_id:
+            current=self.step_pages.currentIndex();self.render_contract();self.step_pages.setCurrentIndex(current)
+            if self.lifecycle_service:self.documents_view.load(self.contract_id)
+            self.review_view.load(self.contract_id);self.refresh_drafts()
+        self._feedback(message,error)
 
     def _section(self, title: str, value: str, actions: list[tuple[str, Callable]]) -> None:
         frame = QFrame(); frame.setObjectName("panel"); layout = QVBoxLayout(frame)

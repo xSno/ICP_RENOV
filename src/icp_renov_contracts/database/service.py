@@ -256,6 +256,112 @@ MIGRATIONS = (
             """,
         ),
     ),
+    Migration(
+        6,
+        (
+            "DROP TRIGGER contract_documents_immutable_update",
+            "DROP TRIGGER contract_documents_immutable_delete",
+            "ALTER TABLE contract_documents RENAME TO contract_documents_s5",
+            """
+            CREATE TABLE contract_documents (
+                id TEXT PRIMARY KEY,
+                contract_id TEXT NOT NULL REFERENCES contracts(id) ON DELETE RESTRICT,
+                document_kind TEXT NOT NULL CHECK (document_kind = 'CONTRACT'),
+                revision_index INTEGER NOT NULL CHECK (revision_index >= 1),
+                generated_at_utc TEXT NOT NULL,
+                template_version_id TEXT NOT NULL REFERENCES contract_template_versions(id) ON DELETE RESTRICT,
+                docx_relpath TEXT NOT NULL,
+                pdf_relpath TEXT NOT NULL,
+                snapshot_json TEXT NOT NULL,
+                docx_sha256 TEXT NOT NULL,
+                pdf_sha256 TEXT NOT NULL,
+                UNIQUE(contract_id, document_kind, revision_index),
+                UNIQUE(docx_relpath),
+                UNIQUE(pdf_relpath)
+            )
+            """,
+            """
+            INSERT INTO contract_documents
+            SELECT id,contract_id,document_kind,revision_index,generated_at_utc,template_version_id,
+                   docx_relpath,pdf_relpath,snapshot_json,docx_sha256,pdf_sha256
+            FROM contract_documents_s5
+            """,
+            "DROP TABLE contract_documents_s5",
+            "CREATE INDEX idx_contract_documents_contract ON contract_documents(contract_id, revision_index)",
+            """
+            CREATE TRIGGER contract_documents_immutable_update
+            BEFORE UPDATE ON contract_documents BEGIN
+                SELECT RAISE(ABORT, 'contract document is immutable');
+            END
+            """,
+            """
+            CREATE TRIGGER contract_documents_immutable_delete
+            BEFORE DELETE ON contract_documents BEGIN
+                SELECT RAISE(ABORT, 'contract document is immutable');
+            END
+            """,
+            """
+            CREATE TABLE contract_events (
+                id TEXT PRIMARY KEY,
+                contract_id TEXT NOT NULL REFERENCES contracts(id) ON DELETE RESTRICT,
+                type TEXT NOT NULL CHECK (type IN (
+                    'CREATED','DOCUMENT_GENERATED','CONTRACT_SENT','REOPENED_FOR_CORRECTION',
+                    'SIGNATURE_RECORDED','ACTIVATED','RENEWAL_NOTICE_RECORDED','RENEWAL_CONFIRMED',
+                    'TERMINATION_SCHEDULED','TERMINATED','EXPIRED','ABANDONED','ADMIN_CORRECTION'
+                )),
+                occurred_at TEXT NOT NULL,
+                effective_date TEXT,
+                document_id TEXT REFERENCES contract_documents(id) ON DELETE RESTRICT,
+                period_start TEXT,
+                period_end TEXT,
+                renewal_annual_ht TEXT,
+                renewal_vat_rate TEXT,
+                renewal_vat_amount TEXT,
+                renewal_annual_ttc TEXT,
+                notification_date TEXT,
+                reason_code TEXT,
+                reason_text TEXT,
+                note TEXT,
+                CHECK (type NOT IN ('DOCUMENT_GENERATED','CONTRACT_SENT') OR document_id IS NOT NULL),
+                CHECK (type != 'CONTRACT_SENT' OR effective_date IS NOT NULL)
+            )
+            """,
+            """
+            CREATE TRIGGER contract_events_document_scope_insert
+            BEFORE INSERT ON contract_events
+            WHEN NEW.document_id IS NOT NULL AND NOT EXISTS (
+                SELECT 1 FROM contract_documents
+                WHERE id=NEW.document_id AND contract_id=NEW.contract_id AND document_kind='CONTRACT'
+            ) BEGIN
+                SELECT RAISE(ABORT, 'contract event document scope mismatch');
+            END
+            """,
+            "CREATE INDEX idx_contract_events_history ON contract_events(contract_id, occurred_at DESC, id DESC)",
+            "CREATE INDEX idx_contract_events_document ON contract_events(document_id, type, effective_date DESC)",
+            """
+            CREATE TRIGGER contract_events_immutable_update
+            BEFORE UPDATE ON contract_events BEGIN
+                SELECT RAISE(ABORT, 'contract event is immutable');
+            END
+            """,
+            """
+            CREATE TRIGGER contract_events_immutable_delete
+            BEFORE DELETE ON contract_events BEGIN
+                SELECT RAISE(ABORT, 'contract event is immutable');
+            END
+            """,
+            """
+            INSERT INTO contract_events(id,contract_id,type,occurred_at)
+            SELECT 'created:' || id,id,'CREATED',created_at_utc FROM contracts
+            WHERE created_at_utc IS NOT NULL AND created_at_utc != ''
+            """,
+            """
+            INSERT INTO contract_events(id,contract_id,type,occurred_at,document_id)
+            SELECT 'document-generated:' || id,contract_id,'DOCUMENT_GENERATED',generated_at_utc,id
+            FROM contract_documents WHERE document_kind='CONTRACT'
+            """,
+        ),
+    ),
 )
 
 

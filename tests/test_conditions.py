@@ -78,9 +78,9 @@ class MigrationFourTests(unittest.TestCase):
                 connection.execute("INSERT INTO contracts(id,status,type_code,created_at_utc,updated_at_utc) VALUES ('draft','DRAFT','CLIMATE_MAINTENANCE','t','t')")
                 connection.execute("PRAGMA user_version=3"); connection.commit()
             database = DatabaseService(path); database.initialize(); database.initialize()
-            self.assertEqual(database.schema_version(), 5)
+            self.assertEqual(database.schema_version(), 6)
             with database.connection() as connection:
-                self.assertEqual(connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0], 5)
+                self.assertEqual(connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0], 6)
                 self.assertEqual(connection.execute("SELECT contract_id FROM contract_conditions").fetchone()[0], "draft")
 
 
@@ -245,7 +245,7 @@ class ConditionsUiTests(ConditionsCase):
     def enter_conditions(self): self.view.navigate_step(1); self.application.processEvents()
 
     def test_only_steps_one_and_two_are_functional_and_no_later_workflow(self):
-        self.assertEqual([button.isEnabled() for button in self.view.step_buttons], [True, True, True, False])
+        self.assertEqual([button.isEnabled() for button in self.view.step_buttons], [True, True, True, True])
         self.enter_conditions(); self.assertEqual(self.view.step_pages.currentIndex(), 1)
         text = " ".join(button.text() for button in self.view.findChildren(QPushButton))
         self.assertNotIn("Révision", text)
