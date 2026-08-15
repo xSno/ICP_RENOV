@@ -74,7 +74,7 @@ class ContractRepository:
         with self.database.connection() as connection:
             self._rows(connection)
             rows = connection.execute(
-                "SELECT id,number,COALESCE(terminal_status,lifecycle_status,generation_status,status) AS status,client_snapshot_json,site_snapshot_json,updated_at_utc,"
+                "SELECT id,number,COALESCE(terminal_status,lifecycle_status,generation_status,status) AS status,client_snapshot_json,site_snapshot_json,created_at_utc,updated_at_utc,"
                 "(SELECT MAX(revision_index) FROM contract_documents d WHERE d.contract_id=contracts.id AND d.document_kind='CONTRACT') AS latest_revision "
                 ",(SELECT d.revision_index FROM contract_events e JOIN contract_documents d ON d.id=e.document_id WHERE e.contract_id=contracts.id AND e.type='SIGNATURE_RECORDED') AS signed_revision "
                 ",(SELECT CASE WHEN d.signed_pdf_path IS NULL THEN 'NONE' ELSE 'RECORDED' END FROM contract_events e JOIN contract_documents d ON d.id=e.document_id WHERE e.contract_id=contracts.id AND e.type='SIGNATURE_RECORDED') AS signed_copy_state "
@@ -90,6 +90,7 @@ class ContractRepository:
                 updated_at_utc=row["updated_at_utc"], latest_revision=(f"R{row['latest_revision']:02d}" if row["latest_revision"] else None),
                 signed_revision=(f"R{row['signed_revision']:02d}" if row["signed_revision"] else None),
                 signed_copy_state=row["signed_copy_state"], predecessor_number=row["predecessor_number"],
+                created_at_utc=row["created_at_utc"],
             ) for row in rows]
 
     def select_client(self, contract_id: str, source_id: str, snapshot: ClientSnapshot,

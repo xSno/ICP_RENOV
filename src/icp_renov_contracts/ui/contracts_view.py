@@ -3,16 +3,20 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import datetime
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
-    QCheckBox, QFrame, QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem,
-    QPlainTextEdit, QPushButton, QScrollArea, QStackedWidget, QVBoxLayout, QWidget,
+    QAbstractScrollArea, QButtonGroup, QCheckBox, QFrame, QHBoxLayout, QHeaderView, QLabel, QLineEdit, QListWidget, QListWidgetItem,
+    QPlainTextEdit, QPushButton, QScrollArea, QStackedWidget, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
 from ..domain import Contract, ContractStatus, SignedCopyState
 from ..errors import ApplicationError, MasterDataValidationError
-from ..services import ContractLifecycleService, ContractService, DocumentGenerationService, InterventionSheetGenerationService, ReviewService
+from ..services import (
+    BackupSummaryProvider, ContractLifecycleService, ContractOperationalSignalKind,
+    ContractRegisterFilter, ContractRegisterService, ContractService, DocumentGenerationService,
+    InterventionSheetGenerationService, ReviewService,
+)
 from .master_forms import BaseEditor, ClientEditor, EquipmentEditor, SiteEditor
 from .conditions_view import ConditionsView
 from .review_view import ReviewView
@@ -25,6 +29,32 @@ def _button(text: str, handler: Callable, primary: bool = False) -> QPushButton:
     button.setObjectName("primaryButton" if primary else "secondaryButton")
     button.clicked.connect(handler)
     return button
+
+
+class ContractRegisterTable(QTableWidget):
+    """Table-first register with a single mouse/keyboard row-open path."""
+    row_open_requested = Signal(str)
+
+    def count(self) -> int:
+        """Compatibility with the accepted pre-S10 list assertion."""
+        return self.rowCount()
+
+    def item(self, row: int, column: int | None = None):
+        if column is not None:
+            return super().item(row, column)
+        # Legacy callers received one textual list item. Preserve that read-only shape
+        # while the visible surface is now a real table.
+        values = [super().item(row, index).text() for index in range(self.columnCount()) if super().item(row, index)]
+        return QTableWidgetItem(" · ".join(values))
+
+    def keyPressEvent(self, event) -> None:
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and self.currentRow() >= 0:
+            item = self.item(self.currentRow(), 0)
+            if item is not None:
+                self.row_open_requested.emit(item.data(Qt.ItemDataRole.UserRole))
+                event.accept()
+                return
+        super().keyPressEvent(event)
 
 
 class SelectionPanel(QWidget):
@@ -67,14 +97,22 @@ class ContractsView(QWidget):
     def __init__(self, service: ContractService, review_service: ReviewService,
                  generation_service: DocumentGenerationService | None = None,
                  lifecycle_service: ContractLifecycleService | None = None,
-                 intervention_service: InterventionSheetGenerationService | None = None) -> None:
+                 intervention_service: InterventionSheetGenerationService | None = None,
+                 register_service: ContractRegisterService | None = None,
+                 backup_provider: BackupSummaryProvider | None = None) -> None:
         super().__init__()
         self.service = service
         self.review_service = review_service
         self.generation_service = generation_service
         self.lifecycle_service = lifecycle_service
         self.intervention_service = intervention_service
+        self.register_service = register_service or (
+            ContractRegisterService(service, review_service, lifecycle_service, review_service.workspace_service, backup_provider)
+            if lifecycle_service else None
+        )
         self.contract_id: str | None = None
+        self.register_rows = ()
+        self.selected_filter = ContractRegisterFilter.ALL
         self.active_drawer: QWidget | None = None
         self.setObjectName("contractsView")
         root = QVBoxLayout(self); root.setContentsMargins(0, 0, 0, 0)
@@ -91,6 +129,8 @@ class ContractsView(QWidget):
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event); self._position_drawer()
+        if hasattr(self, "draft_list"):
+            self._apply_register_width()
 
     def _position_drawer(self) -> None:
         width = min(520, max(390, int(self.width() * .46)))
@@ -102,16 +142,58 @@ class ContractsView(QWidget):
         layout = QVBoxLayout(page); layout.setContentsMargins(SPACING["xl"], SPACING["xl"], SPACING["xl"], SPACING["xl"])
         header = QHBoxLayout(); words = QVBoxLayout()
         heading = QLabel("Contrats"); heading.setObjectName("screenTitle")
-        description = QLabel("Créez et retrouvez les brouillons de contrats d’entretien."); description.setObjectName("screenDescription")
+        description = QLabel("Retrouvez vos contrats et les actions à traiter."); description.setObjectName("screenDescription")
         words.addWidget(heading); words.addWidget(description); header.addLayout(words); header.addStretch(1)
         self.new_contract_button = _button("Nouveau contrat", self.create_contract, True); header.addWidget(self.new_contract_button)
         layout.addLayout(header)
-        self.draft_list = QListWidget(); self.draft_list.setObjectName("contractDraftList")
-        self.draft_list.itemDoubleClicked.connect(lambda item: self.open_contract(item.data(Qt.ItemDataRole.UserRole)))
+        self.workspace_notice = QLabel("Le dossier de travail n’est pas accessible en écriture.")
+        self.workspace_notice.setObjectName("formError"); self.workspace_notice.setWordWrap(True); self.workspace_notice.hide()
+        layout.addWidget(self.workspace_notice)
+
+        banner = QFrame(); banner.setObjectName("operationalBanner"); banner_layout = QHBoxLayout(banner)
+        banner_words = QVBoxLayout(); banner_title = QLabel("Actions à traiter maintenant ou prochainement"); banner_title.setObjectName("sectionTitle")
+        self.action_counter = QLabel("0 contrat à traiter"); self.action_counter.setObjectName("actionCounter")
+        banner_words.addWidget(banner_title); banner_words.addWidget(self.action_counter); banner_layout.addLayout(banner_words, 1)
+        self.actions_filter_button = _button("Voir les actions", lambda: self._select_filter(ContractRegisterFilter.ACTIONS))
+        banner_layout.addWidget(self.actions_filter_button)
+        backup_words = QVBoxLayout(); backup_title = QLabel("Sauvegarde"); backup_title.setObjectName("sectionTitle")
+        self.backup_summary_label = QLabel(); self.backup_summary_label.setObjectName("screenDescription")
+        self.backup_reminder_label = QLabel(); self.backup_reminder_label.setObjectName("screenDescription")
+        backup_words.addWidget(backup_title); backup_words.addWidget(self.backup_summary_label); backup_words.addWidget(self.backup_reminder_label)
+        banner_layout.addLayout(backup_words)
+        self.backup_button = _button("Sauvegarder maintenant", self._create_backup)
+        banner_layout.addWidget(self.backup_button); layout.addWidget(banner)
+
+        self.search_input = QLineEdit(); self.search_input.setObjectName("contractRegisterSearch")
+        self.search_input.setPlaceholderText("Rechercher par numéro, client ou site")
+        self.search_input.setClearButtonEnabled(True); self.search_input.textChanged.connect(lambda _value: self._render_register())
+        layout.addWidget(self.search_input)
+        filters = QHBoxLayout(); self.filter_buttons = {}; self.filter_group = QButtonGroup(self); self.filter_group.setExclusive(True)
+        for selected, label in ((ContractRegisterFilter.ALL, "Tous"), (ContractRegisterFilter.ACTIONS, "Actions à traiter"),
+                                (ContractRegisterFilter.DRAFTS, "Brouillons"), (ContractRegisterFilter.ACTIVE, "Actifs"),
+                                (ContractRegisterFilter.TERMINAL, "Terminés")):
+            button = _button(label, lambda checked=False, value=selected: self._select_filter(value))
+            button.setCheckable(True); button.setObjectName("registerFilter")
+            self.filter_group.addButton(button); self.filter_buttons[selected] = button; filters.addWidget(button)
+        self.filter_buttons[ContractRegisterFilter.ALL].setChecked(True); filters.addStretch(1); layout.addLayout(filters)
+
+        self.draft_list = ContractRegisterTable(0, 6); self.draft_list.setObjectName("contractRegisterTable")
+        self.draft_list.setHorizontalHeaderLabels(("Contrat", "Client & site", "Statut", "Échéance", "Action ou information", "Documents"))
+        self.draft_list.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.draft_list.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
+        self.draft_list.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.draft_list.setAlternatingRowColors(True); self.draft_list.verticalHeader().hide()
+        self.draft_list.setWordWrap(True)
+        self.draft_list.setMinimumSize(0, 0)
+        self.draft_list.setSizeAdjustPolicy(QAbstractScrollArea.SizeAdjustPolicy.AdjustIgnored)
+        self.draft_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.draft_list.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        self.draft_list.horizontalHeader().setStretchLastSection(False)
+        self.draft_list.cellClicked.connect(self._open_row)
+        self.draft_list.row_open_requested.connect(self.open_contract)
         layout.addWidget(self.draft_list, 1)
-        self.draft_empty = QLabel("Aucun brouillon. Créez votre premier contrat."); self.draft_empty.setObjectName("emptyState")
-        layout.addWidget(self.draft_empty)
-        self.open_button = _button("Ouvrir le brouillon", self._open_selected); layout.addWidget(self.open_button)
+        self.draft_empty = QLabel(); self.draft_empty.setObjectName("emptyState"); self.draft_empty.setWordWrap(True); self.draft_empty.hide(); layout.addWidget(self.draft_empty)
+        self.open_button = QPushButton(); self.open_button.hide()
         return page
 
     def _build_workspace(self) -> QWidget:
@@ -158,38 +240,96 @@ class ContractsView(QWidget):
         return page
 
     def refresh_drafts(self) -> None:
-        if self.lifecycle_service:self.lifecycle_service.reconcile_due_activations()
-        drafts = self.service.list_drafts(); self.draft_list.clear()
-        for draft in drafts:
-            try: updated = datetime.fromisoformat(draft.updated_at_utc).astimezone().strftime("%d/%m/%Y %H:%M")
-            except ValueError: updated = draft.updated_at_utc
-            number = draft.number or "Brouillon sans numéro"
-            status = {ContractStatus.DRAFT:"Brouillon",ContractStatus.TO_SIGN:"À signer",ContractStatus.SIGNED:"Signé",ContractStatus.ACTIVE:"Actif",ContractStatus.TERMINATED:"Résilié",ContractStatus.EXPIRED:"Expiré",ContractStatus.ABANDONED:"Abandonné"}[draft.status]
-            if draft.signed_revision:
-                authority=self.lifecycle_service.signature_authority(draft.id) if self.lifecycle_service else None
-                state=self.lifecycle_service.signed_copy_state(authority.document) if self.lifecycle_service and authority else SignedCopyState.NONE
-                copy={SignedCopyState.NONE:"Copie signée non archivée",SignedCopyState.VALID:"Copie signée",SignedCopyState.MISSING:"Copie signée introuvable",SignedCopyState.HASH_MISMATCH:"Copie signée altérée"}[state]
-                documents=f"{draft.signed_revision} · signé · {copy}"
-            else:documents=f"{draft.latest_revision} · non signé" if draft.latest_revision else "Aucun document"
-            signal=""
-            if self.lifecycle_service and draft.status in {ContractStatus.SIGNED,ContractStatus.ACTIVE}:
-                try:
-                    projection=self.lifecycle_service.lifecycle_projection(draft.id);today=self.lifecycle_service.date_provider.today()
-                    if projection.pending_termination:signal=f" · Résiliation programmée le {datetime.fromisoformat(projection.pending_termination.effective_date).strftime('%d/%m/%Y')}"
-                    elif draft.status is ContractStatus.ACTIVE and projection.renewal_mode=="MANUAL" and projection.next_attention_date and today>=projection.next_attention_date:signal=" · Renouvellement à préparer"
-                    elif draft.status is ContractStatus.ACTIVE and projection.renewal_unresolved and projection.next_attention_date and today>=projection.next_attention_date:signal=" · Reconduction à confirmer"
-                    elif draft.status is ContractStatus.ACTIVE and projection.renewal_mode in {"NONE","MANUAL"}:signal=f" · Fin prévue le {projection.period.end.strftime('%d/%m/%Y')}"
-                except ApplicationError:signal=""
-            item = QListWidgetItem(f"{number}\n{draft.client_name} · {draft.site_label}\n{status} · {documents}{signal} · {updated}")
-            item.setData(Qt.ItemDataRole.UserRole, draft.id); self.draft_list.addItem(item)
-        self.draft_empty.setVisible(not drafts); self.draft_list.setVisible(bool(drafts)); self.open_button.setEnabled(bool(drafts))
+        if self.register_service is None:
+            # S0–S5 isolated UI construction did not inject lifecycle services. Keep
+            # that bounded construction path readable while production always uses S10.
+            drafts = self.service.list_drafts()
+            self.draft_list.setRowCount(len(drafts))
+            labels = {ContractStatus.DRAFT: "Brouillon", ContractStatus.TO_SIGN: "À signer", ContractStatus.SIGNED: "Signé",
+                      ContractStatus.ACTIVE: "Actif", ContractStatus.TERMINATED: "Résilié", ContractStatus.EXPIRED: "Expiré", ContractStatus.ABANDONED: "Abandonné"}
+            for row, draft in enumerate(drafts):
+                for column, value in enumerate((draft.number or "Brouillon sans numéro", f"{draft.client_name}\n{draft.site_label}", labels[draft.status], "—", "—", draft.latest_revision and f"{draft.latest_revision} · non signé" or "Aucun document")):
+                    item = QTableWidgetItem(value); item.setData(Qt.ItemDataRole.UserRole, draft.id); self.draft_list.setItem(row, column, item)
+            self.draft_list.setVisible(bool(drafts)); self.draft_empty.setVisible(not drafts)
+            if not drafts: self.draft_empty.setText("Aucun contrat. Créez votre premier contrat.")
+            return
+        self.register_rows = self.register_service.rows()
+        writable = self.register_service.workspace_writable()
+        self.workspace_notice.setVisible(not writable); self.new_contract_button.setEnabled(writable)
+        self._render_backup(writable); self._render_register()
+
+    def _render_backup(self, writable: bool) -> None:
+        if self.register_service is None:
+            return
+        summary = self.register_service.backup_summary()
+        self.backup_summary_label.setText(summary.label); self.backup_reminder_label.setText(summary.reminder)
+        self.backup_reminder_label.setVisible(bool(summary.reminder)); self.backup_button.setEnabled(writable and summary.can_create_now)
+
+    def _render_register(self) -> None:
+        if self.register_service is None:
+            return
+        visible = self.register_service.filter_rows(self.register_rows, self.selected_filter, self.search_input.text())
+        count = self.register_service.action_count(self.register_rows)
+        self.action_counter.setText(f"{count} contrat{'s' if count != 1 else ''} à traiter")
+        self.draft_list.setRowCount(len(visible))
+        for index, row in enumerate(visible):
+            values = (
+                row.number_label, f"{row.client_name}\n{row.site_label}", row.status_label,
+                row.due_date.strftime("%d/%m/%Y") if row.due_date else "—",
+                ("Action —\n" if row.signal.kind is ContractOperationalSignalKind.ACTION else "Information —\n") + row.signal.label
+                if row.signal.kind is not ContractOperationalSignalKind.NONE else "—",
+                "\n".join(row.document_lines),
+            )
+            for column, value in enumerate(values):
+                item = QTableWidgetItem(value); item.setData(Qt.ItemDataRole.UserRole, row.contract_id)
+                item.setToolTip(value); self.draft_list.setItem(index, column, item)
+            self.draft_list.setRowHeight(index, 58)
+        empty = not visible
+        if empty and not self.register_rows:
+            self.draft_empty.setText("Aucun contrat. Créez votre premier contrat.")
+        elif empty:
+            self.draft_empty.setText("Aucun contrat trouvé\nModifiez la recherche ou le filtre.")
+        self.draft_empty.setVisible(empty); self.draft_list.setVisible(not empty)
+        self._apply_register_width()
+        self.draft_list.resizeRowsToContents()
+        for index in range(self.draft_list.rowCount()):
+            self.draft_list.setRowHeight(index, max(58, self.draft_list.rowHeight(index)))
+
+    def _select_filter(self, selected: ContractRegisterFilter) -> None:
+        self.selected_filter = selected; self.filter_buttons[selected].setChecked(True); self._render_register()
+
+    def _open_row(self, row: int, _column: int) -> None:
+        item = self.draft_list.item(row, 0)
+        if item is not None:
+            self.open_contract(item.data(Qt.ItemDataRole.UserRole))
+
+    def _create_backup(self) -> None:
+        provider = self.register_service.backup_provider if self.register_service else None
+        create = getattr(provider, "create_now", None)
+        if callable(create):
+            create(); self.refresh_drafts()
+
+    def _apply_register_width(self) -> None:
+        documents_visible = self.window().width() >= 1320
+        self.draft_list.setColumnHidden(5, not documents_visible)
+        # Keep the operational signal legible first. The document column is allowed
+        # to collapse at 1280 px; normal desktop widths retain both document truths.
+        available = max(900, self.draft_list.viewport().width())
+        fixed = (120, 180, 92, 115)
+        document_width = 200 if documents_visible else 0
+        signal_width = max(280, available - sum(fixed) - document_width)
+        for column, width in enumerate((*fixed, signal_width, document_width)):
+            if column != 5 or documents_visible:
+                self.draft_list.setColumnWidth(column, width)
 
     def create_contract(self) -> None:
+        if self.register_service and not self.register_service.workspace_writable():
+            return
         contract = self.service.create_draft(); self.open_contract(contract.id)
 
     def _open_selected(self) -> None:
-        item = self.draft_list.currentItem()
-        if item: self.open_contract(item.data(Qt.ItemDataRole.UserRole))
+        if self.draft_list.currentRow() >= 0:
+            self._open_row(self.draft_list.currentRow(), 0)
 
     def open_contract(self, contract_id: str) -> None:
         if self.lifecycle_service:self.lifecycle_service.reconcile_due_activations()

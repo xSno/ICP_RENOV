@@ -1,44 +1,24 @@
-S9 FILE DIFF
-
-Created
-- src/icp_renov_contracts/services/intervention_sheets.py
-- tests/test_intervention_s9.py
-
-Modified
+S10 files created
+- src/icp_renov_contracts/services/contract_register.py
+- tests/test_contract_register_s10.py
 - recap.txt
 - diff.txt
-- src/icp_renov_contracts/bootstrap/context.py
-- src/icp_renov_contracts/database/service.py
-- src/icp_renov_contracts/documents/adapter.py
-- src/icp_renov_contracts/documents/converter.py
-- src/icp_renov_contracts/documents/formatters.py
-- src/icp_renov_contracts/documents/registry.py
-- src/icp_renov_contracts/documents/renderer.py
-- src/icp_renov_contracts/domain/conditions.py
-- src/icp_renov_contracts/domain/documents.py
-- src/icp_renov_contracts/repositories/documents.py
-- src/icp_renov_contracts/repositories/template_catalog.py
-- src/icp_renov_contracts/services/__init__.py
-- src/icp_renov_contracts/services/contract_events.py
-- src/icp_renov_contracts/services/document_generation.py
-- src/icp_renov_contracts/services/template_catalog.py
-- src/icp_renov_contracts/ui/contracts_view.py
-- src/icp_renov_contracts/ui/documents_view.py
-- src/icp_renov_contracts/ui/main_window.py
-- src/icp_renov_contracts/ui/shell.py
-- src/icp_renov_contracts/ui/surfaces.py
-- tests/test_conditions.py
-- tests/test_contract_events.py
-- tests/test_contracts.py
-- tests/test_foundation.py
-- tests/test_lifecycle_s8.py
-- tests/test_master_data.py
-- tests/test_signature.py
 
-Removed
+S10 files modified
+- src/icp_renov_contracts/domain/contract.py
+- src/icp_renov_contracts/repositories/contracts.py
+- src/icp_renov_contracts/services/__init__.py
+- src/icp_renov_contracts/services/review.py
+- src/icp_renov_contracts/ui/contracts_view.py
+- src/icp_renov_contracts/ui/styles.py
+- tests/test_contract_register_s10.py (readability, responsive-width, and Unicode snapshot coverage)
+- recap.txt (S10 final visual-fixture evidence and exact launch command)
+- diff.txt (this final visual-fixture handoff record)
+
+S10 files removed
 - None.
 
-Preserved unchanged
+Authoritative material unchanged
 - docs/
 - templates/
 - spike/

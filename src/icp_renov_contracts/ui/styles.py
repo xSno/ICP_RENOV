@@ -51,6 +51,23 @@ def application_stylesheet() -> str:
         border: 1px solid {COLORS['border']};
         border-radius: {RADII['md']}px;
     }}
+    QFrame#operationalBanner {{
+        background: #EEF7F6;
+        border: 1px solid #B9DCD8;
+        border-radius: {RADII['md']}px;
+        padding: 8px;
+    }}
+    QLabel#actionCounter {{ color: #0B6758; font-size: 18px; font-weight: 700; }}
+    QPushButton#registerFilter {{
+        color: {COLORS['text']}; background: white; border: 1px solid {COLORS['border']};
+        border-radius: {RADII['sm']}px; padding: 8px 12px; font-weight: 600;
+    }}
+    QPushButton#registerFilter:checked {{ color: white; background: {COLORS['accent']}; border-color: {COLORS['accent']}; }}
+    QTableWidget#contractRegisterTable {{ border: 1px solid {COLORS['border']}; gridline-color: {COLORS['border']}; selection-background-color: #DDF0EE; }}
+    QTableWidget#contractRegisterTable::item {{ padding: 8px; }}
+    QTableWidget#contractRegisterTable::item:selected {{ color: {COLORS['text']}; background: #DDF0EE; }}
+    QTableWidget#contractRegisterTable:focus {{ border: 2px solid {COLORS['accent']}; }}
+    QHeaderView::section {{ background: #F7F9FA; border: 0; border-bottom: 1px solid {COLORS['border']}; padding: 9px; font-weight: 700; }}
     QFrame#masterDataDrawer {{
         background: {COLORS['surface']};
         border-left: 1px solid {COLORS['border']};

@@ -1,55 +1,25 @@
-ICP RENOV - CONTRACT MANAGEMENT APP - S9 RECAP
+S10 — OPERATIONAL CONTRACT REGISTER / HOME
 
-Implementation
-- Migration 9 preserves migrations 1-8 and rebuilds the shared ContractDocument/Event persistence without data loss. CONTRACT requires revision_index >= 1 and retains unique Rxx/signed-copy semantics. INTERVENTION_SHEET requires revision_index NULL and all signed_pdf_* metadata NULL.
-- ContractTemplateVersion adds closed required_intervention_fields metadata. S9 accepts only intervention.technician. Technician remains optional globally and becomes required only for a selected sheet version that declares it.
-- INTERVENTION_SHEET templates are selected only by document_kind=INTERVENTION_SHEET and version_status=AVAILABLE. They require neither contract_type_code nor client regimes; CONTRACT, TO_VALIDATE and ARCHIVED versions are excluded. No real production template/version is seeded or promoted.
-- The six canonical fields are implemented exactly: intervention.date, technician, other, notes, issues and quote_recommended. Dates render in French, multiline values retain line breaks, booleans render Oui/Non, and empty optional source rows/paragraphs/section headings are removed cleanly.
-- A dedicated InterventionSheetGenerationService is separate from CONTRACT generation. It never calls ContractNumberAllocator, creates no Rxx, performs no DRAFT -> TO_SIGN transition, changes no Contract status/number/lifecycle truth, and writes under documents/contracts/<contract>/other/intervention/<document-id>/.
-- Context authority is deterministic. With SIGNATURE_RECORDED, the immutable snapshot of the exact signed ContractDocument supplies contract number, client, site and ordered equipment even when a newer unsigned Rxx exists. Otherwise existing Contract-owned snapshots/items are used. Live Client/Site/Equipment masters are never read during sheet generation.
-- The immutable sheet snapshot records document kind, internal Contract reference, canonical contract context, ordered equipment, all intervention inputs, company values used, template/source identity/hash, requiredness metadata and the signed-authority reference when applicable. equipment.internal_notes is excluded from snapshots and rendering.
-- TemplateSourceStore source_relpath/source_hash verification, document-kind-aware closed field/block/loop preflight, body/header/footer traversal, residual-token checks, required values, DOCX postflight, LibreOffice PDF conversion and PDF postflight are enforced. CONTRACT-only legal/lifecycle blocks are rejected for sheets.
-- Known-source OOXML adaptation remains a working-copy transformation. It adds controlled optional structures and a repeatable equipment header without modifying templates/. LibreOffice invocation now uses bounded headless/no-restore/no-lock flags and best-effort isolated-profile cleanup.
-- Publication is atomic across DOCX placement, PDF placement, ContractDocument and one DOCUMENT_GENERATED event. Failures remove staged/final partials and leave Contract/Rxx history unchanged. CONTRACT_SENT and SIGNATURE_RECORDED remain CONTRACT-only.
-- Documents & suivi keeps Autres documents separate from Révisions contractuelles, exposes Créer une fiche d’intervention, provides the bounded French modal, lists multiple sheets newest first without Rxx, and opens DOCX/PDF through the existing path-safe opener. Missing files preserve history and disable only the missing action.
-- Template generation metadata becomes immutable after either CONTRACT or INTERVENTION_SHEET use.
-
-Automated validation
-- Application: $env:QT_QPA_PLATFORM='offscreen'; python -W error::ResourceWarning -m unittest discover -s tests -v
-- Result: 192 discovered, 192 passed, 0 skipped, 0 failed.
-- Focused S9 covers migration/domain constraints, catalog kind/status selection, technician requiredness, unsigned/signed authority, no-master/internal-note leakage, all fields, empty optional removal, 1/10/30 ordered equipment, no-number/no-Rxx/no-status effects, persistence/event rules, multiple sheets, atomic failure, template freeze and Qt offscreen UI.
-- Frozen spike: $env:ICP_SKIP_WORD_INTEGRATION='1'; python -m unittest discover -s spike/tests -v
-- Result: 39 discovered, 38 passed, 1 Microsoft Word integration skipped as required, 0 failed.
-- git diff --check: PASS. Zero changes under docs/, templates/ or spike/. No commit.
-
-Real LibreOffice 26.2.5.2 smoke
-- Evidence root: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S9_VISUAL_20260814_V1
-- Inventory: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S9_VISUAL_20260814_V1\fixture-results.json
-- QA results: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S9_VISUAL_20260814_V1\qa-results.json
-- 1 equipment: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S9_VISUAL_20260814_V1\C_ONE_SHEET\workspace\documents\contracts\8e2b1d6b-488a-48b2-a8d6-e413258996bc\other\intervention\781702e1-e278-4094-8106-a432957f7bc6\fiche-intervention.docx and fiche-intervention.pdf
-- 10 equipment: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S9_VISUAL_20260814_V1\SMOKE_10\workspace\documents\contracts\8e2b1d6b-488a-48b2-a8d6-e413258996bc\other\intervention\d436c55b-54d8-4750-8b6b-d0a908508701\fiche-intervention.docx and fiche-intervention.pdf
-- 30 equipment: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S9_VISUAL_20260814_V1\SMOKE_30\workspace\documents\contracts\8e2b1d6b-488a-48b2-a8d6-e413258996bc\other\intervention\c7b959ed-7e86-4552-b613-7f84bfe2e18c\fiche-intervention.docx and fiche-intervention.pdf
-- Signed authority: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S9_VISUAL_20260814_V1\F_SIGNED_OLD_REVISION_AUTHORITY\workspace\documents\contracts\bc7cc481-ef06-4c30-8482-449aebbfe98a\other\intervention\9ab95fb5-d4be-42eb-945c-674ea0503f49\fiche-intervention.docx and fiche-intervention.pdf. Authority is signed R01 c5379e01-c654-499c-9acd-45d84f9a1991, not newer unsigned R02.
-- Final optional-empty: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S9_VISUAL_20260814_V1\OPTIONAL_EMPTY_FINAL\workspace\documents\contracts\8e2b1d6b-488a-48b2-a8d6-e413258996bc\other\intervention\dcbb0285-770f-47dc-b75d-450bd7d9572d\fiche-intervention.docx and fiche-intervention.pdf
-- Raster review: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S9_VISUAL_20260814_V1\rendered
-- Verified: openable DOCX/PDF, kind/date, revision NULL, signed metadata NULL, no number allocation, status unchanged, ordered equipment, 30-item pagination/repeated header, clean optional removal, exact authority, matching hashes, no unresolved marker/raw bool/internal note/legal block or visible layout corruption.
-
-DEVELOPMENT VISUAL SMOKE
-- A/B - no Other documents; open Documents & suivi and click Créer une fiche d’intervention:
-  $workspace='C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S9_VISUAL_20260814_V1\A_B_NO_SHEETS_MODAL\workspace'; python -c "from pathlib import Path; from icp_renov_contracts.config import BootstrapConfig,MachineConfigStore; MachineConfigStore().save(BootstrapConfig(Path(r'$workspace')))"; python -m icp_renov_contracts
-- C - one generated sheet:
-  $workspace='C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S9_VISUAL_20260814_V1\C_ONE_SHEET\workspace'; python -c "from pathlib import Path; from icp_renov_contracts.config import BootstrapConfig,MachineConfigStore; MachineConfigStore().save(BootstrapConfig(Path(r'$workspace')))"; python -m icp_renov_contracts
-- D - three independent sheets:
-  $workspace='C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S9_VISUAL_20260814_V1\D_MULTIPLE_SHEETS\workspace'; python -c "from pathlib import Path; from icp_renov_contracts.config import BootstrapConfig,MachineConfigStore; MachineConfigStore().save(BootstrapConfig(Path(r'$workspace')))"; python -m icp_renov_contracts
-- E - missing PDF with intact DOCX action:
-  $workspace='C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S9_VISUAL_20260814_V1\E_MISSING_PDF\workspace'; python -c "from pathlib import Path; from icp_renov_contracts.config import BootstrapConfig,MachineConfigStore; MachineConfigStore().save(BootstrapConfig(Path(r'$workspace')))"; python -m icp_renov_contracts
-- F - signed R01 authority with newer unsigned R02:
-  $workspace='C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S9_VISUAL_20260814_V1\F_SIGNED_OLD_REVISION_AUTHORITY\workspace'; python -c "from pathlib import Path; from icp_renov_contracts.config import BootstrapConfig,MachineConfigStore; MachineConfigStore().save(BootstrapConfig(Path(r'$workspace')))"; python -m icp_renov_contracts
-- Optional-empty final:
-  $workspace='C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S9_VISUAL_20260814_V1\OPTIONAL_EMPTY_FINAL\workspace'; python -c "from pathlib import Path; from icp_renov_contracts.config import BootstrapConfig,MachineConfigStore; MachineConfigStore().save(BootstrapConfig(Path(r'$workspace')))"; python -m icp_renov_contracts
-- 10/30 equipment use the same command with ...\SMOKE_10\workspace or ...\SMOKE_30\workspace.
-
-Remaining S9 risks only
-- The real production intervention family deliberately remains unseeded/TO_VALIDATE; normal official generation stays unavailable until external validation gates are completed and company data is configured.
-- Prepared application states require manual Windows inspection; no application screenshot automation was added.
-- TEMP evidence is disposable and is not final external/template validation.
+- Schema remains at v9; no migration or persisted register/signal data was added.
+- `ContractRegisterService` is the read-only operational projection. It reconciles the already accepted lifecycle first, then derives rows from Contracts, Contract snapshots, CONTRACT documents, signature authority, document state, and lifecycle projections.
+- Client/site display and search use Contract snapshots only. Search is case-insensitive, Unicode-normalised, and limited to contract number, client snapshot, and site snapshot.
+- Visible filters are frozen to Tous, Actions à traiter, Brouillons, Actifs, and Terminés. The banner counter and Actions filter call the same projection predicate and count unique Contracts.
+- Signals are typed ACTION, INFORMATION, or NONE. Action priority is document integrity, draft completion, signature, tacit renewal, then manual renewal. Information never enters Actions.
+- Exact authoritative statuses remain Brouillon, À signer, Signé, Actif, Résilié, Expiré, and Abandonné. Échéance uses proposed conditions for DRAFT/TO_SIGN and signed-authority lifecycle dates for concluded/terminal Contracts.
+- Document summaries only inspect CONTRACT documents: Aucun document, latest unsigned Rxx, exact signed revision from SIGNATURE_RECORDED, and Copie signée only when valid. R01 signed plus R02 latest remains `R02 · non signé` / `R01 · signé`; intervention sheets never become revisions.
+- The table opens rows by mouse or Enter with visible focus. Return preserves session search/filter while refreshing projections. Consultation/search/filter/opening creates no register events.
+- A truthful writable-workspace notice disables Nouveau contrat while retaining readable rows. No safe relink path existed to reuse, so S10 does not fake one.
+- Backup is a small provider boundary only. Production displays `Sauvegarde non configurée`; creation remains disabled without a real provider. Fake providers may enable create_now in tests.
+- Tests: `QT_QPA_PLATFORM=offscreen; python -W error::ResourceWarning -m unittest discover -s tests -v` → 199 passed.
+- Frozen spike: `ICP_SKIP_WORD_INTEGRATION=1; python -m unittest discover -s spike/tests -v` → 38 passed, 1 expected Word skip, 0 failed.
+- Table readability correction: the register now gives the Action ou information column the remaining desktop width, wraps its explicit semantic prefix/label, resizes rows to their multi-line content, and retains a 200 px Documents column at 1600/1366. At 1280, Documents collapses while Status, Échéance, and the readable operational signal remain visible; normal horizontal scrolling is disabled.
+- The difficult document state is now visibly rendered as two/three lines: `R02 · non signé`, `R01 · signé`, and (when valid) `Copie signée`.
+- Unicode diagnosis: production snapshot persistence/projection was already UTF-8-safe. The question marks came from the prior PowerShell inline fixture transport. The replacement fixture uses ASCII transport with Python Unicode escapes and visibly persists labels such as `K — Autorité difficile` unchanged.
+- Backup confirmation: production fixture state remains `Sauvegarde non configurée`; `Sauvegarder maintenant` was verified disabled and produces no success state.
+- Final disposable visual-fixture root: `C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S10_VISUAL_20260815_V2`.
+- Prepared workspace: `C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S10_VISUAL_20260815_V2\workspace`. It contains 11 Contracts: A–J plus K for the difficult `R01 · signé` / `R02 · non signé` document-authority state.
+- Register-derived fixture counts: total Contracts = 11; Expected “Actions à traiter” counter: 5; information-only Contracts = 6. The same ContractRegisterService result returns 5 rows for `Actions à traiter`.
+- Manual Qt smoke completed against the prepared workspace: number/client/site search, Tous, Actions à traiter, Brouillons, Actifs, Terminés, empty-result state, mouse row opening, Enter row opening, and search preservation after return. At 1600/1366 the full action/information text and difficult Documents state are visible; at 1280 Documents is intentionally collapsed while status/action text remains visible.
+- Exact PowerShell development visual smoke command (run from repository root; it intentionally switches the local active-workspace pointer to this disposable fixture):
+  `python -c "from pathlib import Path; from icp_renov_contracts.config import BootstrapConfig, MachineConfigStore; MachineConfigStore().save(BootstrapConfig(Path(r'C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S10_VISUAL_20260815_V2\workspace')))"; python -m icp_renov_contracts`
+- Remaining S10 risks only: a full backup/restore engine and a safe workspace relink flow remain intentionally out of scope; no fake success state is shown.

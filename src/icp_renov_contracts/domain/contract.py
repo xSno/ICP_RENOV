@@ -159,3 +159,4 @@ class ContractListItem:
     signed_revision: str | None = None
     signed_copy_state: str | None = None
     predecessor_number: str | None = None
+    created_at_utc: str = ""

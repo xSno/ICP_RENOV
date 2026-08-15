@@ -49,18 +49,7 @@ class ReviewService:
         self.generation_ready = generation_ready
 
     def review(self, contract_id: str) -> ReviewResult:
-        contract = self.contracts.get(contract_id)
-        conditions = self.contracts.get_conditions(contract_id)
-        version = None
-        if contract.template_version_id:
-            try: version = self.contracts.selected_template_version(contract_id)
-            except ContractNotFoundError: version = None
-        blocks = (
-            self._client(contract), self._site_equipment(contract), self._context(contract, conditions, version),
-            self._model_services(contract, conditions, version), self._period(conditions),
-            self._intervention(conditions), self._price_payment(conditions, version),
-            self._renewal(conditions, version), self._special(conditions),
-        )
+        contract, version, blocks = self._business_blocks(contract_id)
         workspace = self.workspace_service.inspect(self.workspace.root)
         capabilities = self.capability_probe.probe()
         docx_available = self.generation_ready(contract_id) if self.generation_ready else capabilities.docx_available
@@ -75,6 +64,26 @@ class ReviewService:
                             "Disponible" if capabilities.pdf_available else capabilities.pdf_detail.replace("Conversion PDF ", "").capitalize()),
         )
         return ReviewResult(blocks, GenerationReadiness(checks))
+
+    def business_data_complete(self, contract_id: str) -> bool:
+        """Validate the nine business blocks without probing workspace or LibreOffice."""
+        _, _, blocks = self._business_blocks(contract_id)
+        return all(block.state is ReviewState.VALID for block in blocks)
+
+    def _business_blocks(self, contract_id: str):
+        contract = self.contracts.get(contract_id)
+        conditions = self.contracts.get_conditions(contract_id)
+        version = None
+        if contract.template_version_id:
+            try: version = self.contracts.selected_template_version(contract_id)
+            except ContractNotFoundError: version = None
+        blocks = (
+            self._client(contract), self._site_equipment(contract), self._context(contract, conditions, version),
+            self._model_services(contract, conditions, version), self._period(conditions),
+            self._intervention(conditions), self._price_payment(conditions, version),
+            self._renewal(conditions, version), self._special(conditions),
+        )
+        return contract, version, blocks
 
     @staticmethod
     def _block(block_id: ReviewBlockId, summary: str, issues: list[str]) -> ReviewBlockResult:
