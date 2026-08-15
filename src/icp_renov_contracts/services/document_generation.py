@@ -37,7 +37,7 @@ class DocumentGenerationService:
         self.workspace_root=workspace_root.resolve();self.logger=logger or logging.getLogger("icp_renov_contracts.generation")
     def available(self,contract_id:str)->bool:
         try:
-            contract=self.contracts.get(contract_id);version=self.contracts.selected_template_version(contract_id);documents=self.documents.list_for_contract(contract_id)
+            contract=self.contracts.get(contract_id);version=self.contracts.selected_template_version(contract_id);documents=self.documents.list_for_contract_kind(contract_id,DocumentKind.CONTRACT)
             if contract.status is not ContractStatus.DRAFT or not version or not self.company_provider.available() or not self.converter.available():return False
             with self.database.connection() as connection:
                 if connection.execute("SELECT 1 FROM contract_events WHERE contract_id=? AND type='SIGNATURE_RECORDED'",(contract_id,)).fetchone():return False
@@ -51,7 +51,7 @@ class DocumentGenerationService:
             if contract.number:return contract.number
         return self.number_allocator.preview_next() if self.number_allocator.available() else None
     def next_revision(self,contract_id:str)->str:
-        documents=self.documents.list_for_contract(contract_id)
+        documents=self.documents.list_for_contract_kind(contract_id,DocumentKind.CONTRACT)
         indices=[item.revision_index for item in documents]
         if len(indices)!=len(set(indices)):raise DocumentGenerationError("revision_integrity","L’historique des révisions est incohérent.")
         return f"R{(max(indices,default=0)+1):02d}"
@@ -59,7 +59,7 @@ class DocumentGenerationService:
         attempt=uuid.uuid4().hex;stage="review";attempt_dir=self.workspace_root/"tmp"/"generation"/attempt
         final_docx=None;final_pdf=None
         try:
-            contract=self.contracts.get(contract_id);existing=self.documents.list_for_contract(contract_id)
+            contract=self.contracts.get(contract_id);existing=self.documents.list_for_contract_kind(contract_id,DocumentKind.CONTRACT)
             if contract.status is not ContractStatus.DRAFT:
                 raise DocumentGenerationError("status","Ce contrat ne peut plus être généré.")
             with self.database.connection() as connection:
@@ -148,6 +148,6 @@ class DocumentGenerationService:
         service={key:getattr(conditions,key) for key in ("visits_per_year","refrigerant_handling_mode","included_area","business_hours","travel_included","priority_breakdown","priority_breakdown_delay","included_options","additional_exclusions")};service["included_options"]=list(service["included_options"])
         pricing={"annual_ht":conditions.annual_ht,"vat_rate":str((Decimal(conditions.vat_rate or '0')/100)),"payment_terms_code":conditions.payment_terms_code,"payment_due_days":conditions.payment_due_days,
                  "payment_terms_custom_text":conditions.payment_terms_custom_text,"payment_methods":list(conditions.payment_methods),"missed_appointment_fee":conditions.missed_appointment_fee,"renewal_price_rule":conditions.renewal_price_rule}
-        return {"company":company,"client":client,"site":site,"contract":contract_data,"service":service,"pricing":pricing,"document":{"revision":revision},
+        return {"company":company,"client":client,"site":site,"contract":contract_data,"service":service,"pricing":pricing,"document":{"document_kind":"CONTRACT","revision":revision},
                 "template":{"id":version.template_id,"version_id":version.id,"version":version.version,"source_hash":version.source_hash,"source_relpath":version.source_relpath,
                             "selected_blocks":list(selected),"required_company_fields":list(version.required_company_fields)}}

@@ -42,7 +42,7 @@ class MigrationSevenTests(unittest.TestCase):
                 columns=[row[1] for row in connection.execute("PRAGMA table_info(contract_documents)")]
                 self.assertEqual(columns.count("signed_pdf_path"),1);self.assertEqual(columns.count("signed_pdf_hash"),1);self.assertEqual(columns.count("signed_pdf_attached_at"),1)
                 self.assertIn("lifecycle_status",[row[1] for row in connection.execute("PRAGMA table_info(contracts)")])
-            self.assertEqual(database.schema_version(),8)
+            self.assertEqual(database.schema_version(),9)
 
 
 class SignatureLifecycleTests(GenerationCase):

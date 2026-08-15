@@ -6,12 +6,12 @@ from xml.etree import ElementTree as ET
 from .adapter import adapt
 from .formatters import lookup,prepare_context
 from .ooxml import W,add_image,clone,get_sdt_tag,image_run,q,read_package,replace_child,set_text,story_parts,write_package,xml_bytes
-from .registry import BLOCKS,FIELDS,LOOPS,OBSOLETE_FIELDS,renderable
+from .registry import BLOCKS,FIELDS,LOOPS,OBSOLETE_FIELDS,SHEET_BLOCKS,renderable
 from .validation import DocumentGenerationError,validate_rendered_docx
 
 def _truthy(value):return value not in (None,"",[],(),False)
 def _active(name,linked,ctx,equipment):
-    client=ctx.get("client",{});contract=ctx.get("contract",{});service=ctx.get("service",{});pricing=ctx.get("pricing",{});selected=set(ctx.get("template",{}).get("selected_blocks",()))
+    client=ctx.get("client",{});contract=ctx.get("contract",{});service=ctx.get("service",{});pricing=ctx.get("pricing",{});intervention=ctx.get("intervention",{});selected=set(ctx.get("template",{}).get("selected_blocks",()))
     direct={"BLOCK_CLIENT_PERSON":client.get("party_type")=="PERSON","BLOCK_CLIENT_ORGANIZATION":client.get("party_type")=="ORGANIZATION",
             "BLOCK_CLIENT_CONSUMER":client.get("regime")=="CONSUMER","BLOCK_CLIENT_NON_PROFESSIONAL":client.get("regime")=="NON_PROFESSIONAL","BLOCK_CLIENT_PROFESSIONAL":client.get("regime")=="PROFESSIONAL",
             "BLOCK_BILLING_ADDRESS_DIFFERENT":_truthy(client.get("billing_address")),"BLOCK_INCLUDED_OPTIONS":_truthy(service.get("included_options")),
@@ -23,8 +23,9 @@ def _active(name,linked,ctx,equipment):
     if name=="BLOCK_EARLY_PERFORMANCE":return name in selected and "BLOCK_WITHDRAWAL" in selected and bool(contract.get("early_performance_requested"))
     if name in {"BLOCK_WITHDRAWAL","BLOCK_ELECTRONIC_TERMINATION"}:return name in selected
     if name=="BLOCK_OPTIONAL_COMPANY_FIELD":return _truthy(lookup(ctx,linked,equipment))
+    if name=="BLOCK_INTERVENTION_DETAILS":return any(_truthy(intervention.get(key)) for key in ("notes","issues","quote_recommended"))
     return direct.get(name,False)
-def _preflight_adapted(path:Path)->None:
+def _preflight_adapted(path:Path,document_kind:str)->None:
     parts=read_package(path);seen_loop=False
     for name in story_parts(parts):
         root=ET.fromstring(parts[name])
@@ -37,13 +38,13 @@ def _preflight_adapted(path:Path)->None:
             except ValueError as exc:raise DocumentGenerationError("malformed_marker","Le modèle sélectionné ne peut pas être utilisé.") from exc
             if prefix!="icp":raise DocumentGenerationError("unknown_marker","Le modèle sélectionné ne peut pas être utilisé.")
             value=payload.split("|",1)[0]
-            if kind in {"field","image","optional"} and (not renderable(value) or value in OBSOLETE_FIELDS):raise DocumentGenerationError("unknown_placeholder","Le modèle contient un champ non autorisé.")
-            if kind=="block" and value not in BLOCKS:raise DocumentGenerationError("unknown_block","Le modèle contient un bloc non autorisé.")
+            if kind in {"field","image","optional"} and (not renderable(value,document_kind) or value in OBSOLETE_FIELDS):raise DocumentGenerationError("unknown_placeholder","Le modèle contient un champ non autorisé.")
+            if kind=="block" and ((document_kind=="INTERVENTION_SHEET" and value not in SHEET_BLOCKS) or (document_kind!="INTERVENTION_SHEET" and value not in BLOCKS)):raise DocumentGenerationError("unknown_block","Le modèle contient un bloc non autorisé.")
             if kind=="loop":
                 if value not in LOOPS:raise DocumentGenerationError("unknown_loop","Le modèle contient une liste non autorisée.")
                 seen_loop=True
             if kind not in {"field","image","optional","block","loop"}:raise DocumentGenerationError("unknown_marker","Le modèle sélectionné ne peut pas être utilisé.")
-    if not seen_loop:raise DocumentGenerationError("missing_loop","Le modèle ne contient pas la liste des équipements requise.")
+    if document_kind=="CONTRACT" and not seen_loop:raise DocumentGenerationError("missing_loop","Le modèle ne contient pas la liste des équipements requise.")
 def _empty_required(key,value):
     if value is None or value=="" or value==[] or value==():return True
     if key=="contract.visits_per_year":
@@ -100,7 +101,8 @@ def _render(parent,ctx,equipment,parts,part_name):
 class ProductionDocxRenderer:
     def render(self,source:Path,output:Path,context:dict,workdir:Path)->None:
         adapted=workdir/"adapted.docx"
-        try:adapt(source,adapted);_preflight_adapted(adapted);parts=read_package(adapted);prepared=prepare_context(context);_preflight_required_values(parts,prepared)
+        document_kind=context.get("document",{}).get("document_kind","CONTRACT")
+        try:adapt(source,adapted);_preflight_adapted(adapted,document_kind);parts=read_package(adapted);prepared=prepare_context(context);_preflight_required_values(parts,prepared)
         except DocumentGenerationError:raise
         except Exception as exc:raise DocumentGenerationError("template_preflight","Le modèle sélectionné ne peut pas être utilisé.") from exc
         for name in story_parts(parts):

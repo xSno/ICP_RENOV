@@ -96,7 +96,7 @@ class ContractLifecycleService:
 
     def revisions(self, contract_id: str) -> tuple[ContractDocument, ...]:
         self.contracts.get(contract_id)
-        return tuple(reversed(self.documents.list_for_contract(contract_id)))
+        return tuple(sorted(self.documents.list_for_contract_kind(contract_id,DocumentKind.CONTRACT),key=lambda item:item.revision_index or 0,reverse=True))
 
     def history(self, contract_id: str) -> tuple[ContractEvent, ...]:
         self.contracts.get(contract_id)

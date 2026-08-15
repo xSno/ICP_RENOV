@@ -168,6 +168,7 @@ class ContractTemplateVersion:
     source_hash: str | None = None
     required_company_fields: tuple[str, ...] = ()
     document_kind: str = "CONTRACT"
+    required_intervention_fields: tuple[str, ...] = ()
 
     @property
     def display_name(self) -> str:

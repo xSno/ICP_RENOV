@@ -1,24 +1,44 @@
-ICP RENOV - CONTRACT MANAGEMENT APP - S8 DIFF
+S9 FILE DIFF
 
-FILES CREATED
-- tests/test_lifecycle_s8.py: migration 8, exact signed-R01/latest-R02 authority, period/price projections, repeated renewal, archived-template exclusion, non-renewal, expiry, termination ordering/priority, abandonment, atomic failures, bounded Qt UI coverage and persistent linked-DRAFT notice assertions across steps with zero event creation.
+Created
+- src/icp_renov_contracts/services/intervention_sheets.py
+- tests/test_intervention_s9.py
 
-FILES MODIFIED
-- src/icp_renov_contracts/database/service.py: appended migration 8 only; predecessor/terminal projections, bounded event-field triggers and uniqueness constraints.
-- src/icp_renov_contracts/domain/contract.py: TERMINATED/EXPIRED/ABANDONED statuses, predecessor relation and linked-predecessor list projection.
-- src/icp_renov_contracts/repositories/contracts.py: terminal-aware status hydration plus predecessor identity/number projections.
-- src/icp_renov_contracts/services/contract_events.py: exact signed-revision lifecycle authority, current period/price/attention/deadline projections, linked drafts, explicit renewals/non-renewal, scheduled termination, expiry, abandonment and ordered idempotent reconciliation.
-- src/icp_renov_contracts/services/document_generation.py: includes governed internal_alert_days in the immutable signed snapshot used by S8 projections; no template/rendering change.
-- src/icp_renov_contracts/services/__init__.py: exports bounded lifecycle projection value types.
-- src/icp_renov_contracts/ui/documents_view.py: existing-screen renewal, non-renewal, termination and abandonment groups/modals/actions plus lifecycle history and terminal summaries.
-- src/icp_renov_contracts/ui/contracts_view.py: terminal labels/locking, predecessor context, linked-draft routing, bounded landing attention/status information and the persistent informational linked-DRAFT review notice.
-- tests/test_foundation.py, tests/test_master_data.py, tests/test_contracts.py, tests/test_conditions.py, tests/test_contract_events.py, tests/test_signature.py: expected schema baseline advanced from migration 7 to migration 8 only.
-- recap.txt: S8 behavior, validation totals, visual fixture inventory/commands and remaining risks.
-- diff.txt: exact S8 file inventory.
+Modified
+- recap.txt
+- diff.txt
+- src/icp_renov_contracts/bootstrap/context.py
+- src/icp_renov_contracts/database/service.py
+- src/icp_renov_contracts/documents/adapter.py
+- src/icp_renov_contracts/documents/converter.py
+- src/icp_renov_contracts/documents/formatters.py
+- src/icp_renov_contracts/documents/registry.py
+- src/icp_renov_contracts/documents/renderer.py
+- src/icp_renov_contracts/domain/conditions.py
+- src/icp_renov_contracts/domain/documents.py
+- src/icp_renov_contracts/repositories/documents.py
+- src/icp_renov_contracts/repositories/template_catalog.py
+- src/icp_renov_contracts/services/__init__.py
+- src/icp_renov_contracts/services/contract_events.py
+- src/icp_renov_contracts/services/document_generation.py
+- src/icp_renov_contracts/services/template_catalog.py
+- src/icp_renov_contracts/ui/contracts_view.py
+- src/icp_renov_contracts/ui/documents_view.py
+- src/icp_renov_contracts/ui/main_window.py
+- src/icp_renov_contracts/ui/shell.py
+- src/icp_renov_contracts/ui/surfaces.py
+- tests/test_conditions.py
+- tests/test_contract_events.py
+- tests/test_contracts.py
+- tests/test_foundation.py
+- tests/test_lifecycle_s8.py
+- tests/test_master_data.py
+- tests/test_signature.py
 
-FILES REMOVED
+Removed
 - None.
 
-PRESERVED / OUT OF SCOPE
-- Zero modifications under docs/, templates/ or spike/; migrations 1-7, production DOCX templates and accepted S0-S7 behavior remain intact.
-- No new ContractEvent type/table, automatic communication, renewal document/Rxx, notice legal-rule engine, indexation, cancellation/rescheduling, ADMIN_CORRECTION, intervention sheet/S9, broad dashboard redesign or commit.
+Preserved unchanged
+- docs/
+- templates/
+- spike/

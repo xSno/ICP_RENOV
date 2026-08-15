@@ -26,7 +26,7 @@ def lookup(context,key,equipment=None):
     return value
 def prepare_context(raw:dict)->dict:
     ctx=deepcopy(raw);company=ctx.setdefault("company",{});client=ctx.setdefault("client",{});site=ctx.setdefault("site",{})
-    contract=ctx.setdefault("contract",{});service=ctx.setdefault("service",{});pricing=ctx.setdefault("pricing",{})
+    contract=ctx.setdefault("contract",{});service=ctx.setdefault("service",{});pricing=ctx.setdefault("pricing",{});intervention=ctx.setdefault("intervention",{})
     company["display_name"]=company.get("trade_name") or company.get("legal_name","")
     company["registration_identifiers_summary"]=join((f"SIREN {company.get('siren')}" if company.get('siren') else "",f"SIRET {company.get('siret')}" if company.get('siret') else ""))
     company["full_address"]=join((company.get("address_line1"),company.get("address_line2"),join((company.get("postal_code"),company.get("city"))),company.get("country")))
@@ -57,4 +57,8 @@ def prepare_context(raw:dict)->dict:
     for item in contract.get("equipment_items",()):
         item=deepcopy(item);item["display_name"]=" - ".join(value for value in (item.get("type"),item.get("brand"),item.get("model")) if value)
         item["power_label"]=(f"{str(item['power_kw']).replace('.',',')} kW" if item.get("power_kw") not in (None,"") else "");item["install_date"]=french_date(item.get("install_date"));items.append(item)
-    contract["equipment_items"]=sorted(items,key=lambda value:int(value["position"]));return ctx
+    contract["equipment_items"]=sorted(items,key=lambda value:int(value["position"]))
+    intervention["date"]=french_date(intervention.get("date"))
+    quote=intervention.get("quote_recommended")
+    intervention["quote_recommended"]="Oui" if quote is True else "Non" if quote is False else ""
+    return ctx

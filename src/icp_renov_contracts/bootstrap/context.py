@@ -11,7 +11,7 @@ from ..repositories import (
 )
 from ..documents import (LibreOfficeConverter, ProductionDocxRenderer, TemplateSourceStore,
                          UnavailableCompanyDocumentDataProvider, UnavailableContractNumberAllocator)
-from ..services import ContractLifecycleService, ContractService, DocumentGenerationService, MasterDataService, ReviewService, TemplateCatalogService
+from ..services import ContractLifecycleService, ContractService, DocumentGenerationService, InterventionSheetGenerationService, MasterDataService, ReviewService, TemplateCatalogService
 from ..storage import Workspace, WorkspaceService
 
 
@@ -33,6 +33,7 @@ class ApplicationContext:
     template_catalog: TemplateCatalogService | None
     review: ReviewService | None
     generation: DocumentGenerationService | None
+    intervention_generation: InterventionSheetGenerationService | None
     lifecycle: ContractLifecycleService | None
     logger: logging.Logger
 
@@ -61,6 +62,7 @@ def build_application_context(
             None,
             None,
             None,
+            None,
             application_logger,
         )
 
@@ -81,6 +83,10 @@ def build_application_context(
     lifecycle = ContractLifecycleService(
         database, contracts, ContractDocumentRepository(database), ContractEventRepository(database), workspace.root
     )
+    intervention_generation=InterventionSheetGenerationService(
+        database,contracts,ContractDocumentRepository(database),TemplateSourceStore(workspace.root),
+        ProductionDocxRenderer(),LibreOfficeConverter(),UnavailableCompanyDocumentDataProvider(),workspace.root,application_logger,
+    )
     failures = lifecycle.reconcile_due_activations()
     if failures:
         application_logger.error("Due contract activation reconciliation failed for %s", ",".join(failures))
@@ -98,6 +104,7 @@ def build_application_context(
         template_catalog,
         review,
         generation,
+        intervention_generation,
         lifecycle,
         application_logger,
     )

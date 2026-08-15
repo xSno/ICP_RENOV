@@ -437,6 +437,165 @@ MIGRATIONS = (
             """,
         ),
     ),
+    Migration(
+        9,
+        (
+            "ALTER TABLE contract_template_versions ADD COLUMN required_intervention_fields_json TEXT NOT NULL DEFAULT '[]'",
+            "DROP TRIGGER contract_documents_core_immutable_update",
+            "DROP TRIGGER contract_documents_immutable_delete",
+            "DROP TRIGGER contract_events_document_scope_insert",
+            "DROP TRIGGER contract_events_immutable_update",
+            "DROP TRIGGER contract_events_immutable_delete",
+            "DROP TRIGGER contract_signature_required_fields",
+            "DROP TRIGGER contract_activation_required_fields",
+            "DROP TRIGGER contract_s8_required_fields",
+            "DROP INDEX idx_contract_documents_contract",
+            "DROP INDEX idx_contract_events_history",
+            "DROP INDEX idx_contract_events_document",
+            "DROP INDEX idx_contract_one_signature",
+            "DROP INDEX idx_contract_one_activation",
+            "DROP INDEX idx_contract_one_termination_schedule",
+            "DROP INDEX idx_contract_one_terminated",
+            "DROP INDEX idx_contract_one_expired",
+            "DROP INDEX idx_contract_one_abandoned",
+            "DROP INDEX idx_contract_renewal_period",
+            "DROP INDEX idx_contract_nonrenewal_period",
+            "ALTER TABLE contract_events RENAME TO contract_events_s8",
+            "ALTER TABLE contract_documents RENAME TO contract_documents_s8",
+            """
+            CREATE TABLE contract_documents (
+                id TEXT PRIMARY KEY,
+                contract_id TEXT NOT NULL REFERENCES contracts(id) ON DELETE RESTRICT,
+                document_kind TEXT NOT NULL CHECK (document_kind IN ('CONTRACT','INTERVENTION_SHEET')),
+                revision_index INTEGER,
+                generated_at_utc TEXT NOT NULL,
+                template_version_id TEXT NOT NULL REFERENCES contract_template_versions(id) ON DELETE RESTRICT,
+                docx_relpath TEXT NOT NULL,
+                pdf_relpath TEXT NOT NULL,
+                snapshot_json TEXT NOT NULL,
+                docx_sha256 TEXT NOT NULL,
+                pdf_sha256 TEXT NOT NULL,
+                signed_pdf_path TEXT,
+                signed_pdf_hash TEXT,
+                signed_pdf_attached_at TEXT,
+                CHECK (
+                    (document_kind='CONTRACT' AND revision_index IS NOT NULL AND revision_index >= 1)
+                    OR
+                    (document_kind='INTERVENTION_SHEET' AND revision_index IS NULL
+                     AND signed_pdf_path IS NULL AND signed_pdf_hash IS NULL AND signed_pdf_attached_at IS NULL)
+                ),
+                UNIQUE(contract_id, document_kind, revision_index),
+                UNIQUE(docx_relpath),
+                UNIQUE(pdf_relpath)
+            )
+            """,
+            """
+            INSERT INTO contract_documents
+            SELECT id,contract_id,document_kind,revision_index,generated_at_utc,template_version_id,
+                   docx_relpath,pdf_relpath,snapshot_json,docx_sha256,pdf_sha256,
+                   signed_pdf_path,signed_pdf_hash,signed_pdf_attached_at
+            FROM contract_documents_s8
+            """,
+            """
+            CREATE TABLE contract_events (
+                id TEXT PRIMARY KEY,
+                contract_id TEXT NOT NULL REFERENCES contracts(id) ON DELETE RESTRICT,
+                type TEXT NOT NULL CHECK (type IN (
+                    'CREATED','DOCUMENT_GENERATED','CONTRACT_SENT','REOPENED_FOR_CORRECTION',
+                    'SIGNATURE_RECORDED','ACTIVATED','RENEWAL_NOTICE_RECORDED','RENEWAL_CONFIRMED',
+                    'TERMINATION_SCHEDULED','TERMINATED','EXPIRED','ABANDONED','ADMIN_CORRECTION'
+                )),
+                occurred_at TEXT NOT NULL,
+                effective_date TEXT,
+                document_id TEXT REFERENCES contract_documents(id) ON DELETE RESTRICT,
+                period_start TEXT,
+                period_end TEXT,
+                renewal_annual_ht TEXT,
+                renewal_vat_rate TEXT,
+                renewal_vat_amount TEXT,
+                renewal_annual_ttc TEXT,
+                notification_date TEXT,
+                reason_code TEXT,
+                reason_text TEXT,
+                note TEXT,
+                CHECK (type NOT IN ('DOCUMENT_GENERATED','CONTRACT_SENT') OR document_id IS NOT NULL),
+                CHECK (type != 'CONTRACT_SENT' OR effective_date IS NOT NULL)
+            )
+            """,
+            """
+            INSERT INTO contract_events
+            SELECT id,contract_id,type,occurred_at,effective_date,document_id,period_start,period_end,
+                   renewal_annual_ht,renewal_vat_rate,renewal_vat_amount,renewal_annual_ttc,
+                   notification_date,reason_code,reason_text,note
+            FROM contract_events_s8
+            """,
+            "DROP TABLE contract_events_s8",
+            "DROP TABLE contract_documents_s8",
+            "CREATE INDEX idx_contract_documents_contract ON contract_documents(contract_id, document_kind, generated_at_utc DESC)",
+            "CREATE INDEX idx_contract_events_history ON contract_events(contract_id, occurred_at DESC, id DESC)",
+            "CREATE INDEX idx_contract_events_document ON contract_events(document_id, type, effective_date DESC)",
+            "CREATE UNIQUE INDEX idx_contract_one_signature ON contract_events(contract_id) WHERE type='SIGNATURE_RECORDED'",
+            "CREATE UNIQUE INDEX idx_contract_one_activation ON contract_events(contract_id) WHERE type='ACTIVATED'",
+            "CREATE UNIQUE INDEX idx_contract_one_termination_schedule ON contract_events(contract_id) WHERE type='TERMINATION_SCHEDULED'",
+            "CREATE UNIQUE INDEX idx_contract_one_terminated ON contract_events(contract_id) WHERE type='TERMINATED'",
+            "CREATE UNIQUE INDEX idx_contract_one_expired ON contract_events(contract_id) WHERE type='EXPIRED'",
+            "CREATE UNIQUE INDEX idx_contract_one_abandoned ON contract_events(contract_id) WHERE type='ABANDONED'",
+            "CREATE UNIQUE INDEX idx_contract_renewal_period ON contract_events(contract_id,period_start,period_end) WHERE type='RENEWAL_CONFIRMED'",
+            "CREATE UNIQUE INDEX idx_contract_nonrenewal_period ON contract_events(contract_id,period_start,period_end) WHERE type='RENEWAL_NOTICE_RECORDED'",
+            """
+            CREATE TRIGGER contract_documents_core_immutable_update
+            BEFORE UPDATE ON contract_documents
+            WHEN NEW.id IS NOT OLD.id OR NEW.contract_id IS NOT OLD.contract_id
+              OR NEW.document_kind IS NOT OLD.document_kind OR NEW.revision_index IS NOT OLD.revision_index
+              OR NEW.generated_at_utc IS NOT OLD.generated_at_utc OR NEW.template_version_id IS NOT OLD.template_version_id
+              OR NEW.docx_relpath IS NOT OLD.docx_relpath OR NEW.pdf_relpath IS NOT OLD.pdf_relpath
+              OR NEW.snapshot_json IS NOT OLD.snapshot_json OR NEW.docx_sha256 IS NOT OLD.docx_sha256
+              OR NEW.pdf_sha256 IS NOT OLD.pdf_sha256
+            BEGIN SELECT RAISE(ABORT, 'contract document core is immutable'); END
+            """,
+            """
+            CREATE TRIGGER contract_documents_immutable_delete
+            BEFORE DELETE ON contract_documents BEGIN SELECT RAISE(ABORT, 'contract document is immutable'); END
+            """,
+            """
+            CREATE TRIGGER contract_events_document_scope_insert
+            BEFORE INSERT ON contract_events
+            WHEN NEW.document_id IS NOT NULL AND (
+                NOT EXISTS (SELECT 1 FROM contract_documents WHERE id=NEW.document_id AND contract_id=NEW.contract_id)
+                OR (NEW.type IN ('CONTRACT_SENT','SIGNATURE_RECORDED') AND NOT EXISTS (
+                    SELECT 1 FROM contract_documents WHERE id=NEW.document_id AND contract_id=NEW.contract_id AND document_kind='CONTRACT'
+                ))
+            ) BEGIN SELECT RAISE(ABORT, 'contract event document scope mismatch'); END
+            """,
+            "CREATE TRIGGER contract_events_immutable_update BEFORE UPDATE ON contract_events BEGIN SELECT RAISE(ABORT, 'contract event is immutable'); END",
+            "CREATE TRIGGER contract_events_immutable_delete BEFORE DELETE ON contract_events BEGIN SELECT RAISE(ABORT, 'contract event is immutable'); END",
+            """
+            CREATE TRIGGER contract_signature_required_fields
+            BEFORE INSERT ON contract_events
+            WHEN NEW.type='SIGNATURE_RECORDED' AND (NEW.document_id IS NULL OR NEW.effective_date IS NULL)
+            BEGIN SELECT RAISE(ABORT, 'signature event fields required'); END
+            """,
+            """
+            CREATE TRIGGER contract_activation_required_fields
+            BEFORE INSERT ON contract_events
+            WHEN NEW.type='ACTIVATED' AND (NEW.effective_date IS NULL OR NEW.document_id IS NOT NULL)
+            BEGIN SELECT RAISE(ABORT, 'activation event fields invalid'); END
+            """,
+            """
+            CREATE TRIGGER contract_s8_required_fields
+            BEFORE INSERT ON contract_events
+            WHEN (NEW.type='RENEWAL_CONFIRMED' AND (
+                    NEW.period_start IS NULL OR NEW.period_end IS NULL OR NEW.renewal_annual_ht IS NULL
+                    OR NEW.renewal_vat_rate IS NULL OR NEW.renewal_vat_amount IS NULL OR NEW.renewal_annual_ttc IS NULL
+                    OR NEW.document_id IS NOT NULL))
+              OR (NEW.type='RENEWAL_NOTICE_RECORDED' AND (NEW.effective_date IS NULL OR NEW.period_start IS NULL OR NEW.period_end IS NULL OR NEW.document_id IS NOT NULL))
+              OR (NEW.type='TERMINATION_SCHEDULED' AND (NEW.effective_date IS NULL OR NEW.reason_text IS NULL OR trim(NEW.reason_text)='' OR NEW.document_id IS NOT NULL))
+              OR (NEW.type IN ('TERMINATED','EXPIRED') AND (NEW.effective_date IS NULL OR NEW.document_id IS NOT NULL))
+              OR (NEW.type='ABANDONED' AND NEW.document_id IS NOT NULL)
+            BEGIN SELECT RAISE(ABORT, 'S8 event fields invalid'); END
+            """,
+        ),
+    ),
 )
 
 

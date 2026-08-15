@@ -26,8 +26,17 @@ class ContractDocumentRepository:
         with self.database.connection() as connection:
             connection.row_factory = sqlite3.Row
             rows = connection.execute(
-                "SELECT * FROM contract_documents WHERE contract_id=? ORDER BY revision_index", (contract_id,)
+                "SELECT * FROM contract_documents WHERE contract_id=? ORDER BY revision_index,generated_at_utc,id", (contract_id,)
             ).fetchall()
+            return tuple(_document(row) for row in rows)
+
+    def list_for_contract_kind(self, contract_id: str, kind: DocumentKind) -> tuple[ContractDocument, ...]:
+        with self.database.connection() as connection:
+            connection.row_factory = sqlite3.Row
+            direction="DESC" if kind is DocumentKind.INTERVENTION_SHEET else "ASC"
+            rows=connection.execute(
+                f"SELECT * FROM contract_documents WHERE contract_id=? AND document_kind=? ORDER BY generated_at_utc {direction},id {direction}",
+                (contract_id,kind.value),).fetchall()
             return tuple(_document(row) for row in rows)
 
     def get(self, document_id: str) -> ContractDocument | None:

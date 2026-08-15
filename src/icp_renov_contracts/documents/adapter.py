@@ -58,6 +58,31 @@ def _fields(root):
             if position<len(text):literal=clone(run);set_text(literal,text[position:]);replacements.append(literal)
             index=list(parent).index(run);parent.remove(run)
             for offset,node in enumerate(replacements):parent.insert(index+offset,node)
+def _intervention_optionals(body):
+    technician="{{ intervention.technician }}"
+    for table in body.iter(q(W,"tbl")):
+        for row in list(table):
+            if row.tag==q(W,"tr") and technician in text_of(row):
+                index=list(table).index(row);table.remove(row);table.insert(index,make_sdt("icp:optional:intervention.technician",[row]))
+    pairs={"{{ intervention.notes }}":"intervention.notes","{{ intervention.issues }}":"intervention.issues"}
+    children=list(body);index=0
+    while index<len(children):
+        child=children[index];text=text_of(child)
+        if child.tag==q(W,"p") and text in pairs and index>0 and children[index-1].tag==q(W,"p"):
+            label=children[index-1];field=child;position=list(body).index(label);body.remove(label);body.remove(field)
+            body.insert(position,make_sdt(f"icp:optional:{pairs[text]}",[label,field]));children=list(body);index=max(position-1,0);continue
+        index+=1
+    for paragraph in list(body):
+        if paragraph.tag!=q(W,"p"):continue
+        text=text_of(paragraph);key=next((value for token,value in {
+            "{{ intervention.other }}":"intervention.other",
+            "{{ intervention.quote_recommended }}":"intervention.quote_recommended",
+        }.items() if token in text),None)
+        if key:
+            position=list(body).index(paragraph);body.remove(paragraph);body.insert(position,make_sdt(f"icp:optional:{key}",[paragraph]))
+    for paragraph in list(body):
+        if paragraph.tag==q(W,"p") and text_of(paragraph).strip()=="Observations et anomalies":
+            position=list(body).index(paragraph);body.remove(paragraph);body.insert(position,make_sdt("icp:block:BLOCK_INTERVENTION_DETAILS",[paragraph]))
 def _normalize_layout(root):
     compat=root.find(q(W,"compat"))
     if compat is not None:
@@ -106,7 +131,7 @@ def adapt(source:Path,target:Path)->None:
         if name=="word/document.xml":
             body=root.find(q(W,"body"))
             if body is None:raise ValueError("missing document body")
-            _blocks(body);_tables(body)
+            _blocks(body);_tables(body);_intervention_optionals(body)
         _fields(root)
         if name=="word/document.xml":_layout_repairs(body);_page_breaks(body)
         parts[name]=xml_bytes(root)

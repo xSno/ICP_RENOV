@@ -25,10 +25,12 @@ class TemplateCatalogService:
 
     def create_template(self, functional_name: str, document_kind: str = "CONTRACT",
                         contract_type_code: str = "CLIMATE_MAINTENANCE") -> ContractTemplate:
-        if not functional_name.strip() or not document_kind.strip() or not contract_type_code.strip():
+        kind=document_kind.strip()
+        if not functional_name.strip() or kind not in {"CONTRACT","INTERVENTION_SHEET"}:
             raise ContractValidationError("template metadata")
-        template = ContractTemplate(str(uuid.uuid4()), functional_name.strip(), document_kind.strip(),
-                                    contract_type_code.strip(), _now())
+        type_code=contract_type_code.strip() if kind=="CONTRACT" else ""
+        if kind=="CONTRACT" and not type_code:raise ContractValidationError("template metadata")
+        template = ContractTemplate(str(uuid.uuid4()), functional_name.strip(), kind, type_code, _now())
         self._persist(self.repository.create_template, template)
         return template
 
@@ -37,7 +39,8 @@ class TemplateCatalogService:
                        defaults: TemplateDefaults | None = None,
                        catalogs: TemplateOptionCatalogs | None = None) -> ContractTemplateVersion:
         regimes = tuple(dict.fromkeys(allowed_client_regimes))
-        if not version.strip() or any(value not in {"CONSUMER", "NON_PROFESSIONAL", "PROFESSIONAL"} for value in regimes):
+        if (not version.strip() or any(value not in {"CONSUMER", "NON_PROFESSIONAL", "PROFESSIONAL"} for value in regimes)
+                or (template.document_kind=="INTERVENTION_SHEET" and regimes)):
             raise ContractValidationError("template version metadata")
         metadata = validation or TemplateValidationMetadata()
         if any(regime not in regimes for regime in metadata.conclusion_required_regimes):
@@ -63,7 +66,7 @@ class TemplateCatalogService:
         item = ContractTemplateVersion(
             str(uuid.uuid4()), template.id, template.functional_name, template.contract_type_code,
             version.strip(), status, regimes, metadata, defaults or TemplateDefaults(),
-            option_catalogs, now, now,
+            option_catalogs, now, now, document_kind=template.document_kind,
         )
         self._persist(self.repository.create_version, item)
         return item
@@ -76,16 +79,24 @@ class TemplateCatalogService:
     def list_compatible(self, contract_type_code: str, regime: str) -> list[ContractTemplateVersion]:
         return self.repository.list_versions(contract_type_code, regime, available_only=True)
 
+    def list_available_intervention_sheets(self) -> list[ContractTemplateVersion]:
+        return self.repository.list_versions_by_kind("INTERVENTION_SHEET", available_only=True)
+
     def update_status(self, version_id: str, status: TemplateVersionStatus) -> None:
         self.get_version(version_id)
         self._persist(self.repository.update_status, version_id, status, _now())
 
     def set_generation_metadata(self, version_id: str, source_relpath: str, source_hash: str,
-                                required_company_fields: tuple[str, ...]) -> ContractTemplateVersion:
-        self.get_version(version_id)
+                                required_company_fields: tuple[str, ...],
+                                required_intervention_fields: tuple[str, ...] = ()) -> ContractTemplateVersion:
+        version=self.get_version(version_id)
         fields = tuple(dict.fromkeys(value.strip() for value in required_company_fields if value.strip()))
+        intervention_fields=tuple(dict.fromkeys(value.strip() for value in required_intervention_fields if value.strip()))
+        allowed={"intervention.technician"}
+        if any(value not in allowed for value in intervention_fields) or (version.document_kind!="INTERVENTION_SHEET" and intervention_fields):
+            raise ContractValidationError("intervention requiredness metadata")
         try:
-            self.repository.update_generation_metadata(version_id, source_relpath, source_hash, fields, _now())
+            self.repository.update_generation_metadata(version_id, source_relpath, source_hash, fields, intervention_fields, _now())
         except ValueError as exc:
             raise ContractValidationError("template version is immutable") from exc
         return self.get_version(version_id)

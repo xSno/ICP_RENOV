@@ -4,7 +4,7 @@ from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 from .styles import SPACING
 from .clients_view import ClientsInstallationsView
 from .contracts_view import ContractsView
-from ..services import ContractLifecycleService, ContractService, DocumentGenerationService, MasterDataService, ReviewService
+from ..services import ContractLifecycleService, ContractService, DocumentGenerationService, InterventionSheetGenerationService, MasterDataService, ReviewService
 
 
 class PlaceholderSurface(QWidget):
@@ -31,9 +31,10 @@ class PlaceholderSurface(QWidget):
 
 def build_surfaces(master_data: MasterDataService, contracts: ContractService, review: ReviewService,
                    generation: DocumentGenerationService | None = None,
-                   lifecycle: ContractLifecycleService | None = None) -> dict[str, QWidget]:
+                   lifecycle: ContractLifecycleService | None = None,
+                   interventions: InterventionSheetGenerationService | None = None) -> dict[str, QWidget]:
     return {
-        "Contrats": ContractsView(contracts, review, generation, lifecycle),
+        "Contrats": ContractsView(contracts, review, generation, lifecycle,interventions),
         "Clients & installations": ClientsInstallationsView(master_data),
         "Paramètres": PlaceholderSurface(
             "Paramètres",

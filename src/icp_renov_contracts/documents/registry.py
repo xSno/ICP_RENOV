@@ -32,5 +32,9 @@ def load_registry(path:Path=FIELD_FILE):
                      "pricing.payment_terms","template.audience","document.signed_revision","event.date","legal.tacit_renewal_statutory_text"})
     return fields,blocks,obsolete
 FIELDS,BLOCKS,OBSOLETE_FIELDS=load_registry();LOOPS={"contract.equipment_items"}
-def renderable(key:str)->bool:
-    return key in FIELDS and key not in OBSOLETE_FIELDS and FIELDS[key].requiredness!="INTERNAL" and FIELDS[key].field_type!="enum" and not key.startswith("intervention.") and key!="equipment.internal_notes"
+INTERVENTION_FIELDS=frozenset({"intervention.date","intervention.technician","intervention.other","intervention.notes","intervention.issues","intervention.quote_recommended"})
+SHEET_BLOCKS=frozenset({"BLOCK_OPTIONAL_COMPANY_FIELD","BLOCK_EQUIPMENT_OBSERVATIONS","BLOCK_INTERVENTION_DETAILS"})
+def renderable(key:str,document_kind:str="CONTRACT")->bool:
+    if key not in FIELDS or key in OBSOLETE_FIELDS or FIELDS[key].requiredness=="INTERNAL" or key=="equipment.internal_notes":return False
+    if document_kind=="INTERVENTION_SHEET":return FIELDS[key].field_type!="enum" and (key in INTERVENTION_FIELDS or not key.startswith("intervention."))
+    return FIELDS[key].field_type!="enum" and not key.startswith("intervention.")

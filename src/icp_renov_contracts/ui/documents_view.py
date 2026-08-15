@@ -6,13 +6,14 @@ from decimal import Decimal,InvalidOperation
 from pathlib import Path
 
 from PySide6.QtWidgets import (
-    QComboBox,QDialog,QDialogButtonBox,QFileDialog,QFormLayout,QFrame,QHBoxLayout,QLabel,QLineEdit,
+    QCheckBox,QComboBox,QDialog,QDialogButtonBox,QFileDialog,QFormLayout,QFrame,QHBoxLayout,QLabel,QLineEdit,
     QPlainTextEdit,QPushButton,QVBoxLayout,QWidget,
 )
 
-from ..domain import ContractEventType,ContractStatus,SignedCopyState,standard_end_date
+from ..domain import ContractEventType,ContractStatus,DocumentKind,SignedCopyState,standard_end_date
+from ..documents.validation import DocumentGenerationError
 from ..errors import ApplicationError
-from ..services import ContractLifecycleService,LifecycleProjection
+from ..services import ContractLifecycleService,InterventionInput,InterventionSheetGenerationService,LifecycleProjection
 
 
 def _date_fr(value: str | None, timestamp: bool = False) -> str:
@@ -171,11 +172,38 @@ class AbandonConfirmationDialog(QDialog):
         super().__init__(parent);self.setObjectName("abandonConfirmation");self.setWindowTitle("Abandonner le contrat");root=QVBoxLayout(self);title=QLabel("Abandonner ce contrat ?");title.setObjectName("sectionTitle");root.addWidget(title);text=QLabel("Le contrat deviendra Abandonné. Les révisions et l’historique resteront conservés. Les données Client, Site et Équipement ne seront pas supprimées.");text.setWordWrap(True);root.addWidget(text);buttons=QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel|QDialogButtonBox.StandardButton.Ok);buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("Annuler");buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Abandonner le contrat");buttons.rejected.connect(self.reject);buttons.accepted.connect(self.accept);root.addWidget(buttons)
 
 
+class InterventionSheetDialog(QDialog):
+    def __init__(self,templates,parent=None):
+        super().__init__(parent);self.setObjectName("interventionSheetDialog");self.setWindowTitle("Créer une fiche d’intervention")
+        root=QVBoxLayout(self);title=QLabel("Créer une fiche d’intervention");title.setObjectName("sectionTitle");root.addWidget(title);form=QFormLayout()
+        self.model=QComboBox();self.model.setObjectName("interventionTemplate")
+        for version in templates:self.model.addItem(version.display_name,version.id)
+        self.intervention_date=QLineEdit(date.today().strftime("%d/%m/%Y"));self.intervention_date.setObjectName("interventionDate")
+        self.technician=QLineEdit();self.technician.setObjectName("interventionTechnician");self.other=QLineEdit();self.other.setObjectName("interventionOther")
+        self.notes=QPlainTextEdit();self.notes.setObjectName("interventionNotes");self.notes.setMaximumHeight(90)
+        self.issues=QPlainTextEdit();self.issues.setObjectName("interventionIssues");self.issues.setMaximumHeight(90)
+        self.quote=QCheckBox("Oui");self.quote.setObjectName("interventionQuoteRecommended")
+        form.addRow("Modèle",self.model);form.addRow("Date d’intervention",self.intervention_date);form.addRow("Technicien",self.technician)
+        form.addRow("Autre",self.other);form.addRow("Notes",self.notes);form.addRow("Anomalies / problèmes constatés",self.issues);form.addRow("Devis recommandé",self.quote);root.addLayout(form)
+        self.empty=QLabel("Aucun modèle de fiche d’intervention disponible");self.empty.setObjectName("emptyState");self.empty.setVisible(not templates);root.addWidget(self.empty)
+        self.error=QLabel();self.error.setObjectName("formError");self.error.hide();root.addWidget(self.error)
+        self.buttons=QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel|QDialogButtonBox.StandardButton.Ok)
+        self.buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("Annuler");self.buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Générer la fiche")
+        self.buttons.button(QDialogButtonBox.StandardButton.Ok).setEnabled(bool(templates));self.buttons.rejected.connect(self.reject);self.buttons.accepted.connect(self._accept);root.addWidget(self.buttons)
+    def _accept(self):
+        try:datetime.strptime(self.intervention_date.text().strip(),"%d/%m/%Y")
+        except ValueError:self.error.setText("Renseignez une date d’intervention valide.");self.error.show();return
+        self.accept()
+    def values(self):
+        value=datetime.strptime(self.intervention_date.text().strip(),"%d/%m/%Y").date().isoformat()
+        return self.model.currentData(),InterventionInput(value,self.technician.text(),self.other.text(),self.notes.toPlainText(),self.issues.toPlainText(),self.quote.isChecked())
+
+
 class DocumentsView(QWidget):
     LABELS={ContractEventType.CREATED:"Contrat créé",ContractEventType.DOCUMENT_GENERATED:"Révision générée",
             ContractEventType.CONTRACT_SENT:"Envoi enregistré",ContractEventType.REOPENED_FOR_CORRECTION:"Correction ouverte"}
-    def __init__(self,lifecycle:ContractLifecycleService,changed:Callable[[str,bool],None],open_linked:Callable[[str,str],None]|None=None)->None:
-        super().__init__();self.setObjectName("documentsStep");self.lifecycle=lifecycle;self.changed=changed;self.open_linked=open_linked;self.contract_id=None
+    def __init__(self,lifecycle:ContractLifecycleService,changed:Callable[[str,bool],None],open_linked:Callable[[str,str],None]|None=None,interventions:InterventionSheetGenerationService|None=None)->None:
+        super().__init__();self.setObjectName("documentsStep");self.lifecycle=lifecycle;self.changed=changed;self.open_linked=open_linked;self.interventions=interventions;self.contract_id=None
         self.root=QVBoxLayout(self);self.root.setContentsMargins(0,0,8,0);self.root.setSpacing(12)
 
     def _clear(self)->None:
@@ -190,6 +218,7 @@ class DocumentsView(QWidget):
     def load(self,contract_id:str)->None:
         self.contract_id=contract_id;failures=self.lifecycle.reconcile_lifecycle();self._clear()
         contract=self.lifecycle.contracts.get(contract_id);revisions=self.lifecycle.revisions(contract_id);authority=self.lifecycle.signature_authority(contract_id)
+        sheets=self.lifecycle.documents.list_for_contract_kind(contract_id,DocumentKind.INTERVENTION_SHEET)
         header=QHBoxLayout();words=QVBoxLayout();title=QLabel("Documents & suivi");title.setObjectName("screenTitle");words.addWidget(title)
         words.addWidget(QLabel("Consultez les révisions et enregistrez les actions réellement effectuées."));header.addLayout(words);header.addStretch(1)
         if revisions:
@@ -218,7 +247,7 @@ class DocumentsView(QWidget):
         for index,document in enumerate(revisions):self.root.addWidget(self._revision(document,index==0,authority))
         history_title=QLabel("Historique");history_title.setObjectName("sectionTitle");self.root.addWidget(history_title)
         for event in self.lifecycle.history(contract_id):
-            linked=next((item for item in revisions if item.id==event.document_id),None)
+            linked=next((item for item in (*revisions,*sheets) if item.id==event.document_id),None)
             if event.type is ContractEventType.SIGNATURE_RECORDED:
                 row=QLabel(f"Signature enregistrée · {linked.revision if linked else ''} · {_date_fr(event.effective_date)}")
             elif event.type is ContractEventType.ACTIVATED:
@@ -231,9 +260,9 @@ class DocumentsView(QWidget):
             elif event.type is ContractEventType.EXPIRED:row=QLabel(f"Contrat expiré le {_date_fr(event.effective_date)}")
             elif event.type is ContractEventType.ABANDONED:row=QLabel("Contrat abandonné")
             else:
-                label=self.LABELS.get(event.type)
+                label="Fiche d’intervention générée" if event.type is ContractEventType.DOCUMENT_GENERATED and linked and linked.document_kind is DocumentKind.INTERVENTION_SHEET else self.LABELS.get(event.type)
                 if not label:continue
-                suffix=f" · {linked.revision}" if linked else ""
+                suffix=f" · {linked.revision}" if linked and linked.revision else ""
                 if event.type is ContractEventType.CONTRACT_SENT:suffix+=f" · {_date_fr(event.effective_date)}"
                 row=QLabel(f"{label}{suffix} · {_date_fr(event.occurred_at,True)}")
             row.setObjectName("historyEntry");self.root.addWidget(row)
@@ -241,7 +270,34 @@ class DocumentsView(QWidget):
         if authority and authority.document.signed_pdf_attached_at:
             row=QLabel(f"Copie signée archivée · {authority.document.revision} · {_date_fr(authority.document.signed_pdf_attached_at,True)}")
             row.setObjectName("historyEntry");self.root.addWidget(row)
-        other=QLabel("Autres documents");other.setObjectName("sectionTitle");self.root.addWidget(other);self.root.addWidget(QLabel("Aucun autre document"));self.root.addStretch(1)
+        other_row=QHBoxLayout();other=QLabel("Autres documents");other.setObjectName("sectionTitle");other_row.addWidget(other);other_row.addStretch(1)
+        create=QPushButton("Créer une fiche d’intervention");create.setObjectName("createInterventionSheet");create.setEnabled(self.interventions is not None);create.clicked.connect(self._create_intervention);other_row.addWidget(create);self.root.addLayout(other_row)
+        if not sheets:self.root.addWidget(QLabel("Aucun autre document"))
+        for sheet in sheets:self.root.addWidget(self._intervention_sheet(sheet))
+        self.root.addStretch(1)
+
+    def _intervention_sheet(self,document)->QFrame:
+        card=QFrame();card.setObjectName("interventionSheetCard");layout=QVBoxLayout(card);title=QLabel("Fiche d’intervention");title.setObjectName("sectionTitle");layout.addWidget(title)
+        data=document.snapshot;intervention=data.get("intervention",{});layout.addWidget(QLabel(f"Date d’intervention : {_date_fr(intervention.get('date'))}"))
+        if intervention.get("technician"):layout.addWidget(QLabel(f"Technicien : {intervention['technician']}"))
+        try:version=self.lifecycle.contracts.template_catalog.get_version(document.template_version_id);model=version.display_name
+        except Exception:model="Modèle historique"
+        layout.addWidget(QLabel(f"Générée le : {_date_fr(document.generated_at_utc,True)}"));layout.addWidget(QLabel(f"Modèle : {model}"));actions=QHBoxLayout();missing=False
+        for kind,text,relpath in (("docx","Ouvrir le DOCX",document.docx_relpath),("pdf","Ouvrir le PDF",document.pdf_relpath)):
+            button=QPushButton(text);button.setObjectName("secondaryButton");exists=self.lifecycle.resolve_document_path(relpath) is not None;button.setEnabled(exists);missing=missing or not exists
+            button.clicked.connect(lambda checked=False,did=document.id,k=kind:self._open(did,k));actions.addWidget(button)
+        actions.addStretch(1);layout.addLayout(actions)
+        if missing:warning=QLabel("Un fichier de la fiche d’intervention est introuvable");warning.setObjectName("formError");layout.addWidget(warning)
+        return card
+
+    def _create_intervention(self)->None:
+        if self.interventions is None:return
+        dialog=InterventionSheetDialog(self.interventions.available_templates(),self)
+        if dialog.exec()!=QDialog.DialogCode.Accepted:return
+        version_id,values=dialog.values()
+        try:self.interventions.generate(self.contract_id,version_id,values)
+        except DocumentGenerationError as error:self.changed(error.user_message,True);return
+        self.load(self.contract_id);self.changed("Fiche d’intervention générée.",False)
 
     def _signature_summary(self,authority,status)->QFrame:
         card=QFrame();card.setObjectName("signatureSummary");layout=QVBoxLayout(card)

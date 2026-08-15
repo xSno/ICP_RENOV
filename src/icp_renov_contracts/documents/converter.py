@@ -55,11 +55,13 @@ class LibreOfficeConverter(PdfConverter):
         if self.version() != REQUIRED_LIBREOFFICE_VERSION:
             raise DocumentGenerationError("converter_version", "La conversion PDF n’est pas disponible avec la version installée.")
         pdf.parent.mkdir(parents=True, exist_ok=True)
-        with tempfile.TemporaryDirectory(prefix="icp_lo_profile_", ignore_cleanup_errors=True) as profile_dir:
+        profile_dir = tempfile.mkdtemp(prefix="icp_lo_profile_")
+        try:
             output_dir = docx.parent / f"lo_output_{uuid.uuid4().hex}"
             output_dir.mkdir()
             command = [str(self.executable), f"-env:UserInstallation={Path(profile_dir).resolve().as_uri()}",
-                       "--headless", "--convert-to", "pdf", "--outdir", str(output_dir), str(docx.resolve())]
+                       "--headless", "--norestore", "--nodefault", "--nolockcheck",
+                       "--convert-to", "pdf", "--outdir", str(output_dir), str(docx.resolve())]
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
             try:
@@ -83,3 +85,5 @@ class LibreOfficeConverter(PdfConverter):
             finally:
                 if generated.exists(): generated.unlink()
                 shutil.rmtree(output_dir, ignore_errors=True)
+        finally:
+            shutil.rmtree(profile_dir, ignore_errors=True)

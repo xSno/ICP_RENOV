@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
 
 from ..domain import Contract, ContractStatus, SignedCopyState
 from ..errors import ApplicationError, MasterDataValidationError
-from ..services import ContractLifecycleService, ContractService, DocumentGenerationService, ReviewService
+from ..services import ContractLifecycleService, ContractService, DocumentGenerationService, InterventionSheetGenerationService, ReviewService
 from .master_forms import BaseEditor, ClientEditor, EquipmentEditor, SiteEditor
 from .conditions_view import ConditionsView
 from .review_view import ReviewView
@@ -66,12 +66,14 @@ class ContractsView(QWidget):
 
     def __init__(self, service: ContractService, review_service: ReviewService,
                  generation_service: DocumentGenerationService | None = None,
-                 lifecycle_service: ContractLifecycleService | None = None) -> None:
+                 lifecycle_service: ContractLifecycleService | None = None,
+                 intervention_service: InterventionSheetGenerationService | None = None) -> None:
         super().__init__()
         self.service = service
         self.review_service = review_service
         self.generation_service = generation_service
         self.lifecycle_service = lifecycle_service
+        self.intervention_service = intervention_service
         self.contract_id: str | None = None
         self.active_drawer: QWidget | None = None
         self.setObjectName("contractsView")
@@ -148,7 +150,7 @@ class ContractsView(QWidget):
         self.review_view = ReviewView(self.review_service, self.navigate_step, self.generation_service, self._generation_finished)
         review_scroll = QScrollArea(); review_scroll.setWidgetResizable(True); review_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
         review_scroll.setWidget(self.review_view)
-        self.documents_view = DocumentsView(self.lifecycle_service,self._documents_changed,self._linked_created) if self.lifecycle_service else QWidget()
+        self.documents_view = DocumentsView(self.lifecycle_service,self._documents_changed,self._linked_created,self.intervention_service) if self.lifecycle_service else QWidget()
         documents_scroll=QScrollArea();documents_scroll.setWidgetResizable(True);documents_scroll.setFrameShape(QScrollArea.Shape.NoFrame);documents_scroll.setWidget(self.documents_view)
         self.step_pages.addWidget(scroll); self.step_pages.addWidget(conditions_scroll); self.step_pages.addWidget(review_scroll);self.step_pages.addWidget(documents_scroll)
         layout.addWidget(self.step_pages, 1)
