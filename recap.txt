@@ -1,65 +1,58 @@
-S13 — NUMÉROTATION & ALERTES
+S14 FINAL REAL BACKUP / RESTORE ACCEPTANCE
 
-Migration 12
-- Ajoute les autorités singleton typées numbering_settings et alert_settings.
-- Préserve les migrations 1 à 11 et l’index UNIQUE des Contract.number non nuls.
-- Ne déduit aucune politique depuis les numéros historiques ; un espace déjà numéroté reste non configuré jusqu’au choix explicite de l’utilisateur.
+Implementation status
+- Database schema remains v12; no S14 migration.
+- MachineConfig.backup_directory is optional, backward-compatible, machine-specific, and not a restored business authority.
+- BackupService creates version-1 .icprenovbackup ZIP archives with deterministic UTF-8 manifest, SHA-256 payload entries, online SQLite backup snapshot, staging, self-validation, and atomic publish.
+- RestoreService validates manifest/product/version/hash/size/path safety/database integrity and restores only to a new or empty target through staging; MachineConfig switches only after publication.
+- S10 uses RealBackupSummaryProvider; backup_reminder_days remains global and never changes Contract actions. PQ-09 remains separate/open.
 
-Numérotation
-- Formats V1 fermés : « Préfixe + compteur » et « Préfixe + année + compteur » ; séparateur fixe « - ».
-- Année locale métier sur quatre chiffres (YYYY), fournie par BusinessDateProvider.
-- Largeur contrôlée de 1 à 8 sans troncature ; préfixe vide autorisé.
-- Politique annuelle explicitement choisie : CONTINUOUS ou RESET_ANNUALLY. Le reset annuel sans année est rejeté.
-- Compteur de départ positif explicite ; prochain compteur éditable avant tout numéro officiel, puis affiché en lecture seule.
-- Aperçu calculé, déterministe, non persisté et non consommateur.
-- Collision exacte vérifiée dans l’espace local à l’aperçu, à l’enregistrement, à la correction et de nouveau dans la transaction de publication ; aucun saut automatique.
-- « Corriger le prochain numéro » accepte une valeur positive inférieure si elle est libre, avec avertissement de continuité et effet futur uniquement.
-- Toute modification structurelle après utilisation requiert une confirmation et ne modifie jamais contrats, fichiers, documents, snapshots ou événements existants.
+Real representative fixture
+- Fixture root: C:\Users\xSn\AppData\Local\Temp\icp-renov-s14-final-cm22eohq
+- Source workspace: C:\Users\xSn\AppData\Local\Temp\icp-renov-s14-final-cm22eohq\representative_workspace
+- External backup destination: C:\Users\xSn\AppData\Local\Temp\icp-renov-s14-final-cm22eohq\external_backup
+- Exact archive: C:\Users\xSn\AppData\Local\Temp\icp-renov-s14-final-cm22eohq\external_backup\ICP_RENOV_BACKUP_2026-08-18_08-55-33_62420d24.icprenovbackup
+- Restored workspace: C:\Users\xSn\AppData\Local\Temp\icp-renov-s14-final-cm22eohq\restored_workspace
 
-Allocation de production
-- PersistedContractNumberAllocator remplace l’allocateur de production indisponible tout en conservant l’injection des allocateurs de test.
-- R01 alloue dans la transaction de publication réussie et avance exactement une fois.
-- Un échec de rendu, PDF ou publication ne consomme aucun numéro et ne crée ni R01 ni passage à TO_SIGN.
-- R02+ réutilise le numéro permanent sans consulter ni avancer l’allocateur.
-- INTERVENTION_SHEET reste hors numérotation de contrats.
-- La Revue conserve exactement quatre contrôles de génération et guide vers « Paramètres > Numérotation & alertes » en cas de configuration absente ou de collision.
+Real archive verification
+- Manifest parses; product marker ICP_RENOV_CONTRACTS; backup_format_version 1; source schema 12.
+- 7 payload entries, all unique normalized paths, all sizes/SHA-256 verified; database payload present.
+- No WAL/SHM, cache, tmp or recursive backups entries.
+- SQLite snapshot and restored database: PRAGMA integrity_check = ok.
+- Representative content verified: numbered R01 contract, 2 immutable ContractDocuments (CONTRACT and Intervention Sheet), 3 ContractEvents, governed contract/intervention template sources, CompanySettings, NumberingSettings and AlertSettings in the SQLite payload.
+- Exact Contract number source/restored: S14-2026-0042 / S14-2026-0042.
+- Exact next_counter source/restored: 43 / 43. No inference/recalculation occurred.
+- Source workspace was copied before backup and remains separate from restored target; the archive was not modified after creation.
+- S10 real provider result: Dernière sauvegarde : 18/08/2026 10:55. The configured backup button is backed by create_now; no Contract action/filter state is touched.
 
-Alertes
-- AlertSettings persiste indépendamment default_internal_alert_days, signature_followup_days et backup_reminder_days, chacun désactivable ou réglable de 0 à 3650 jours ; 0 signifie immédiat.
-- Le défaut d’anticipation remplit uniquement une valeur vide d’un nouveau contrat renouvelable, après les valeurs explicites et les défauts gouvernés du modèle ; aucune valeur existante n’est remplacée rétroactivement.
-- La relance de signature est une projection locale fondée sur generated_at_utc de la dernière révision CONTRACT non signée pertinente ; une R02 réinitialise donc l’âge.
-- Le changement de seuil ne crée aucun ContractEvent et le prédicat ACTION partagé conserve l’égalité compteur/filtre.
-- Le seuil de sauvegarde est persisté sans inventer fournisseur, date, succès ou retard de sauvegarde.
-- Les anomalies structurelles restent toujours visibles et ne peuvent pas être masquées par les seuils.
-- Aucun e-mail, SMS, ordonnanceur, service de fond ou notification externe n’est créé.
+Visual fixture profiles
+- Profiles root: C:\Users\xSn\AppData\Local\Temp\icp-renov-s14-final-cm22eohq\profiles
+- A_unconfigured: backup non configurée.
+- B_configured_no_backup: destination configurée/vide, Aucune sauvegarde créée and Sauvegarde à effectuer.
+- C_D_recent_backup: Settings and Contracts banner show real latest backup.
+- E_due_backup: copied workspace with backup_reminder_days=0, showing the global due reminder.
+- F_restore_modal: open any configured fixture, Paramètres > Stockage & sauvegarde > Restaurer une sauvegarde.
+- G_restored: restored workspace.
+
+TESTED copy/paste commands from repository root
+- A: $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\icp-renov-s14-final-cm22eohq\profiles\A_unconfigured'; python -m icp_renov_contracts
+- B: $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\icp-renov-s14-final-cm22eohq\profiles\B_configured_no_backup'; python -m icp_renov_contracts
+- C/D/F: $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\icp-renov-s14-final-cm22eohq\profiles\C_D_recent_backup'; python -m icp_renov_contracts
+- E: $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\icp-renov-s14-final-cm22eohq\profiles\E_due_backup'; python -m icp_renov_contracts
+- G: $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\icp-renov-s14-final-cm22eohq\profiles\G_restored'; python -m icp_renov_contracts
+- Each profile was opened through build_application_context and resolved READY with the intended workspace pointer before handoff.
+
+S14 micro-correction
+- Backup staging cleanup now closes snapshot SQLite handles before final cleanup and removes only the exact .icp-backup-<uuid> attempt directory.
+- Real post-fix backup destination: C:\Users\xSn\AppData\Local\Temp\icp-renov-s14-final-cm22eohq\external_backup
+- Exact post-fix archive: C:\Users\xSn\AppData\Local\Temp\icp-renov-s14-final-cm22eohq\external_backup\ICP_RENOV_BACKUP_2026-08-18_11-16-08_28d4d4d5.icprenovbackup
+- Micro-smoke result: final archive exists; no .icp-backup-* attempt directory remains.
+- Restore UI now identifies a non-empty target explicitly: « Le dossier de restauration doit être vide. Choisissez un nouveau dossier ou un dossier vide. » It never empties that directory.
+- A valid empty target reaches the bounded confirmation modal with Annuler / Restaurer la sauvegarde; cancel performs no restore side effect.
 
 Tests
-- Suite application : 233 tests réussis, 0 échec.
-  Commande : $env:QT_QPA_PLATFORM='offscreen'; python -W error::ResourceWarning -m unittest discover -s tests -v
-- Spike gelé : 38 réussis, 1 intégration Word ignorée, 0 échec.
-  Commande : $env:ICP_SKIP_WORD_INTEGRATION='1'; python -m unittest discover -s spike/tests -v
-- Tests S13 dédiés : migration/non-inférence, formats, largeur, aperçu, rollback, collision, politiques annuelles, correction, R01/R02, défaut contractuel, relance signature et UI Qt hors écran.
+- Final application suite: 236 tests passed.
+- Frozen spike: 38 passed, 1 Word integration skipped, 0 failed.
 
-Smoke réel jetable
-- LibreOffice réel : 26.2.5.2.
-- Service : DocumentGenerationService de production, ProductionDocxRenderer, PersistedCompanyDocumentDataProvider et PersistedContractNumberAllocator.
-- Configuration : PREFIX_YEAR_COUNTER, préfixe SYNTH, largeur 4, CONTINUOUS, départ/prochain 42.
-- Aperçu avant allocation : SYNTH-2026-0042.
-- Résultat : SYNTH-2026-0042, R01, TO_SIGN, paire DOCX+PDF créée.
-- Aperçu suivant : SYNTH-2026-0043.
-
-Fixture visuelle jetable
-- Racine TEMP : C:\Users\xSn\AppData\Local\Temp\icp-renov-s13-fqrogl8c
-- Espace principal : C:\Users\xSn\AppData\Local\Temp\icp-renov-s13-fqrogl8c\C_after_allocation_G_before_followup\workspace
-- États disponibles : A_unconfigured ; B_before_first_allocation ; C_after_allocation_G_before_followup ; E_collision ; H_after_followup ; Annual_reset_alternate.
-- C permet aussi d’ouvrir la modale « Corriger le prochain numéro » et montre le prochain compteur en lecture seule.
-- G utilise relance signature = 7 jours (non échue au jour de génération) ; H utilise 0 jour (échue immédiatement).
-- Commande DEVELOPMENT VISUAL SMOKE exacte :
-  $env:QT_QPA_PLATFORM='windows'; $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\icp-renov-s13-fqrogl8c\C_after_allocation_G_before_followup\launch_profile'; python -m icp_renov_contracts
-
-Clôture
-- PQ-08 est fermé dans la forme bornée S13 : configuration locale explicite, continuité/reset, prochain compteur visible et corrigible, collisions bloquées, aucun renumérotage ni inférence historique.
-- PQ-09 reste ouvert ; aucun import historique n’a été ajouté.
-
-Risques S13 restants
-- Aucun risque fonctionnel S13 connu après les suites et le smoke réel. La fixture est volontairement située dans TEMP et pourra être supprimée par le système.
+Remaining S14 risk
+- No actual remaining S14 data-integrity risk found in this final real archive/restore pass. Fixture data is disposable TEMP content.

@@ -7,11 +7,11 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QButtonGroup, QFileDialog, QFormLayout, QFrame, QHBoxLayout, QLabel,
-    QLineEdit, QPushButton, QScrollArea, QStackedWidget, QVBoxLayout, QWidget,
+    QLineEdit, QMessageBox, QPushButton, QScrollArea, QStackedWidget, QVBoxLayout, QWidget,
 )
 
 from ..domain import CompanySettings
-from ..services import AlertSettingsService, CompanySettingsService, NumberingSettingsService, TemplateCatalogService
+from ..services import AlertSettingsService, BackupError, BackupService, CompanySettingsService, NumberingSettingsService, RestoreError, RestoreService, TemplateCatalogService
 from ..storage import WorkspaceService
 from .models_settings_view import ModelsSettingsPage
 from .numbering_alerts_view import NumberingAlertsSettingsPage
@@ -27,11 +27,13 @@ class CompanySettingsView(QWidget):
     def __init__(self, service: CompanySettingsService, workspaces: WorkspaceService,
                  template_catalog: TemplateCatalogService | None = None,
                  numbering: NumberingSettingsService | None = None,
-                 alerts: AlertSettingsService | None = None) -> None:
+                 alerts: AlertSettingsService | None = None, backup: BackupService | None = None,
+                 restore: RestoreService | None = None) -> None:
         super().__init__()
         self.setObjectName("contentSurface")
         self.service = service
         self.workspaces = workspaces
+        self.backup_service = backup; self.restore_service = restore
         self._fields: dict[str, QLineEdit] = {}
         self._editable: list[QWidget] = []
 
@@ -53,7 +55,8 @@ class CompanySettingsView(QWidget):
         self._indices["Soci\u00e9t\u00e9"] = self.stack.addWidget(self._company_page())
         self._indices["Mod\u00e8les"] = self.stack.addWidget(ModelsSettingsPage(template_catalog) if template_catalog else self._unavailable_page("Mod\u00e8les"))
         self._indices["Numérotation & alertes"] = self.stack.addWidget(NumberingAlertsSettingsPage(numbering, alerts) if numbering and alerts else self._unavailable_page("Numérotation & alertes"))
-        for label in self.SECTION_LABELS[3:]: self._indices[label] = self.stack.addWidget(self._unavailable_page(label))
+        self._indices["Stockage & sauvegarde"] = self.stack.addWidget(self._storage_page() if backup and restore else self._unavailable_page("Stockage & sauvegarde"))
+        self._indices["Diagnostic génération"] = self.stack.addWidget(self._unavailable_page("Diagnostic génération"))
         root.addWidget(self.stack, 1)
         self._show_section("Soci\u00e9t\u00e9")
         self._load()
@@ -102,6 +105,50 @@ class CompanySettingsView(QWidget):
         page = QWidget(); layout = QVBoxLayout(page); layout.setContentsMargins(0, 0, 0, 0)
         heading = QLabel(label); heading.setObjectName("screenTitle"); message = QLabel("Cette section sera disponible dans une prochaine version."); message.setObjectName("screenDescription")
         layout.addWidget(heading); layout.addWidget(message); layout.addStretch(1); return page
+
+    def _storage_page(self) -> QWidget:
+        page=QWidget(); root=QVBoxLayout(page); root.setContentsMargins(0,0,0,0); root.setSpacing(SPACING["md"])
+        title=QLabel("Stockage & sauvegarde"); title.setObjectName("screenTitle"); root.addWidget(title)
+        self.storage_feedback=QLabel(); self.storage_feedback.setWordWrap(True); self.storage_feedback.hide(); root.addWidget(self.storage_feedback)
+        workspace=self._group("Dossier de travail", ()); workspace.layout().addWidget(QLabel(str(self.service.workspace_root)))
+        open_workspace=QPushButton("Ouvrir le dossier"); open_workspace.clicked.connect(lambda: self._open_path(self.service.workspace_root)); workspace.layout().addWidget(open_workspace); root.addWidget(workspace)
+        backup=self._group("Sauvegardes", ()); self.backup_folder=QLabel(); self.backup_latest=QLabel(); self.backup_state=QLabel(); backup.layout().addWidget(self.backup_folder); backup.layout().addWidget(self.backup_latest); backup.layout().addWidget(self.backup_state)
+        actions=QHBoxLayout(); self.choose_backup=QPushButton("Choisir le dossier de sauvegarde"); self.open_backup=QPushButton("Ouvrir le dossier"); self.create_backup=QPushButton("Sauvegarder maintenant"); self.create_backup.setObjectName("primaryButton"); actions.addWidget(self.choose_backup);actions.addWidget(self.open_backup);actions.addWidget(self.create_backup);actions.addStretch(1);backup.layout().addLayout(actions);root.addWidget(backup)
+        restore=self._group("Restauration", ()); note=QLabel("Les sauvegardes contiennent les contrats, documents et paramètres du dossier de travail. Conservez-les dans un emplacement approprié. La restauration crée un nouveau dossier et ne remplace jamais le dossier courant.");note.setWordWrap(True);restore.layout().addWidget(note);self.restore_backup=QPushButton("Restaurer une sauvegarde");restore.layout().addWidget(self.restore_backup);root.addWidget(restore);root.addStretch(1)
+        self.choose_backup.clicked.connect(self._choose_backup);self.open_backup.clicked.connect(lambda:self._open_path(self.backup_service.config_store.load().backup_directory));self.create_backup.clicked.connect(self._create_backup);self.restore_backup.clicked.connect(self._restore_backup);self._refresh_storage();return page
+
+    def _refresh_storage(self):
+        c=self.backup_service.config_store.load();self.backup_folder.setText("Dossier de sauvegarde : " + (str(c.backup_directory) if c.backup_directory else "Non configuré"))
+        from ..services import RealBackupSummaryProvider
+        s=RealBackupSummaryProvider(self.backup_service).summary();self.backup_latest.setText(s.label);self.backup_state.setText(s.reminder);self.open_backup.setVisible(bool(c.backup_directory));self.create_backup.setEnabled(s.can_create_now)
+    def _storage_message(self,text,ok=False):self.storage_feedback.setText(text);self.storage_feedback.setProperty("success",ok);self.storage_feedback.show()
+    def _choose_backup(self):
+        value=QFileDialog.getExistingDirectory(self,"Choisir le dossier de sauvegarde")
+        if not value:return
+        try:self.backup_service.set_destination(Path(value));self._refresh_storage();self._storage_message("Dossier de sauvegarde configuré.",True)
+        except BackupError:self._storage_message("Le dossier de sauvegarde n’est pas accessible en écriture.")
+    def _create_backup(self):
+        try:path=self.backup_service.create_now();self._refresh_storage();self._storage_message(f"Sauvegarde créée : {path.name}",True)
+        except BackupError:self._storage_message("La sauvegarde n’a pas pu être créée. Les données de l’application sont conservées.")
+    def _restore_backup(self):
+        archive,_=QFileDialog.getOpenFileName(self,"Restaurer une sauvegarde","","Sauvegardes ICP Renov (*.icprenovbackup)")
+        if not archive:return
+        target=QFileDialog.getExistingDirectory(self,"Choisir un nouveau dossier de restauration",str(Path(archive).parent.parent))
+        if not target:return
+        target_path=Path(target)
+        if target_path.exists() and any(target_path.iterdir()):
+            self._storage_message("Le dossier de restauration doit être vide. Choisissez un nouveau dossier ou un dossier vide."); return
+        box=QMessageBox(self);box.setWindowTitle("Restaurer la sauvegarde ?")
+        box.setText("Le dossier de travail actuel ne sera pas remplacé. La restauration crée un nouveau dossier ; après succès, il sera utilisé au prochain redémarrage.")
+        cancel=box.addButton("Annuler",QMessageBox.ButtonRole.RejectRole);confirm=box.addButton("Restaurer la sauvegarde",QMessageBox.ButtonRole.AcceptRole);box.exec()
+        if box.clickedButton() is not confirm:return
+        try:self.restore_service.restore(Path(archive),target_path);self._storage_message("Restauration terminée. Redémarrez l’application pour utiliser le dossier restauré.",True)
+        except RestoreError:self._storage_message("La sauvegarde ne peut pas être restaurée. Le dossier courant est conservé.")
+    @staticmethod
+    def _open_path(path):
+        if path:
+            try: __import__("os").startfile(path)
+            except OSError: pass
 
     def _show_section(self, label: str) -> None:
         self.stack.setCurrentIndex(self._indices[label])

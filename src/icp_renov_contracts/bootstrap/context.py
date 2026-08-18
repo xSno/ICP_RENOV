@@ -11,7 +11,7 @@ from ..repositories import (
 )
 from ..documents import (LibreOfficeConverter, NonOfficialModelValidationRunner, PersistedCompanyDocumentDataProvider, ProductionDocxRenderer, TemplateSourceStore,
                          )
-from ..services import AlertSettingsService, CompanySettingsService, ContractLifecycleService, ContractService, DocumentGenerationService, InterventionSheetGenerationService, LocalBusinessDateProvider, MasterDataService, NumberingSettingsService, PersistedContractNumberAllocator, ReviewService, TemplateCatalogService
+from ..services import AlertSettingsService, BackupService, CompanySettingsService, ContractLifecycleService, ContractService, DocumentGenerationService, InterventionSheetGenerationService, LocalBusinessDateProvider, MasterDataService, NumberingSettingsService, PersistedContractNumberAllocator, RealBackupSummaryProvider, ReviewService, RestoreService, TemplateCatalogService
 from ..storage import Workspace, WorkspaceService
 
 
@@ -38,6 +38,8 @@ class ApplicationContext:
     company: CompanySettingsService | None
     numbering: NumberingSettingsService | None
     alerts: AlertSettingsService | None
+    backup: BackupService | None
+    restore: RestoreService
     logger: logging.Logger
 
 
@@ -69,6 +71,8 @@ def build_application_context(
             None,
             None,
             None,
+            None,
+            RestoreService(store),
             application_logger,
         )
 
@@ -88,6 +92,7 @@ def build_application_context(
     )
     date_provider = LocalBusinessDateProvider()
     alerts = AlertSettingsService(AlertSettingsRepository(database))
+    backup = BackupService(database, workspace, store)
     numbering = NumberingSettingsService(NumberingSettingsRepository(database), date_provider)
     contracts = ContractService(
         ContractRepository(database), master_data, ContractConditionsRepository(database), template_catalog, alerts
@@ -129,5 +134,7 @@ def build_application_context(
         company,
         numbering,
         alerts,
+        backup,
+        RestoreService(store),
         application_logger,
     )

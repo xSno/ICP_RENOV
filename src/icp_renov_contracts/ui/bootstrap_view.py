@@ -5,7 +5,7 @@ from .styles import SPACING
 
 
 class BootstrapView(QWidget):
-    def __init__(self) -> None:
+    def __init__(self, restore_action=None) -> None:
         super().__init__()
         self.setObjectName("applicationRoot")
         outer = QVBoxLayout(self)
@@ -32,8 +32,8 @@ class BootstrapView(QWidget):
         self.configure_button.setObjectName("primaryButton")
         self.restore_button = QPushButton("Restaurer une sauvegarde existante")
         self.restore_button.setObjectName("secondaryButton")
-        for button in (self.configure_button, self.restore_button):
-            button.setToolTip("Cette action sera mise en œuvre dans une étape ultérieure.")
+        self.configure_button.setToolTip("Cette action sera mise en œuvre dans une étape ultérieure.")
+        if restore_action: self.restore_button.clicked.connect(restore_action)
         actions.addWidget(self.configure_button)
         actions.addWidget(self.restore_button)
         actions.addStretch(1)

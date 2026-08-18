@@ -14,6 +14,7 @@ CONFIG_VERSION = 1
 @dataclass(frozen=True)
 class BootstrapConfig:
     active_workspace: Path | None = None
+    backup_directory: Path | None = None
 
 
 class MachineConfigStore:
@@ -40,12 +41,16 @@ class MachineConfigStore:
         value = payload.get("active_workspace")
         if value is not None and (not isinstance(value, str) or not value.strip()):
             raise InvalidBootstrapConfigurationError(str(self.path))
-        return BootstrapConfig(Path(value) if value else None)
+        backup = payload.get("backup_directory")
+        if backup is not None and (not isinstance(backup, str) or not backup.strip()):
+            raise InvalidBootstrapConfigurationError(str(self.path))
+        return BootstrapConfig(Path(value) if value else None, Path(backup) if backup else None)
 
     def save(self, config: BootstrapConfig) -> None:
         payload = {
             "version": CONFIG_VERSION,
             "active_workspace": str(config.active_workspace) if config.active_workspace else None,
+            "backup_directory": str(config.backup_directory) if config.backup_directory else None,
         }
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)

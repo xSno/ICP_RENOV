@@ -82,7 +82,7 @@ class MachineConfigTests(unittest.TestCase):
             store.save(BootstrapConfig(workspace_path))
             self.assertEqual(store.load().active_workspace, workspace_path)
             payload = json.loads(config_path.read_text(encoding="utf-8"))
-            self.assertEqual(set(payload), {"version", "active_workspace"})
+            self.assertEqual(set(payload), {"version", "active_workspace", "backup_directory"})
 
     def test_invalid_machine_configuration_is_structured_error(self):
         with scratch() as temporary:

@@ -1,43 +1,24 @@
-FILES CREATED
-- src/icp_renov_contracts/domain/settings.py
-- src/icp_renov_contracts/repositories/settings.py
-- src/icp_renov_contracts/services/settings.py
-- src/icp_renov_contracts/ui/numbering_alerts_view.py
-- tests/test_settings_s13.py
+S14 files created
+- src/icp_renov_contracts/services/backup.py
 
-FILES MODIFIED
+S14 files modified
 - recap.txt
 - diff.txt
 - src/icp_renov_contracts/bootstrap/context.py
-- src/icp_renov_contracts/database/service.py
-- src/icp_renov_contracts/domain/__init__.py
-- src/icp_renov_contracts/errors.py
-- src/icp_renov_contracts/repositories/__init__.py
+- src/icp_renov_contracts/config/machine.py
 - src/icp_renov_contracts/services/__init__.py
-- src/icp_renov_contracts/services/contract_register.py
-- src/icp_renov_contracts/services/contracts.py
-- src/icp_renov_contracts/services/document_generation.py
-- src/icp_renov_contracts/ui/contracts_view.py
+- src/icp_renov_contracts/ui/bootstrap_view.py
 - src/icp_renov_contracts/ui/main_window.py
-- src/icp_renov_contracts/ui/review_view.py
 - src/icp_renov_contracts/ui/settings_view.py
 - src/icp_renov_contracts/ui/shell.py
 - src/icp_renov_contracts/ui/surfaces.py
-- tests/test_company_settings_s11.py
-- tests/test_conditions.py
-- tests/test_contract_events.py
-- tests/test_contracts.py
 - tests/test_foundation.py
-- tests/test_intervention_s9.py
-- tests/test_lifecycle_s8.py
-- tests/test_master_data.py
-- tests/test_model_catalog_s12.py
-- tests/test_signature.py
+- tests/test_backup_s14.py
 
-FILES REMOVED
-- None.
+S14 files removed
+- None
 
-PRESERVED WITHOUT MODIFICATION
+Unmodified authoritative material
 - docs/
 - templates/
 - spike/
