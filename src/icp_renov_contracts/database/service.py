@@ -596,6 +596,85 @@ MIGRATIONS = (
             """,
         ),
     ),
+    Migration(
+        10,
+        (
+            """
+            CREATE TABLE company_settings (
+                singleton INTEGER PRIMARY KEY CHECK (singleton=1), legal_name TEXT NOT NULL DEFAULT '', trade_name TEXT NOT NULL DEFAULT '', legal_form TEXT NOT NULL DEFAULT '', share_capital TEXT NOT NULL DEFAULT '', siren TEXT NOT NULL DEFAULT '', siret TEXT NOT NULL DEFAULT '', registration_summary TEXT NOT NULL DEFAULT '', ape_code TEXT NOT NULL DEFAULT '', address_line1 TEXT NOT NULL DEFAULT '', address_line2 TEXT NOT NULL DEFAULT '', postal_code TEXT NOT NULL DEFAULT '', city TEXT NOT NULL DEFAULT '', country TEXT NOT NULL DEFAULT '', correspondence_address TEXT NOT NULL DEFAULT '', vat_number TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '', signatory_name TEXT NOT NULL DEFAULT '', signatory_role TEXT NOT NULL DEFAULT '', logo_relpath TEXT, logo_hash TEXT, insurer_name TEXT NOT NULL DEFAULT '', insurance_policy_number TEXT NOT NULL DEFAULT '', insurance_scope TEXT NOT NULL DEFAULT '', insurance_valid_until TEXT NOT NULL DEFAULT '', refrigerant_capacity_number TEXT NOT NULL DEFAULT '', refrigerant_capacity_body TEXT NOT NULL DEFAULT '', refrigerant_capacity_until TEXT NOT NULL DEFAULT '', refrigerant_partner_name TEXT NOT NULL DEFAULT '', mediator_name TEXT NOT NULL DEFAULT '', mediator_address TEXT NOT NULL DEFAULT '', mediator_website TEXT NOT NULL DEFAULT '', complaints_contact TEXT NOT NULL DEFAULT '', withdrawal_contact TEXT NOT NULL DEFAULT '', privacy_contact TEXT NOT NULL DEFAULT '', updated_at_utc TEXT NOT NULL
+            )
+            """,
+            """INSERT INTO company_settings(singleton,trade_name,address_line1,postal_code,city,country,phone,email,siret,ape_code,updated_at_utc) VALUES (1,'ICP Renov','1138 boulevard Jean Moulin','83700','Saint-Raphaël','France','06 27 47 33 94','icprenov83@gmail.com','98948879600016','43.22A',CURRENT_TIMESTAMP)""",
+        ),
+    ),
+    Migration(
+        11,
+        (
+            "ALTER TABLE contract_template_versions ADD COLUMN previous_version_id TEXT REFERENCES contract_template_versions(id) ON DELETE RESTRICT",
+            "ALTER TABLE contract_template_versions ADD COLUMN target_client_regimes_json TEXT NOT NULL DEFAULT '[]'",
+            "CREATE INDEX idx_template_versions_previous ON contract_template_versions(previous_version_id) WHERE previous_version_id IS NOT NULL",
+            """
+            CREATE TABLE template_version_validation (
+                version_id TEXT PRIMARY KEY REFERENCES contract_template_versions(id) ON DELETE RESTRICT,
+                structure_status TEXT NOT NULL DEFAULT 'NOT_RUN' CHECK (structure_status IN ('NOT_RUN','PASS','FAIL')),
+                structure_checked_at TEXT,
+                structure_issues_json TEXT NOT NULL DEFAULT '[]',
+                render_status TEXT NOT NULL DEFAULT 'NOT_RUN' CHECK (render_status IN ('NOT_RUN','PASS','FAIL')),
+                render_tested_at TEXT,
+                render_cases_json TEXT NOT NULL DEFAULT '[]',
+                docx_status TEXT NOT NULL DEFAULT 'NOT_RUN' CHECK (docx_status IN ('NOT_RUN','PASS','FAIL')),
+                pdf_status TEXT NOT NULL DEFAULT 'NOT_RUN' CHECK (pdf_status IN ('NOT_RUN','PASS','FAIL')),
+                postflight_status TEXT NOT NULL DEFAULT 'NOT_RUN' CHECK (postflight_status IN ('NOT_RUN','PASS','FAIL')),
+                equipment_coverage_json TEXT NOT NULL DEFAULT '[]',
+                evidence_paths_json TEXT NOT NULL DEFAULT '[]',
+                evidence_hashes_json TEXT NOT NULL DEFAULT '[]',
+                visual_review_status TEXT NOT NULL DEFAULT 'TO_REVIEW' CHECK (visual_review_status IN ('TO_REVIEW','CONFIRMED','NOT_APPLICABLE')),
+                context_review_status TEXT NOT NULL DEFAULT 'TO_REVIEW' CHECK (context_review_status IN ('TO_REVIEW','CONFIRMED','NOT_APPLICABLE')),
+                external_content_status TEXT NOT NULL DEFAULT 'TO_REVIEW' CHECK (external_content_status IN ('NOT_APPLICABLE','TO_REVIEW','CONFIRMED','REJECTED')),
+                external_validator TEXT NOT NULL DEFAULT '',
+                external_validation_date TEXT,
+                external_scope TEXT NOT NULL DEFAULT '',
+                external_reference TEXT NOT NULL DEFAULT '',
+                external_reservations TEXT NOT NULL DEFAULT '',
+                last_validation_at_utc TEXT
+            )
+            """,
+            "INSERT INTO template_version_validation(version_id) SELECT id FROM contract_template_versions",
+            """
+            CREATE TRIGGER template_version_validation_authority_insert
+            AFTER INSERT ON contract_template_versions
+            BEGIN
+                INSERT INTO template_version_validation(version_id) VALUES (NEW.id);
+            END
+            """,
+            """
+            CREATE TABLE template_version_external_gates (
+                version_id TEXT NOT NULL REFERENCES contract_template_versions(id) ON DELETE RESTRICT,
+                gate_code TEXT NOT NULL CHECK (gate_code IN (
+                    'LEGAL_BASE_CONTRACT_TERMS','LEGAL_CLIENT_REGIME_CLASSIFICATION','LEGAL_B2C_CONSUMER_TERMS',
+                    'LEGAL_NON_PROFESSIONAL_TERMS','LEGAL_TACIT_RENEWAL','LEGAL_WITHDRAWAL_INFORMATION',
+                    'LEGAL_WITHDRAWAL_FORM','LEGAL_EARLY_PERFORMANCE_REQUEST','LEGAL_ELECTRONIC_TERMINATION',
+                    'LEGAL_ELECTRONIC_WITHDRAWAL','LEGAL_MEDIATOR','LEGAL_B2B_PAYMENT','LEGAL_B2B_JURISDICTION',
+                    'LEGAL_PRICE_REVISION','LEGAL_REFRIGERANT_SCOPE','LEGAL_INSURANCE_REPRESENTATION',
+                    'LEGAL_PRIVACY_NOTICE','LEGAL_SPECIAL_TERMS_PRIORITY'
+                )),
+                status TEXT NOT NULL CHECK (status IN ('NOT_APPLICABLE','TO_REVIEW','CONFIRMED','REJECTED')),
+                reference TEXT NOT NULL DEFAULT '',
+                updated_at_utc TEXT NOT NULL,
+                PRIMARY KEY(version_id, gate_code)
+            )
+            """,
+            """
+            CREATE TABLE template_version_regime_confirmations (
+                version_id TEXT NOT NULL REFERENCES contract_template_versions(id) ON DELETE RESTRICT,
+                regime TEXT NOT NULL CHECK (regime IN ('CONSUMER','NON_PROFESSIONAL','PROFESSIONAL')),
+                reference TEXT NOT NULL CHECK (trim(reference) != ''),
+                confirmed_at TEXT NOT NULL,
+                PRIMARY KEY(version_id, regime)
+            )
+            """,
+        ),
+    ),
 )
 
 

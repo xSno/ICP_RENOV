@@ -88,7 +88,7 @@ def _render(parent,ctx,equipment,parts,part_name):
             path=Path(str(lookup(ctx,value,equipment))) if lookup(ctx,value,equipment) else None
             if path is None:replace_child(parent,child,[])
             elif not path.is_file():raise DocumentGenerationError("missing_resource","Le document DOCX n’a pas pu être généré.")
-            else:replace_child(parent,child,[image_run(add_image(parts,part_name,path.read_bytes()))])
+            else:replace_child(parent,child,[image_run(add_image(parts,part_name,path.read_bytes(),path.suffix))])
         elif kind=="optional" or kind=="block":
             active=_truthy(lookup(ctx,value,equipment)) if kind=="optional" else _active(*((value.partition("|")[0],value.partition("|")[2],ctx,equipment)))
             if active:_render(content,ctx,equipment,parts,part_name);replace_child(parent,child,list(content))

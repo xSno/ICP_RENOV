@@ -1,24 +1,69 @@
-S10 files created
-- src/icp_renov_contracts/services/contract_register.py
-- tests/test_contract_register_s10.py
+S12 files created
+
+- src/icp_renov_contracts/documents/model_validation.py
+- src/icp_renov_contracts/domain/template_validation.py
+- src/icp_renov_contracts/repositories/template_validation.py
+- src/icp_renov_contracts/ui/models_settings_view.py
+- tests/test_model_catalog_s12.py
+
+S12 files modified
+
+- src/icp_renov_contracts/bootstrap/context.py
+- src/icp_renov_contracts/database/service.py
+- src/icp_renov_contracts/documents/__init__.py
+- src/icp_renov_contracts/documents/source_store.py
+- src/icp_renov_contracts/domain/__init__.py
+- src/icp_renov_contracts/domain/conditions.py
+- src/icp_renov_contracts/repositories/__init__.py
+- src/icp_renov_contracts/repositories/template_catalog.py
+- src/icp_renov_contracts/services/template_catalog.py
+- src/icp_renov_contracts/ui/main_window.py
+- src/icp_renov_contracts/ui/settings_view.py
+- src/icp_renov_contracts/ui/shell.py
+- src/icp_renov_contracts/ui/styles.py
+- src/icp_renov_contracts/ui/surfaces.py
+- tests/test_company_settings_s11.py
+- tests/test_conditions.py
+- tests/test_contract_events.py
+- tests/test_contracts.py
+- tests/test_foundation.py
+- tests/test_intervention_s9.py
+- tests/test_lifecycle_s8.py
+- tests/test_master_data.py
+- tests/test_signature.py
 - recap.txt
 - diff.txt
 
-S10 files modified
-- src/icp_renov_contracts/domain/contract.py
-- src/icp_renov_contracts/repositories/contracts.py
-- src/icp_renov_contracts/services/__init__.py
-- src/icp_renov_contracts/services/review.py
-- src/icp_renov_contracts/ui/contracts_view.py
-- src/icp_renov_contracts/ui/styles.py
-- tests/test_contract_register_s10.py (readability, responsive-width, and Unicode snapshot coverage)
-- recap.txt (S10 final visual-fixture evidence and exact launch command)
-- diff.txt (this final visual-fixture handoff record)
+S12 files removed
 
-S10 files removed
 - None.
 
+Verification
+
+- Application suite: 224 passed, 0 failed.
+- Frozen spike: 38 passed, 1 expected Word integration skip, 0 failed.
+- Real production-path smoke: Contract and Intervention Sheet 1/10/30 validation evidence generated with zero business-row or numbering side effects.
+- Qt catalog/detail visual review passed at 1600, 1366, and 1280 pixels.
+- `git diff --check` passed.
+
 Authoritative material unchanged
+
 - docs/
 - templates/
 - spike/
+
+No commit created. S13 not started.
+
+S12 initial-version value micro-correction
+
+- src/icp_renov_contracts/ui/models_settings_view.py: `Version initiale` remains an editable required field and now offers `1` only as a replaceable suggestion.
+- tests/test_model_catalog_s12.py: bounded Qt and service assertions cover the visible/editable field, literal custom initial versions, different family starting values, per-family duplicate rejection, and absence of global auto-increment or semantic equivalence.
+- recap.txt and diff.txt: corrected the inaccurate “starts at version 1” handoff and recorded the previous/current behavior.
+- Final application test total: 224 passed, 0 failed.
+
+S12 final governance / user-facing micro-pass
+
+- src/icp_renov_contracts/ui/models_settings_view.py: state-specific availability/archive actions; French-first company labels with canonical secondary keys; human-readable contract type; French date/time rendering; and `Annuler` in Ajouter un modèle.
+- src/icp_renov_contracts/ui/styles.py: explicit muted disabled-primary styling using the existing UI color tokens.
+- tests/test_model_catalog_s12.py: Qt regressions for incomplete/ready/available/archived actions, terminal archive behavior, disabled CTA tokens, French company/type/date labels, canonical secondary keys, and the Add Model cancel wording.
+- recap.txt and diff.txt: final governance/UI handoff and 224-test total.

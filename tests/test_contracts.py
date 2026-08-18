@@ -61,9 +61,9 @@ class ContractMigrationTests(unittest.TestCase):
                     connection.execute("INSERT OR REPLACE INTO schema_migrations VALUES (?,?)", (migration.version, "frozen"))
                 connection.execute("PRAGMA user_version=2"); connection.commit()
             database = DatabaseService(path); database.initialize(); database.initialize()
-            self.assertEqual(database.schema_version(), 9)
+            self.assertEqual(database.schema_version(), 11)
             with database.connection() as connection:
-                self.assertEqual(connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0], 9)
+                self.assertEqual(connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0], 11)
                 tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
             self.assertTrue({"contracts", "contract_equipment_items"}.issubset(tables))
 

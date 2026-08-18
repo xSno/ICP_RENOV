@@ -51,6 +51,19 @@ def application_stylesheet() -> str:
         border: 1px solid {COLORS['border']};
         border-radius: {RADII['md']}px;
     }}
+    QFrame#companyGroup {{
+        background: #F7F9FA;
+        border: 1px solid {COLORS['border']};
+        border-radius: {RADII['sm']}px;
+        padding: 10px;
+    }}
+    QPushButton#settingsSection {{
+        color: {COLORS['text']}; background: transparent; border: 0; border-radius: {RADII['sm']}px;
+        padding: 9px 10px; text-align: left;
+    }}
+    QPushButton#settingsSection:checked {{ background: #DDF0EE; color: #0B6758; font-weight: 700; }}
+    QLabel#companyFeedback[success="true"] {{ color: #0B6758; background: #E4F5F0; padding: 10px; border-radius: 6px; }}
+    QLabel#companyFeedback[success="false"] {{ color: #9F2D2D; background: #FCE9E9; padding: 10px; border-radius: 6px; }}
     QFrame#operationalBanner {{
         background: #EEF7F6;
         border: 1px solid #B9DCD8;
@@ -104,6 +117,11 @@ def application_stylesheet() -> str:
         font-weight: 600;
     }}
     QPushButton#primaryButton:hover {{ background: {COLORS['accent_hover']}; }}
+    QPushButton#primaryButton:disabled {{
+        color: {COLORS['muted']};
+        background: {COLORS['border']};
+        border: 1px solid {COLORS['border']};
+    }}
     QPushButton#secondaryButton {{
         color: {COLORS['text']};
         background: white;

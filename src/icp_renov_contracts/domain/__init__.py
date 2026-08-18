@@ -12,6 +12,13 @@ from .contract import (
     ContractRegime, ContractStatus, ContractType, EquipmentSnapshot, SiteSnapshot,
 )
 from .documents import ContractDocument, DocumentKind, SignedCopyState
+from .company import CompanySettings
+from .template_validation import (
+    AvailabilityEvaluation, AvailabilityItem, DEFERRED_EXTERNAL_GATE_CODES,
+    EXTERNAL_GATE_CODES, EXTERNAL_GATE_LABELS, ExternalGateEvidence,
+    ExternalGateStatus, RegimeConfirmation, ReviewEvidenceStatus,
+    TemplateValidationRecord, ValidationCheckStatus,
+)
 from .events import ContractEvent, ContractEventType
 from .conditions import (
     ConclusionMode, ContextAuthorization, ContractConditions, ContractTemplate,
@@ -32,6 +39,11 @@ __all__ = [
     "ContractRegime", "ContractStatus", "ContractType", "EquipmentSnapshot", "SiteSnapshot",
     "ContractEvent", "ContractEventType",
     "ContractDocument", "DocumentKind", "SignedCopyState",
+    "CompanySettings",
+    "AvailabilityEvaluation", "AvailabilityItem", "DEFERRED_EXTERNAL_GATE_CODES",
+    "EXTERNAL_GATE_CODES", "EXTERNAL_GATE_LABELS", "ExternalGateEvidence",
+    "ExternalGateStatus", "RegimeConfirmation", "ReviewEvidenceStatus",
+    "TemplateValidationRecord", "ValidationCheckStatus",
     "ConclusionMode", "ContextAuthorization", "ContractConditions", "ContractTemplate",
     "ContractTemplateVersion", "ControlledOption", "DurationMode", "PaymentTermOption",
     "RefrigerantHandlingMode", "RenewalMode", "RenewalPriceRule", "TemplateDefaults",

@@ -47,7 +47,7 @@ class MigrationEightTests(unittest.TestCase):
                 connection.execute("INSERT INTO contracts(id,status,type_code,created_at_utc,updated_at_utc) VALUES ('p','DRAFT','CLIMATE_MAINTENANCE','x','x')")
                 connection.execute("INSERT INTO contract_conditions(contract_id,updated_at_utc) VALUES ('p','x')")
                 with self.assertRaises(sqlite3.IntegrityError):connection.execute("UPDATE contracts SET predecessor_contract_id='p' WHERE id='p'")
-            self.assertEqual(database.schema_version(),9)
+            self.assertEqual(database.schema_version(),11)
 
 
 class LifecycleS8Tests(GenerationCase):

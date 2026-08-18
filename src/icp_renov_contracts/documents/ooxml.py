@@ -44,17 +44,20 @@ def get_sdt_tag(sdt:ET.Element)->str:
 def replace_child(parent:ET.Element,old:ET.Element,new:list[ET.Element])->None:
     index=list(parent).index(old);parent.remove(old)
     for offset,node in enumerate(new):parent.insert(index+offset,node)
-def add_image(parts:dict[str,bytes],part_name:str,data:bytes)->str:
+def add_image(parts:dict[str,bytes],part_name:str,data:bytes,suffix:str=".png")->str:
     part=Path(part_name);rels=str(part.parent/"_rels"/f"{part.name}.rels").replace("\\","/")
     root=ET.fromstring(parts[rels]) if rels in parts else ET.Element(q(REL,"Relationships")); used={n.get("Id") for n in root}
     number=1
     while f"rIdIcpLogo{number}" in used:number+=1
+    extension={".png":"png",".jpg":"jpg",".jpeg":"jpg"}.get(suffix.lower())
+    if extension is None: raise ValueError("unsupported image")
+    content_type={"png":"image/png","jpg":"image/jpeg"}[extension]
     rid=f"rIdIcpLogo{number}";relation=ET.SubElement(root,q(REL,"Relationship"));relation.set("Id",rid)
-    relation.set("Type","http://schemas.openxmlformats.org/officeDocument/2006/relationships/image");relation.set("Target",f"media/icp_logo_{number}.png")
-    parts[rels]=opc_xml_bytes(root,REL);parts[f"word/media/icp_logo_{number}.png"]=data
+    relation.set("Type","http://schemas.openxmlformats.org/officeDocument/2006/relationships/image");relation.set("Target",f"media/icp_logo_{number}.{extension}")
+    parts[rels]=opc_xml_bytes(root,REL);parts[f"word/media/icp_logo_{number}.{extension}"]=data
     ct=ET.fromstring(parts["[Content_Types].xml"])
-    if not any(item.get("Extension")=="png" for item in ct.findall(q(CT,"Default"))):
-        item=ET.SubElement(ct,q(CT,"Default"));item.set("Extension","png");item.set("ContentType","image/png")
+    if not any(item.get("Extension")==extension for item in ct.findall(q(CT,"Default"))):
+        item=ET.SubElement(ct,q(CT,"Default"));item.set("Extension",extension);item.set("ContentType",content_type)
     parts["[Content_Types].xml"]=opc_xml_bytes(ct,CT);return rid
 def image_run(rid:str)->ET.Element:
     run=ET.Element(q(W,"r"));pict=ET.SubElement(run,q(W,"pict"));shape=ET.SubElement(pict,q(V,"shape"));shape.set("id","icp_logo")

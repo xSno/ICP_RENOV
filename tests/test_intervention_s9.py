@@ -41,7 +41,7 @@ class InterventionCase(GenerationCase):
 class MigrationAndCatalogTests(InterventionCase):
     def test_migration_nine_constraints_and_contract_rules(self):
         with self.context.database.connection() as connection:
-            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0],9)
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0],11)
             columns={row[1]:row for row in connection.execute("PRAGMA table_info(contract_documents)")}
             self.assertEqual(columns["revision_index"][3],0)
         with self.context.database.transaction() as connection:

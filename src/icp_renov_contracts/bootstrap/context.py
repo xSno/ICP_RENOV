@@ -7,11 +7,11 @@ from enum import Enum
 from ..config import BootstrapConfig, MachineConfigStore
 from ..database import DatabaseService
 from ..repositories import (
-    ContractConditionsRepository, ContractDocumentRepository, ContractEventRepository, ContractRepository, MasterDataRepository, TemplateCatalogRepository,
+    CompanySettingsRepository, ContractConditionsRepository, ContractDocumentRepository, ContractEventRepository, ContractRepository, MasterDataRepository, TemplateCatalogRepository, TemplateValidationRepository,
 )
-from ..documents import (LibreOfficeConverter, ProductionDocxRenderer, TemplateSourceStore,
-                         UnavailableCompanyDocumentDataProvider, UnavailableContractNumberAllocator)
-from ..services import ContractLifecycleService, ContractService, DocumentGenerationService, InterventionSheetGenerationService, MasterDataService, ReviewService, TemplateCatalogService
+from ..documents import (LibreOfficeConverter, NonOfficialModelValidationRunner, PersistedCompanyDocumentDataProvider, ProductionDocxRenderer, TemplateSourceStore,
+                         UnavailableContractNumberAllocator)
+from ..services import CompanySettingsService, ContractLifecycleService, ContractService, DocumentGenerationService, InterventionSheetGenerationService, MasterDataService, ReviewService, TemplateCatalogService
 from ..storage import Workspace, WorkspaceService
 
 
@@ -35,6 +35,7 @@ class ApplicationContext:
     generation: DocumentGenerationService | None
     intervention_generation: InterventionSheetGenerationService | None
     lifecycle: ContractLifecycleService | None
+    company: CompanySettingsService | None
     logger: logging.Logger
 
 
@@ -63,6 +64,7 @@ def build_application_context(
             None,
             None,
             None,
+            None,
             application_logger,
         )
 
@@ -70,22 +72,32 @@ def build_application_context(
     database = DatabaseService(workspace.database_path)
     database.initialize()
     master_data = MasterDataService(MasterDataRepository(database))
-    template_catalog = TemplateCatalogService(TemplateCatalogRepository(database))
+    company_repository = CompanySettingsRepository(database)
+    source_store = TemplateSourceStore(workspace.root)
+    renderer = ProductionDocxRenderer()
+    converter = LibreOfficeConverter()
+    company_provider = PersistedCompanyDocumentDataProvider(company_repository, workspace.root)
+    template_catalog = TemplateCatalogService(
+        TemplateCatalogRepository(database), source_store, TemplateValidationRepository(database),
+        validation_runner=NonOfficialModelValidationRunner(workspace.root, renderer, converter, company_provider),
+        company_provider=company_provider,
+    )
     contracts = ContractService(
         ContractRepository(database), master_data, ContractConditionsRepository(database), template_catalog
     )
     review = ReviewService(contracts, workspaces, workspace)
+    company = CompanySettingsService(company_repository, TemplateCatalogRepository(database), workspace.root)
     generation = DocumentGenerationService(
-        database, contracts, ContractDocumentRepository(database), review, TemplateSourceStore(workspace.root),
-        ProductionDocxRenderer(), LibreOfficeConverter(), UnavailableCompanyDocumentDataProvider(),
+        database, contracts, ContractDocumentRepository(database), review, source_store,
+        renderer, converter, company_provider,
         UnavailableContractNumberAllocator(), workspace.root, application_logger,
     )
     lifecycle = ContractLifecycleService(
         database, contracts, ContractDocumentRepository(database), ContractEventRepository(database), workspace.root
     )
     intervention_generation=InterventionSheetGenerationService(
-        database,contracts,ContractDocumentRepository(database),TemplateSourceStore(workspace.root),
-        ProductionDocxRenderer(),LibreOfficeConverter(),UnavailableCompanyDocumentDataProvider(),workspace.root,application_logger,
+        database,contracts,ContractDocumentRepository(database),source_store,
+        renderer,converter,company_provider,workspace.root,application_logger,
     )
     failures = lifecycle.reconcile_due_activations()
     if failures:
@@ -106,5 +118,6 @@ def build_application_context(
         generation,
         intervention_generation,
         lifecycle,
+        company,
         application_logger,
     )

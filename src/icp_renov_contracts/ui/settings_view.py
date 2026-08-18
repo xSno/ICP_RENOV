@@ -1,0 +1,149 @@
+from __future__ import annotations
+
+from dataclasses import replace
+from decimal import Decimal
+from pathlib import Path
+
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QButtonGroup, QFileDialog, QFormLayout, QFrame, QHBoxLayout, QLabel,
+    QLineEdit, QPushButton, QScrollArea, QStackedWidget, QVBoxLayout, QWidget,
+)
+
+from ..domain import CompanySettings
+from ..services import CompanySettingsService, TemplateCatalogService
+from ..storage import WorkspaceService
+from .models_settings_view import ModelsSettingsPage
+from .styles import SPACING
+
+
+class CompanySettingsView(QWidget):
+    """Bounded Settings navigation for the company profile and governed model catalog."""
+
+    title = "Param\u00e8tres"
+    SECTION_LABELS = ("Soci\u00e9t\u00e9", "Mod\u00e8les", "Num\u00e9rotation & alertes", "Stockage & sauvegarde", "Diagnostic g\u00e9n\u00e9ration")
+
+    def __init__(self, service: CompanySettingsService, workspaces: WorkspaceService,
+                 template_catalog: TemplateCatalogService | None = None) -> None:
+        super().__init__()
+        self.setObjectName("contentSurface")
+        self.service = service
+        self.workspaces = workspaces
+        self._fields: dict[str, QLineEdit] = {}
+        self._editable: list[QWidget] = []
+
+        root = QHBoxLayout(self)
+        root.setContentsMargins(SPACING["xl"], SPACING["xl"], SPACING["xl"], SPACING["xl"])
+        root.setSpacing(SPACING["xl"])
+        navigation = QVBoxLayout(); navigation.setSpacing(SPACING["xs"])
+        nav_title = QLabel("Param\u00e8tres"); nav_title.setObjectName("screenTitle"); navigation.addWidget(nav_title)
+        navigation.addSpacing(SPACING["lg"])
+        self._section_buttons: dict[str, QPushButton] = {}
+        group = QButtonGroup(self); group.setExclusive(True)
+        for label in self.SECTION_LABELS:
+            button = QPushButton(label.replace("&", "&&")); button.setObjectName("settingsSection")
+            button.setCheckable(True); button.clicked.connect(lambda checked=False, target=label: self._show_section(target))
+            group.addButton(button); self._section_buttons[label] = button; navigation.addWidget(button)
+        navigation.addStretch(1); root.addLayout(navigation, 0)
+
+        self.stack = QStackedWidget(); self._indices: dict[str, int] = {}
+        self._indices["Soci\u00e9t\u00e9"] = self.stack.addWidget(self._company_page())
+        self._indices["Mod\u00e8les"] = self.stack.addWidget(ModelsSettingsPage(template_catalog) if template_catalog else self._unavailable_page("Mod\u00e8les"))
+        for label in self.SECTION_LABELS[2:]: self._indices[label] = self.stack.addWidget(self._unavailable_page(label))
+        root.addWidget(self.stack, 1)
+        self._show_section("Soci\u00e9t\u00e9")
+        self._load()
+
+    def _company_page(self) -> QWidget:
+        page = QWidget(); root = QVBoxLayout(page); root.setContentsMargins(0, 0, 0, 0); root.setSpacing(SPACING["md"])
+        heading = QLabel("Soci\u00e9t\u00e9"); heading.setObjectName("screenTitle"); root.addWidget(heading)
+        description = QLabel("Ces informations sont r\u00e9utilis\u00e9es dans les futurs documents g\u00e9n\u00e9r\u00e9s. Le profil peut rester partiel\u00a0: les champs vides s\u2019affichent comme \u00ab\u00a0\u00c0 compl\u00e9ter\u00a0\u00bb.")
+        description.setObjectName("screenDescription"); description.setWordWrap(True); root.addWidget(description)
+        self.feedback = QLabel(""); self.feedback.setObjectName("companyFeedback"); self.feedback.setWordWrap(True); self.feedback.hide(); root.addWidget(self.feedback)
+        scroll = QScrollArea(); scroll.setWidgetResizable(True); body = QWidget(); layout = QVBoxLayout(body); layout.setContentsMargins(0, 0, 0, 0); layout.setSpacing(SPACING["md"])
+        identity = self._group("Identit\u00e9", (
+            ("legal_name", "Raison sociale"), ("trade_name", "Nom commercial"), ("legal_form", "Forme juridique"), ("share_capital", "Capital social"),
+            ("siren", "SIREN"), ("siret", "SIRET"), ("registration_summary", "Immatriculation / registre"), ("ape_code", "Code APE / NAF"),
+            ("address_line1", "Adresse"), ("address_line2", "Compl\u00e9ment d\u2019adresse"), ("postal_code", "Code postal"), ("city", "Ville"), ("country", "Pays"),
+            ("correspondence_address", "Adresse de correspondance"), ("vat_number", "N\u00b0 TVA intracommunautaire"),
+        )); self._append_logo_controls(identity); layout.addWidget(identity)
+        layout.addWidget(self._group("Contacts / signataire", (("phone", "T\u00e9l\u00e9phone"), ("email", "E-mail"), ("signatory_name", "Nom du signataire par d\u00e9faut"), ("signatory_role", "Fonction / qualit\u00e9 du signataire"))))
+        layout.addWidget(self._group("Assurance", (("insurer_name", "Assureur"), ("insurance_policy_number", "N\u00b0 de police"), ("insurance_scope", "P\u00e9rim\u00e8tre / couverture"), ("insurance_valid_until", "Valable jusqu\u2019au"))))
+        layout.addWidget(self._group("Fluides frigorig\u00e8nes", (("refrigerant_capacity_number", "N\u00b0 d\u2019attestation / capacit\u00e9"), ("refrigerant_capacity_body", "Organisme"), ("refrigerant_capacity_until", "Valable jusqu\u2019au"), ("refrigerant_partner_name", "Partenaire fluides"))))
+        layout.addWidget(self._group("Informations consommateur", (
+            ("mediator_name", "M\u00e9diateur"), ("mediator_address", "Adresse du m\u00e9diateur"), ("mediator_website", "Site du m\u00e9diateur"),
+            ("complaints_contact", "Contact r\u00e9clamations"), ("withdrawal_contact", "Contact r\u00e9tractation"), ("privacy_contact", "Contact protection des donn\u00e9es"),
+        )))
+        footer = QHBoxLayout(); footer.addStretch(1); self.save_button = QPushButton("Enregistrer"); self.save_button.setObjectName("primaryButton"); self.save_button.clicked.connect(self._save); self._editable.append(self.save_button); footer.addWidget(self.save_button); layout.addLayout(footer)
+        layout.addStretch(1); scroll.setWidget(body); root.addWidget(scroll, 1)
+        return page
+
+    def _group(self, title: str, rows: tuple[tuple[str, str], ...]) -> QFrame:
+        frame = QFrame(); frame.setObjectName("companyGroup"); layout = QVBoxLayout(frame); heading = QLabel(title); heading.setObjectName("sectionTitle"); layout.addWidget(heading)
+        form = QFormLayout(); form.setSpacing(SPACING["sm"])
+        required = self.service.required_fields()
+        for key, label in rows:
+            field = QLineEdit(); field.setObjectName(f"company_{key}"); field.setPlaceholderText("\u00c0 compl\u00e9ter"); self._fields[key] = field; self._editable.append(field)
+            form.addRow(QLabel(label + (" \u00b7 Requis par les mod\u00e8les utilis\u00e9s" if key in required else "")), field)
+        layout.addLayout(form); return frame
+
+    def _append_logo_controls(self, frame: QFrame) -> None:
+        layout = frame.layout(); heading = QLabel("Logo"); heading.setObjectName("sectionTitle"); layout.addWidget(heading)
+        self.logo_status = QLabel(""); self.logo_status.setObjectName("screenDescription"); self.logo_status.setWordWrap(True); layout.addWidget(self.logo_status)
+        actions = QHBoxLayout(); self.import_logo_button = QPushButton("Choisir un logo"); self.import_logo_button.setObjectName("secondaryButton"); self.import_logo_button.clicked.connect(self._choose_logo); self._editable.append(self.import_logo_button)
+        self.remove_logo_button = QPushButton("Retirer le logo"); self.remove_logo_button.setObjectName("secondaryButton"); self.remove_logo_button.clicked.connect(self._remove_logo); self._editable.append(self.remove_logo_button)
+        actions.addWidget(self.import_logo_button); actions.addWidget(self.remove_logo_button); actions.addStretch(1); layout.addLayout(actions); return frame
+
+    def _unavailable_page(self, label: str) -> QWidget:
+        page = QWidget(); layout = QVBoxLayout(page); layout.setContentsMargins(0, 0, 0, 0)
+        heading = QLabel(label); heading.setObjectName("screenTitle"); message = QLabel("Cette section sera disponible dans une prochaine version."); message.setObjectName("screenDescription")
+        layout.addWidget(heading); layout.addWidget(message); layout.addStretch(1); return page
+
+    def _show_section(self, label: str) -> None:
+        self.stack.setCurrentIndex(self._indices[label])
+        for name, button in self._section_buttons.items(): button.setChecked(name == label)
+
+    def _load(self) -> None:
+        self.current = self.service.get()
+        for key, field in self._fields.items(): field.setText(self._display_value(key, getattr(self.current, key)))
+        self._set_logo_status(); inspection = self.workspaces.inspect(self.service.workspace_root)
+        if not inspection.writable:
+            for widget in self._editable: widget.setEnabled(False)
+            self._feedback("Espace de travail en lecture seule\u00a0: les informations soci\u00e9t\u00e9 ne peuvent pas \u00eatre modifi\u00e9es.", False)
+
+    def _set_logo_status(self) -> None:
+        if not self.current.logo_relpath: self.logo_status.setText("Aucun logo enregistr\u00e9.")
+        elif self.service.logo_integrity(): self.logo_status.setText("Logo enregistr\u00e9 et int\u00e8gre.")
+        else: self.logo_status.setText("Le logo enregistr\u00e9 est introuvable ou alt\u00e9r\u00e9.")
+        configured = bool(self.current.logo_relpath)
+        self.remove_logo_button.setVisible(configured)
+        self.remove_logo_button.setEnabled(configured)
+
+    def _choose_logo(self) -> None:
+        filename, _ = QFileDialog.getOpenFileName(self, "Choisir un logo", "", "Images PNG ou JPEG (*.png *.jpg *.jpeg)")
+        if not filename: return
+        try: self.current = self.service.import_logo(Path(filename)); self._set_logo_status(); self._feedback("Logo enregistr\u00e9.", True)
+        except (OSError, ValueError): self._feedback("Le logo doit \u00eatre un fichier PNG ou JPEG valide.", False)
+
+    def _remove_logo(self) -> None:
+        try: self.current = self.service.remove_logo(); self._set_logo_status(); self._feedback("Logo supprim\u00e9.", True)
+        except OSError: self._feedback("Le logo n\u2019a pas pu \u00eatre supprim\u00e9.", False)
+
+    def _save(self) -> None:
+        values = {key: field.text() for key, field in self._fields.items()}
+        try:
+            self.current = self.service.save(replace(self.current, **values)); self._load(); self._feedback("Informations soci\u00e9t\u00e9 enregistr\u00e9es.", True)
+        except (OSError, ValueError):
+            self._feedback("Les informations soci\u00e9t\u00e9 n\u2019ont pas pu \u00eatre enregistr\u00e9es. Les valeurs pr\u00e9c\u00e9demment enregistr\u00e9es sont conserv\u00e9es.", False)
+
+    def _feedback(self, message: str, success: bool) -> None:
+        self.feedback.setText(message); self.feedback.setProperty("success", success); self.feedback.show()
+
+    @staticmethod
+    def _display_value(key: str, value: str | Decimal | None) -> str:
+        if key == "share_capital" and isinstance(value, Decimal): return format(value, "f").replace(".", ",")
+        if value is None: return ""
+        value = str(value)
+        if key == "siren" and len(value) == 9 and value.isdigit(): return f"{value[:3]} {value[3:6]} {value[6:]}"
+        if key == "siret" and len(value) == 14 and value.isdigit(): return f"{value[:3]} {value[3:6]} {value[6:9]} {value[9:]}"
+        return value

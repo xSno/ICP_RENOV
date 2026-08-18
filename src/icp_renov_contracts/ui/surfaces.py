@@ -4,7 +4,8 @@ from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 from .styles import SPACING
 from .clients_view import ClientsInstallationsView
 from .contracts_view import ContractsView
-from ..services import ContractLifecycleService, ContractService, DocumentGenerationService, InterventionSheetGenerationService, MasterDataService, ReviewService
+from .settings_view import CompanySettingsView
+from ..services import CompanySettingsService, ContractLifecycleService, ContractService, DocumentGenerationService, InterventionSheetGenerationService, MasterDataService, ReviewService, TemplateCatalogService
 
 
 class PlaceholderSurface(QWidget):
@@ -32,12 +33,13 @@ class PlaceholderSurface(QWidget):
 def build_surfaces(master_data: MasterDataService, contracts: ContractService, review: ReviewService,
                    generation: DocumentGenerationService | None = None,
                    lifecycle: ContractLifecycleService | None = None,
-                   interventions: InterventionSheetGenerationService | None = None) -> dict[str, QWidget]:
+                   interventions: InterventionSheetGenerationService | None = None,
+                   company: CompanySettingsService | None = None,
+                   template_catalog: TemplateCatalogService | None = None) -> dict[str, QWidget]:
     return {
         "Contrats": ContractsView(contracts, review, generation, lifecycle,interventions),
         "Clients & installations": ClientsInstallationsView(master_data),
-        "Paramètres": PlaceholderSurface(
-            "Paramètres",
-            "Configurez ultérieurement la société, les modèles, la numérotation et le stockage local.",
+        "Param\u00e8tres": CompanySettingsView(company, review.workspace_service, template_catalog) if company else PlaceholderSurface(
+            "Param\u00e8tres", "Les param\u00e8tres soci\u00e9t\u00e9 ne sont pas disponibles dans ce contexte.",
         ),
     }

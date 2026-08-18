@@ -15,7 +15,7 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(980, 640)
         self.setStyleSheet(application_stylesheet())
         if context.state is ApplicationState.READY:
-            self.shell: ApplicationShell | None = ApplicationShell(context.master_data, context.contracts, context.review, context.generation, context.lifecycle,context.intervention_generation)
+            self.shell: ApplicationShell | None = ApplicationShell(context.master_data, context.contracts, context.review, context.generation, context.lifecycle,context.intervention_generation,context.company,context.template_catalog)
             self.bootstrap_view: BootstrapView | None = None
             self.setCentralWidget(self.shell)
         else:

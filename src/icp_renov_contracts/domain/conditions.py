@@ -169,6 +169,8 @@ class ContractTemplateVersion:
     required_company_fields: tuple[str, ...] = ()
     document_kind: str = "CONTRACT"
     required_intervention_fields: tuple[str, ...] = ()
+    previous_version_id: str | None = None
+    target_client_regimes: tuple[str, ...] = ()
 
     @property
     def display_name(self) -> str:

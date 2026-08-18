@@ -1,25 +1,39 @@
-S10 — OPERATIONAL CONTRACT REGISTER / HOME
+S12 — SETTINGS / MODEL CATALOG, VERSIONING AND AVAILABILITY
 
-- Schema remains at v9; no migration or persisted register/signal data was added.
-- `ContractRegisterService` is the read-only operational projection. It reconciles the already accepted lifecycle first, then derives rows from Contracts, Contract snapshots, CONTRACT documents, signature authority, document state, and lifecycle projections.
-- Client/site display and search use Contract snapshots only. Search is case-insensitive, Unicode-normalised, and limited to contract number, client snapshot, and site snapshot.
-- Visible filters are frozen to Tous, Actions à traiter, Brouillons, Actifs, and Terminés. The banner counter and Actions filter call the same projection predicate and count unique Contracts.
-- Signals are typed ACTION, INFORMATION, or NONE. Action priority is document integrity, draft completion, signature, tacit renewal, then manual renewal. Information never enters Actions.
-- Exact authoritative statuses remain Brouillon, À signer, Signé, Actif, Résilié, Expiré, and Abandonné. Échéance uses proposed conditions for DRAFT/TO_SIGN and signed-authority lifecycle dates for concluded/terminal Contracts.
-- Document summaries only inspect CONTRACT documents: Aucun document, latest unsigned Rxx, exact signed revision from SIGNATURE_RECORDED, and Copie signée only when valid. R01 signed plus R02 latest remains `R02 · non signé` / `R01 · signé`; intervention sheets never become revisions.
-- The table opens rows by mouse or Enter with visible focus. Return preserves session search/filter while refreshing projections. Consultation/search/filter/opening creates no register events.
-- A truthful writable-workspace notice disables Nouveau contrat while retaining readable rows. No safe relink path existed to reuse, so S10 does not fake one.
-- Backup is a small provider boundary only. Production displays `Sauvegarde non configurée`; creation remains disabled without a real provider. Fake providers may enable create_now in tests.
-- Tests: `QT_QPA_PLATFORM=offscreen; python -W error::ResourceWarning -m unittest discover -s tests -v` → 199 passed.
-- Frozen spike: `ICP_SKIP_WORD_INTEGRATION=1; python -m unittest discover -s spike/tests -v` → 38 passed, 1 expected Word skip, 0 failed.
-- Table readability correction: the register now gives the Action ou information column the remaining desktop width, wraps its explicit semantic prefix/label, resizes rows to their multi-line content, and retains a 200 px Documents column at 1600/1366. At 1280, Documents collapses while Status, Échéance, and the readable operational signal remain visible; normal horizontal scrolling is disabled.
-- The difficult document state is now visibly rendered as two/three lines: `R02 · non signé`, `R01 · signé`, and (when valid) `Copie signée`.
-- Unicode diagnosis: production snapshot persistence/projection was already UTF-8-safe. The question marks came from the prior PowerShell inline fixture transport. The replacement fixture uses ASCII transport with Python Unicode escapes and visibly persists labels such as `K — Autorité difficile` unchanged.
-- Backup confirmation: production fixture state remains `Sauvegarde non configurée`; `Sauvegarder maintenant` was verified disabled and produces no success state.
-- Final disposable visual-fixture root: `C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S10_VISUAL_20260815_V2`.
-- Prepared workspace: `C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S10_VISUAL_20260815_V2\workspace`. It contains 11 Contracts: A–J plus K for the difficult `R01 · signé` / `R02 · non signé` document-authority state.
-- Register-derived fixture counts: total Contracts = 11; Expected “Actions à traiter” counter: 5; information-only Contracts = 6. The same ContractRegisterService result returns 5 rows for `Actions à traiter`.
-- Manual Qt smoke completed against the prepared workspace: number/client/site search, Tous, Actions à traiter, Brouillons, Actifs, Terminés, empty-result state, mouse row opening, Enter row opening, and search preservation after return. At 1600/1366 the full action/information text and difficult Documents state are visible; at 1280 Documents is intentionally collapsed while status/action text remains visible.
-- Exact PowerShell development visual smoke command (run from repository root; it intentionally switches the local active-workspace pointer to this disposable fixture):
-  `python -c "from pathlib import Path; from icp_renov_contracts.config import BootstrapConfig, MachineConfigStore; MachineConfigStore().save(BootstrapConfig(Path(r'C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S10_VISUAL_20260815_V2\workspace')))"; python -m icp_renov_contracts`
-- Remaining S10 risks only: a full backup/restore engine and a safe workspace relink flow remain intentionally out of scope; no fake success state is shown.
+- Migration 11 adds durable model-version validation, controlled external-gate evidence, explicit regime confirmations, version lineage, and target-regime storage. Migrations 1–10 are unchanged; migration 10 data is preserved and every existing/new version has exactly one validation authority row.
+- The Models settings section is now functional. Its catalog columns are exactly: Modèle, Régime confirmé, Version, État, Dernière utilisation, Actions. Visible states remain the closed set À valider, Disponible, Archivé; the empty state and 1280/1366/1600 layouts were verified without horizontal scrolling.
+- Ajouter un modèle and Nouvelle version are distinct atomic flows. Ajouter un modèle visibly exposes the required editable `Version initiale` value; `1` is only an editable suggestion and may be replaced before creation. The trimmed confirmed text is persisted literally (`1`, `1.0`, `V1`, and `2026.1` remain distinct), with no global sequence, equivalence, or auto-increment policy. A new version stays in the same family, requires its own explicit value unique only within that family, records its predecessor, and resets validation evidence, confirmed regimes, and sensitive-context review.
+- DOCX source import validates a real readable non-empty OOXML package, copies it into the workspace, records SHA-256, leaves the external source untouched, and cleans up atomically on failure. Missing or hash-mismatched sources keep the integrity warning and may be restored only from matching content.
+- Target regimes and confirmed regimes are intentionally distinct. Contract versions start with zero confirmed regimes and require explicit confirmation for each supported regime; Intervention Sheet regime is explicitly non-applicable. No regime equivalence is inferred.
+- Required company fields and intervention fields are controlled, version-specific metadata. Sensitive contract contexts are reviewed separately for the three bounded blocks and closed conclusion modes; early-performance context requires withdrawal handling.
+- External validation uses closed gate codes and the exact statuses NOT_APPLICABLE, TO_REVIEW, CONFIRMED, REJECTED. Deferred indexation was not introduced. Rejected or pending applicable evidence blocks availability, and the UI states clearly that the application does not provide legal certification.
+- Structural control uses the production adapter and deep preflight, including unknown-placeholder and wrong-kind detection. Non-official validation uses the production renderer/converter in an isolated validation area, creates 1/10/30-item variants when an equipment loop exists, and never creates contracts, contract documents, contract events, or production numbering.
+- Visual review is explicit and durable. The centralized availability checklist is freshly recomputed and requires source integrity, structural pass, render/conversion pass, visual confirmation, required external evidence, explicit regime confirmation where applicable, and complete sensitive-context review.
+- Rendre disponible is an explicit confirmed transition. Available and archived versions are immutable; an available version is never silently demoted by later checks. Archiving is terminal and removes the version from future production selection while preserving historical drafts/documents and derived last-use information. There is no delete action.
+- Existing production selection remains exact by document type and confirmed client regime. Contract and Intervention Sheet integrations were exercised before and after archive; an already referenced historical version remains readable.
+- Application tests: `QT_QPA_PLATFORM=offscreen; python -W error::ResourceWarning -m unittest discover -s tests -v` → 224 passed, 0 failed.
+- Frozen spike: `ICP_SKIP_WORD_INTEGRATION=1; python -m unittest discover -s spike/tests -v` → 38 passed, 1 expected Word integration skip, 0 failed.
+- Real S12 smoke used LibreOffice 26.2.5.2 through the production conversion path. Contract and Intervention Sheet validations rendered actual 1/10/30-item evidence. Before and after real validation, counts remained exactly zero for contracts, contract_documents, and contract_events; no business number or Rxx was allocated.
+- Visual fixture root: `C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S12_VISUAL_20260817_V1`.
+- Prepared workspace: `C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S12_VISUAL_20260817_V1\workspace`.
+- Exact PowerShell development smoke command, run from the repository root (it intentionally points the normal local configuration at the disposable fixture):
+  `python -c "from pathlib import Path; from icp_renov_contracts.config import BootstrapConfig, MachineConfigStore; MachineConfigStore().save(BootstrapConfig(Path(r'C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S12_VISUAL_20260817_V1\workspace')))"; python -m icp_renov_contracts`
+- Expected fixture rows: A — Source importée, contrôles à lancer (À valider, zero confirmed); B — Technique conforme, externe en attente (À valider); C — Prête à rendre disponible (À valider, availability complete, action enabled); D — Disponible après validation réelle (Disponible, consumer, read-only); E — Historique archivé (Archivé, last use populated); F — Fiche intervention synthétique (Archivé after real availability/integration); G — Anomalie source distincte (À valider, missing-source warning, state unchanged).
+- Remaining risks only: PQ-05, PQ-08 and PQ-09 require real production/external validation. Backup, numbering, diagnostics, packaging, and later Settings/Models work remain out of scope.
+
+No commit was created. S13 was not started.
+
+S12 initial-version micro-correction
+
+- Before this correction, `1` was neither a forced value nor an editable default: the dialog already had a visible editable required `Version initiale` field, but it started empty, and the service persisted the explicit trimmed input. The earlier handoff sentence saying every family started at version `1` was incorrect.
+- The field now suggests `1` as an editable default. Custom initial values persist literally after surrounding-whitespace trimming; version uniqueness remains scoped to one family, and no global numbering or semantic equivalence was added.
+- Final application test total: 224 passed, 0 failed.
+
+S12 final governance / user-facing micro-pass
+
+- Version actions now follow the state exactly: an incomplete À valider version shows disabled `Rendre disponible` plus `Archiver`; a ready À valider version enables `Rendre disponible` and keeps `Archiver`; a Disponible version omits `Rendre disponible` but keeps `Archiver`; an Archivé version exposes neither action and remains read-only. No restore, reactivate, or Archivé → Disponible path was added.
+- The disabled primary action uses the existing muted/border color tokens instead of the active teal treatment, so blocked and ready states are visually distinct. Fixture C remains the only ready À valider example.
+- Données requises now presents the S11 French business vocabulary first, followed by the canonical `company.*` key in parentheses and the unchanged présent/manquant state. Canonical keys, checkboxes, persistence, and version-specific requiredness are unchanged.
+- Contract type is displayed as `Entretien de climatisation (CLIMATE_MAINTENANCE)`. Detail import, validation, and last-use timestamps—and catalog last use—use deterministic French `JJ/MM/AAAA` or `JJ/MM/AAAA HH:MM` presentation without changing persisted timestamps.
+- Ajouter un modèle now displays `Annuler`; `Version initiale` remains required, editable, and suggested as replaceable `1`.
+- Final application test total: 224 passed, 0 failed.
