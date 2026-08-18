@@ -20,6 +20,7 @@ from ..errors import (
 from ..repositories import ContractConditionsRepository, ContractRepository
 from .master_data import MasterDataService
 from .template_catalog import TemplateCatalogService
+from .settings import AlertSettingsService
 
 
 def _now() -> str:
@@ -29,11 +30,13 @@ def _now() -> str:
 class ContractService:
     def __init__(self, repository: ContractRepository, master_data: MasterDataService,
                  conditions_repository: ContractConditionsRepository | None = None,
-                 template_catalog: TemplateCatalogService | None = None) -> None:
+                 template_catalog: TemplateCatalogService | None = None,
+                 alert_settings: AlertSettingsService | None = None) -> None:
         self.repository = repository
         self.master_data = master_data
         self.conditions_repository = conditions_repository
         self.template_catalog = template_catalog
+        self.alert_settings = alert_settings
 
     def create_draft(self) -> Contract:
         contract_id = str(uuid.uuid4()); now = _now()
@@ -94,6 +97,11 @@ class ContractService:
                 contract.regime.value not in version.allowed_client_regimes):
             raise ContractValidationError("incompatible template version")
         conditions = self.get_conditions(contract_id).with_empty_defaults(version.defaults)
+        if (conditions.renewal_mode not in (None, RenewalMode.NONE.value)
+                and conditions.internal_alert_days is None and self.alert_settings is not None):
+            default_days = self.alert_settings.get().default_internal_alert_days
+            if default_days is not None:
+                conditions = ContractConditions(**{**asdict(conditions), "internal_alert_days": default_days})
         conditions = self._normalize_context(conditions, contract.regime.value, version, strict=False)
         conditions = self._validate_conditions(conditions, version)
         self._persist(self.conditions_repository.select_template, contract_id, version.template_id,
@@ -104,6 +112,11 @@ class ContractService:
         contract = self._editable(contract_id)
         version = self.selected_template_version(contract_id)
         regime = contract.regime.value if contract.regime else None
+        if (conditions.renewal_mode not in (None, RenewalMode.NONE.value)
+                and conditions.internal_alert_days in (None, "") and self.alert_settings is not None):
+            default_days = self.alert_settings.get().default_internal_alert_days
+            if default_days is not None:
+                conditions = ContractConditions(**{**asdict(conditions), "internal_alert_days": default_days})
         normalized = self._normalize_context(conditions, regime, version, strict=True)
         normalized = self._validate_conditions(normalized, version)
         self._persist(self.conditions_repository.save, contract_id, normalized, _now())

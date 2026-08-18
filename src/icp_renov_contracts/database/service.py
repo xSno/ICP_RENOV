@@ -675,6 +675,38 @@ MIGRATIONS = (
             """,
         ),
     ),
+    Migration(
+        12,
+        (
+            """
+            CREATE TABLE numbering_settings (
+                singleton INTEGER PRIMARY KEY CHECK (singleton=1),
+                format_mode TEXT NOT NULL CHECK (format_mode IN ('PREFIX_COUNTER','PREFIX_YEAR_COUNTER')),
+                prefix TEXT NOT NULL,
+                counter_width INTEGER NOT NULL CHECK (counter_width BETWEEN 1 AND 8),
+                annual_policy TEXT NOT NULL CHECK (annual_policy IN ('CONTINUOUS','RESET_ANNUALLY')),
+                series_start_counter INTEGER NOT NULL CHECK (series_start_counter >= 1),
+                next_counter INTEGER NOT NULL CHECK (next_counter >= 1),
+                counter_year INTEGER,
+                configured_at_utc TEXT NOT NULL,
+                updated_at_utc TEXT NOT NULL,
+                CHECK (annual_policy != 'RESET_ANNUALLY' OR format_mode='PREFIX_YEAR_COUNTER'),
+                CHECK (counter_year IS NULL OR counter_year BETWEEN 1 AND 9999)
+            )
+            """,
+            """
+            CREATE TABLE alert_settings (
+                singleton INTEGER PRIMARY KEY CHECK (singleton=1),
+                default_internal_alert_days INTEGER CHECK (default_internal_alert_days IS NULL OR default_internal_alert_days BETWEEN 0 AND 3650),
+                signature_followup_days INTEGER CHECK (signature_followup_days IS NULL OR signature_followup_days BETWEEN 0 AND 3650),
+                backup_reminder_days INTEGER CHECK (backup_reminder_days IS NULL OR backup_reminder_days BETWEEN 0 AND 3650),
+                updated_at_utc TEXT NOT NULL
+            )
+            """,
+            "INSERT INTO alert_settings(singleton,updated_at_utc) VALUES (1,CURRENT_TIMESTAMP)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_contracts_number ON contracts(number) WHERE number IS NOT NULL",
+        ),
+    ),
 )
 
 

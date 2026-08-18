@@ -16,6 +16,7 @@ from ..documents.source_store import sha256_file
 from ..documents.formatters import prepare_context
 from ..documents.validation import DocumentGenerationError,validate_pdf,validate_rendered_docx
 from ..domain import ContractDocument,ContractEvent,ContractEventType,ContractStatus,DocumentKind,TemplateVersionStatus
+from ..errors import NumberingCollisionError
 from ..repositories import ContractDocumentRepository,ContractEventRepository
 from .contracts import ContractService
 from .review import ReviewService
@@ -83,7 +84,12 @@ class DocumentGenerationService:
             if not self.converter.available():raise DocumentGenerationError("converter_unavailable","Le PDF n’a pas pu être créé.")
             stage="number_preview"
             if first:
-                if not self.number_allocator.available() or not (preview:=self.number_allocator.preview_next()):raise DocumentGenerationError("numbering_unavailable","La numérotation des contrats n’est pas configurée.")
+                if not self.number_allocator.available():
+                    if getattr(self.number_allocator, "unavailability_reason", None) == "collision":
+                        raise DocumentGenerationError("numbering_collision", "Le prochain numéro configuré existe déjà. Corrigez le prochain numéro avant de générer un nouveau contrat.")
+                    raise DocumentGenerationError("numbering_unavailable", "La numérotation des contrats est à configurer. Ouvrez Paramètres > Numérotation & alertes.")
+                if not (preview:=self.number_allocator.preview_next()):
+                    raise DocumentGenerationError("numbering_unavailable", "La numérotation des contrats est à configurer. Ouvrez Paramètres > Numérotation & alertes.")
             else:preview=contract.number
             stage="workspace_write";attempt_dir.mkdir(parents=True,exist_ok=False);probe=attempt_dir/".write-test";probe.write_bytes(b"ok");probe.unlink()
             stage="snapshot";snapshot=self._snapshot(contract,self.contracts.get_conditions(contract_id),version,company,preview,revision)
@@ -121,6 +127,8 @@ class DocumentGenerationService:
                 raise
             return GenerationResult(document,preview,final_docx,final_pdf)
         except DocumentGenerationError:raise
+        except NumberingCollisionError as exc:
+            raise DocumentGenerationError("numbering_collision", exc.user_message) from exc
         except (OSError,sqlite3.Error) as exc:
             message=("Espace disponible ou écriture insuffisante pour terminer la génération." if stage=="workspace_write" else "La génération n’a pas pu être finalisée. Aucun numéro ni aucune révision n’a été créé.")
             raise DocumentGenerationError("publication_failure",message) from exc

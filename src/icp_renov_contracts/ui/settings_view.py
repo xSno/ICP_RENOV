@@ -11,9 +11,10 @@ from PySide6.QtWidgets import (
 )
 
 from ..domain import CompanySettings
-from ..services import CompanySettingsService, TemplateCatalogService
+from ..services import AlertSettingsService, CompanySettingsService, NumberingSettingsService, TemplateCatalogService
 from ..storage import WorkspaceService
 from .models_settings_view import ModelsSettingsPage
+from .numbering_alerts_view import NumberingAlertsSettingsPage
 from .styles import SPACING
 
 
@@ -24,7 +25,9 @@ class CompanySettingsView(QWidget):
     SECTION_LABELS = ("Soci\u00e9t\u00e9", "Mod\u00e8les", "Num\u00e9rotation & alertes", "Stockage & sauvegarde", "Diagnostic g\u00e9n\u00e9ration")
 
     def __init__(self, service: CompanySettingsService, workspaces: WorkspaceService,
-                 template_catalog: TemplateCatalogService | None = None) -> None:
+                 template_catalog: TemplateCatalogService | None = None,
+                 numbering: NumberingSettingsService | None = None,
+                 alerts: AlertSettingsService | None = None) -> None:
         super().__init__()
         self.setObjectName("contentSurface")
         self.service = service
@@ -49,7 +52,8 @@ class CompanySettingsView(QWidget):
         self.stack = QStackedWidget(); self._indices: dict[str, int] = {}
         self._indices["Soci\u00e9t\u00e9"] = self.stack.addWidget(self._company_page())
         self._indices["Mod\u00e8les"] = self.stack.addWidget(ModelsSettingsPage(template_catalog) if template_catalog else self._unavailable_page("Mod\u00e8les"))
-        for label in self.SECTION_LABELS[2:]: self._indices[label] = self.stack.addWidget(self._unavailable_page(label))
+        self._indices["Numérotation & alertes"] = self.stack.addWidget(NumberingAlertsSettingsPage(numbering, alerts) if numbering and alerts else self._unavailable_page("Numérotation & alertes"))
+        for label in self.SECTION_LABELS[3:]: self._indices[label] = self.stack.addWidget(self._unavailable_page(label))
         root.addWidget(self.stack, 1)
         self._show_section("Soci\u00e9t\u00e9")
         self._load()

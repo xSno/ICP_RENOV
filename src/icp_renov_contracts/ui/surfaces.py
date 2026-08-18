@@ -5,7 +5,7 @@ from .styles import SPACING
 from .clients_view import ClientsInstallationsView
 from .contracts_view import ContractsView
 from .settings_view import CompanySettingsView
-from ..services import CompanySettingsService, ContractLifecycleService, ContractService, DocumentGenerationService, InterventionSheetGenerationService, MasterDataService, ReviewService, TemplateCatalogService
+from ..services import AlertSettingsService, CompanySettingsService, ContractLifecycleService, ContractService, DocumentGenerationService, InterventionSheetGenerationService, MasterDataService, NumberingSettingsService, ReviewService, TemplateCatalogService
 
 
 class PlaceholderSurface(QWidget):
@@ -35,11 +35,13 @@ def build_surfaces(master_data: MasterDataService, contracts: ContractService, r
                    lifecycle: ContractLifecycleService | None = None,
                    interventions: InterventionSheetGenerationService | None = None,
                    company: CompanySettingsService | None = None,
-                   template_catalog: TemplateCatalogService | None = None) -> dict[str, QWidget]:
+                   template_catalog: TemplateCatalogService | None = None,
+                   numbering: NumberingSettingsService | None = None,
+                   alerts: AlertSettingsService | None = None) -> dict[str, QWidget]:
     return {
-        "Contrats": ContractsView(contracts, review, generation, lifecycle,interventions),
+        "Contrats": ContractsView(contracts, review, generation, lifecycle,interventions, alert_settings=alerts),
         "Clients & installations": ClientsInstallationsView(master_data),
-        "Param\u00e8tres": CompanySettingsView(company, review.workspace_service, template_catalog) if company else PlaceholderSurface(
+        "Param\u00e8tres": CompanySettingsView(company, review.workspace_service, template_catalog, numbering, alerts) if company else PlaceholderSurface(
             "Param\u00e8tres", "Les param\u00e8tres soci\u00e9t\u00e9 ne sont pas disponibles dans ce contexte.",
         ),
     }

@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
 from ..domain import Contract, ContractStatus, SignedCopyState
 from ..errors import ApplicationError, MasterDataValidationError
 from ..services import (
-    BackupSummaryProvider, ContractLifecycleService, ContractOperationalSignalKind,
+    AlertSettingsService, BackupSummaryProvider, ContractLifecycleService, ContractOperationalSignalKind,
     ContractRegisterFilter, ContractRegisterService, ContractService, DocumentGenerationService,
     InterventionSheetGenerationService, ReviewService,
 )
@@ -99,7 +99,8 @@ class ContractsView(QWidget):
                  lifecycle_service: ContractLifecycleService | None = None,
                  intervention_service: InterventionSheetGenerationService | None = None,
                  register_service: ContractRegisterService | None = None,
-                 backup_provider: BackupSummaryProvider | None = None) -> None:
+                 backup_provider: BackupSummaryProvider | None = None,
+                 alert_settings: AlertSettingsService | None = None) -> None:
         super().__init__()
         self.service = service
         self.review_service = review_service
@@ -107,7 +108,7 @@ class ContractsView(QWidget):
         self.lifecycle_service = lifecycle_service
         self.intervention_service = intervention_service
         self.register_service = register_service or (
-            ContractRegisterService(service, review_service, lifecycle_service, review_service.workspace_service, backup_provider)
+            ContractRegisterService(service, review_service, lifecycle_service, review_service.workspace_service, backup_provider, alert_settings)
             if lifecycle_service else None
         )
         self.contract_id: str | None = None

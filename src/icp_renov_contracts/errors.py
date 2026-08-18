@@ -68,3 +68,20 @@ class ContractConditionsValidationError(ApplicationError):
     def __init__(self, field_errors: dict[str, str]) -> None:
         self.field_errors = field_errors
         super().__init__(self.user_message)
+
+
+class NumberingValidationError(ApplicationError):
+    user_message = "La configuration de numérotation est invalide."
+
+    def __init__(self, detail: str, user_message: str | None = None) -> None:
+        self.detail = detail
+        if user_message is not None:
+            self.user_message = user_message
+        super().__init__(detail)
+
+
+class NumberingCollisionError(NumberingValidationError):
+    user_message = "Le prochain numéro configuré existe déjà. Corrigez le prochain numéro avant de générer un nouveau contrat."
+
+    def __init__(self) -> None:
+        super().__init__("collision", self.user_message)

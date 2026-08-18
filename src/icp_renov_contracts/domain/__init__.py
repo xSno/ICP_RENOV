@@ -13,6 +13,7 @@ from .contract import (
 )
 from .documents import ContractDocument, DocumentKind, SignedCopyState
 from .company import CompanySettings
+from .settings import AlertSettings, AnnualNumberingPolicy, NumberFormatMode, NumberingSettings
 from .template_validation import (
     AvailabilityEvaluation, AvailabilityItem, DEFERRED_EXTERNAL_GATE_CODES,
     EXTERNAL_GATE_CODES, EXTERNAL_GATE_LABELS, ExternalGateEvidence,
@@ -39,7 +40,7 @@ __all__ = [
     "ContractRegime", "ContractStatus", "ContractType", "EquipmentSnapshot", "SiteSnapshot",
     "ContractEvent", "ContractEventType",
     "ContractDocument", "DocumentKind", "SignedCopyState",
-    "CompanySettings",
+    "CompanySettings", "AlertSettings", "AnnualNumberingPolicy", "NumberFormatMode", "NumberingSettings",
     "AvailabilityEvaluation", "AvailabilityItem", "DEFERRED_EXTERNAL_GATE_CODES",
     "EXTERNAL_GATE_CODES", "EXTERNAL_GATE_LABELS", "ExternalGateEvidence",
     "ExternalGateStatus", "RegimeConfirmation", "ReviewEvidenceStatus",

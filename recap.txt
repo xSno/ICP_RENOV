@@ -1,39 +1,65 @@
-S12 — SETTINGS / MODEL CATALOG, VERSIONING AND AVAILABILITY
+S13 — NUMÉROTATION & ALERTES
 
-- Migration 11 adds durable model-version validation, controlled external-gate evidence, explicit regime confirmations, version lineage, and target-regime storage. Migrations 1–10 are unchanged; migration 10 data is preserved and every existing/new version has exactly one validation authority row.
-- The Models settings section is now functional. Its catalog columns are exactly: Modèle, Régime confirmé, Version, État, Dernière utilisation, Actions. Visible states remain the closed set À valider, Disponible, Archivé; the empty state and 1280/1366/1600 layouts were verified without horizontal scrolling.
-- Ajouter un modèle and Nouvelle version are distinct atomic flows. Ajouter un modèle visibly exposes the required editable `Version initiale` value; `1` is only an editable suggestion and may be replaced before creation. The trimmed confirmed text is persisted literally (`1`, `1.0`, `V1`, and `2026.1` remain distinct), with no global sequence, equivalence, or auto-increment policy. A new version stays in the same family, requires its own explicit value unique only within that family, records its predecessor, and resets validation evidence, confirmed regimes, and sensitive-context review.
-- DOCX source import validates a real readable non-empty OOXML package, copies it into the workspace, records SHA-256, leaves the external source untouched, and cleans up atomically on failure. Missing or hash-mismatched sources keep the integrity warning and may be restored only from matching content.
-- Target regimes and confirmed regimes are intentionally distinct. Contract versions start with zero confirmed regimes and require explicit confirmation for each supported regime; Intervention Sheet regime is explicitly non-applicable. No regime equivalence is inferred.
-- Required company fields and intervention fields are controlled, version-specific metadata. Sensitive contract contexts are reviewed separately for the three bounded blocks and closed conclusion modes; early-performance context requires withdrawal handling.
-- External validation uses closed gate codes and the exact statuses NOT_APPLICABLE, TO_REVIEW, CONFIRMED, REJECTED. Deferred indexation was not introduced. Rejected or pending applicable evidence blocks availability, and the UI states clearly that the application does not provide legal certification.
-- Structural control uses the production adapter and deep preflight, including unknown-placeholder and wrong-kind detection. Non-official validation uses the production renderer/converter in an isolated validation area, creates 1/10/30-item variants when an equipment loop exists, and never creates contracts, contract documents, contract events, or production numbering.
-- Visual review is explicit and durable. The centralized availability checklist is freshly recomputed and requires source integrity, structural pass, render/conversion pass, visual confirmation, required external evidence, explicit regime confirmation where applicable, and complete sensitive-context review.
-- Rendre disponible is an explicit confirmed transition. Available and archived versions are immutable; an available version is never silently demoted by later checks. Archiving is terminal and removes the version from future production selection while preserving historical drafts/documents and derived last-use information. There is no delete action.
-- Existing production selection remains exact by document type and confirmed client regime. Contract and Intervention Sheet integrations were exercised before and after archive; an already referenced historical version remains readable.
-- Application tests: `QT_QPA_PLATFORM=offscreen; python -W error::ResourceWarning -m unittest discover -s tests -v` → 224 passed, 0 failed.
-- Frozen spike: `ICP_SKIP_WORD_INTEGRATION=1; python -m unittest discover -s spike/tests -v` → 38 passed, 1 expected Word integration skip, 0 failed.
-- Real S12 smoke used LibreOffice 26.2.5.2 through the production conversion path. Contract and Intervention Sheet validations rendered actual 1/10/30-item evidence. Before and after real validation, counts remained exactly zero for contracts, contract_documents, and contract_events; no business number or Rxx was allocated.
-- Visual fixture root: `C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S12_VISUAL_20260817_V1`.
-- Prepared workspace: `C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S12_VISUAL_20260817_V1\workspace`.
-- Exact PowerShell development smoke command, run from the repository root (it intentionally points the normal local configuration at the disposable fixture):
-  `python -c "from pathlib import Path; from icp_renov_contracts.config import BootstrapConfig, MachineConfigStore; MachineConfigStore().save(BootstrapConfig(Path(r'C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S12_VISUAL_20260817_V1\workspace')))"; python -m icp_renov_contracts`
-- Expected fixture rows: A — Source importée, contrôles à lancer (À valider, zero confirmed); B — Technique conforme, externe en attente (À valider); C — Prête à rendre disponible (À valider, availability complete, action enabled); D — Disponible après validation réelle (Disponible, consumer, read-only); E — Historique archivé (Archivé, last use populated); F — Fiche intervention synthétique (Archivé after real availability/integration); G — Anomalie source distincte (À valider, missing-source warning, state unchanged).
-- Remaining risks only: PQ-05, PQ-08 and PQ-09 require real production/external validation. Backup, numbering, diagnostics, packaging, and later Settings/Models work remain out of scope.
+Migration 12
+- Ajoute les autorités singleton typées numbering_settings et alert_settings.
+- Préserve les migrations 1 à 11 et l’index UNIQUE des Contract.number non nuls.
+- Ne déduit aucune politique depuis les numéros historiques ; un espace déjà numéroté reste non configuré jusqu’au choix explicite de l’utilisateur.
 
-No commit was created. S13 was not started.
+Numérotation
+- Formats V1 fermés : « Préfixe + compteur » et « Préfixe + année + compteur » ; séparateur fixe « - ».
+- Année locale métier sur quatre chiffres (YYYY), fournie par BusinessDateProvider.
+- Largeur contrôlée de 1 à 8 sans troncature ; préfixe vide autorisé.
+- Politique annuelle explicitement choisie : CONTINUOUS ou RESET_ANNUALLY. Le reset annuel sans année est rejeté.
+- Compteur de départ positif explicite ; prochain compteur éditable avant tout numéro officiel, puis affiché en lecture seule.
+- Aperçu calculé, déterministe, non persisté et non consommateur.
+- Collision exacte vérifiée dans l’espace local à l’aperçu, à l’enregistrement, à la correction et de nouveau dans la transaction de publication ; aucun saut automatique.
+- « Corriger le prochain numéro » accepte une valeur positive inférieure si elle est libre, avec avertissement de continuité et effet futur uniquement.
+- Toute modification structurelle après utilisation requiert une confirmation et ne modifie jamais contrats, fichiers, documents, snapshots ou événements existants.
 
-S12 initial-version micro-correction
+Allocation de production
+- PersistedContractNumberAllocator remplace l’allocateur de production indisponible tout en conservant l’injection des allocateurs de test.
+- R01 alloue dans la transaction de publication réussie et avance exactement une fois.
+- Un échec de rendu, PDF ou publication ne consomme aucun numéro et ne crée ni R01 ni passage à TO_SIGN.
+- R02+ réutilise le numéro permanent sans consulter ni avancer l’allocateur.
+- INTERVENTION_SHEET reste hors numérotation de contrats.
+- La Revue conserve exactement quatre contrôles de génération et guide vers « Paramètres > Numérotation & alertes » en cas de configuration absente ou de collision.
 
-- Before this correction, `1` was neither a forced value nor an editable default: the dialog already had a visible editable required `Version initiale` field, but it started empty, and the service persisted the explicit trimmed input. The earlier handoff sentence saying every family started at version `1` was incorrect.
-- The field now suggests `1` as an editable default. Custom initial values persist literally after surrounding-whitespace trimming; version uniqueness remains scoped to one family, and no global numbering or semantic equivalence was added.
-- Final application test total: 224 passed, 0 failed.
+Alertes
+- AlertSettings persiste indépendamment default_internal_alert_days, signature_followup_days et backup_reminder_days, chacun désactivable ou réglable de 0 à 3650 jours ; 0 signifie immédiat.
+- Le défaut d’anticipation remplit uniquement une valeur vide d’un nouveau contrat renouvelable, après les valeurs explicites et les défauts gouvernés du modèle ; aucune valeur existante n’est remplacée rétroactivement.
+- La relance de signature est une projection locale fondée sur generated_at_utc de la dernière révision CONTRACT non signée pertinente ; une R02 réinitialise donc l’âge.
+- Le changement de seuil ne crée aucun ContractEvent et le prédicat ACTION partagé conserve l’égalité compteur/filtre.
+- Le seuil de sauvegarde est persisté sans inventer fournisseur, date, succès ou retard de sauvegarde.
+- Les anomalies structurelles restent toujours visibles et ne peuvent pas être masquées par les seuils.
+- Aucun e-mail, SMS, ordonnanceur, service de fond ou notification externe n’est créé.
 
-S12 final governance / user-facing micro-pass
+Tests
+- Suite application : 233 tests réussis, 0 échec.
+  Commande : $env:QT_QPA_PLATFORM='offscreen'; python -W error::ResourceWarning -m unittest discover -s tests -v
+- Spike gelé : 38 réussis, 1 intégration Word ignorée, 0 échec.
+  Commande : $env:ICP_SKIP_WORD_INTEGRATION='1'; python -m unittest discover -s spike/tests -v
+- Tests S13 dédiés : migration/non-inférence, formats, largeur, aperçu, rollback, collision, politiques annuelles, correction, R01/R02, défaut contractuel, relance signature et UI Qt hors écran.
 
-- Version actions now follow the state exactly: an incomplete À valider version shows disabled `Rendre disponible` plus `Archiver`; a ready À valider version enables `Rendre disponible` and keeps `Archiver`; a Disponible version omits `Rendre disponible` but keeps `Archiver`; an Archivé version exposes neither action and remains read-only. No restore, reactivate, or Archivé → Disponible path was added.
-- The disabled primary action uses the existing muted/border color tokens instead of the active teal treatment, so blocked and ready states are visually distinct. Fixture C remains the only ready À valider example.
-- Données requises now presents the S11 French business vocabulary first, followed by the canonical `company.*` key in parentheses and the unchanged présent/manquant state. Canonical keys, checkboxes, persistence, and version-specific requiredness are unchanged.
-- Contract type is displayed as `Entretien de climatisation (CLIMATE_MAINTENANCE)`. Detail import, validation, and last-use timestamps—and catalog last use—use deterministic French `JJ/MM/AAAA` or `JJ/MM/AAAA HH:MM` presentation without changing persisted timestamps.
-- Ajouter un modèle now displays `Annuler`; `Version initiale` remains required, editable, and suggested as replaceable `1`.
-- Final application test total: 224 passed, 0 failed.
+Smoke réel jetable
+- LibreOffice réel : 26.2.5.2.
+- Service : DocumentGenerationService de production, ProductionDocxRenderer, PersistedCompanyDocumentDataProvider et PersistedContractNumberAllocator.
+- Configuration : PREFIX_YEAR_COUNTER, préfixe SYNTH, largeur 4, CONTINUOUS, départ/prochain 42.
+- Aperçu avant allocation : SYNTH-2026-0042.
+- Résultat : SYNTH-2026-0042, R01, TO_SIGN, paire DOCX+PDF créée.
+- Aperçu suivant : SYNTH-2026-0043.
+
+Fixture visuelle jetable
+- Racine TEMP : C:\Users\xSn\AppData\Local\Temp\icp-renov-s13-fqrogl8c
+- Espace principal : C:\Users\xSn\AppData\Local\Temp\icp-renov-s13-fqrogl8c\C_after_allocation_G_before_followup\workspace
+- États disponibles : A_unconfigured ; B_before_first_allocation ; C_after_allocation_G_before_followup ; E_collision ; H_after_followup ; Annual_reset_alternate.
+- C permet aussi d’ouvrir la modale « Corriger le prochain numéro » et montre le prochain compteur en lecture seule.
+- G utilise relance signature = 7 jours (non échue au jour de génération) ; H utilise 0 jour (échue immédiatement).
+- Commande DEVELOPMENT VISUAL SMOKE exacte :
+  $env:QT_QPA_PLATFORM='windows'; $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\icp-renov-s13-fqrogl8c\C_after_allocation_G_before_followup\launch_profile'; python -m icp_renov_contracts
+
+Clôture
+- PQ-08 est fermé dans la forme bornée S13 : configuration locale explicite, continuité/reset, prochain compteur visible et corrigible, collisions bloquées, aucun renumérotage ni inférence historique.
+- PQ-09 reste ouvert ; aucun import historique n’a été ajouté.
+
+Risques S13 restants
+- Aucun risque fonctionnel S13 connu après les suites et le smoke réel. La fixture est volontairement située dans TEMP et pourra être supprimée par le système.

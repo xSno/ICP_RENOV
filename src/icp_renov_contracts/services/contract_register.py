@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, timedelta
 from enum import Enum
 import unicodedata
 
@@ -11,6 +11,7 @@ from ..storage import WorkspaceService
 from .contract_events import ContractLifecycleService
 from .contracts import ContractService
 from .review import ReviewService
+from .settings import AlertSettingsService
 
 
 class ContractOperationalSignalKind(str, Enum):
@@ -83,12 +84,14 @@ class ContractRegisterService:
 
     def __init__(self, contracts: ContractService, review: ReviewService,
                  lifecycle: ContractLifecycleService, workspace_service: WorkspaceService,
-                 backup_provider: BackupSummaryProvider | None = None) -> None:
+                 backup_provider: BackupSummaryProvider | None = None,
+                 alert_settings: AlertSettingsService | None = None) -> None:
         self.contracts = contracts
         self.review = review
         self.lifecycle = lifecycle
         self.workspace_service = workspace_service
         self.backup_provider = backup_provider or BackupSummaryProvider()
+        self.alert_settings = alert_settings
 
     def workspace_writable(self) -> bool:
         inspection = self.workspace_service.inspect(self.review.workspace.root)
@@ -222,6 +225,17 @@ class ContractRegisterService:
                 "Finaliser le brouillon" if complete else "Compléter le brouillon", priority=2,
             )
         if contract.status is ContractStatus.TO_SIGN:
+            threshold = self.alert_settings.get().signature_followup_days if self.alert_settings else None
+            if threshold is not None:
+                revisions = self.lifecycle.revisions(contract.id)
+                if revisions:
+                    try:
+                        generated = datetime.fromisoformat(revisions[0].generated_at_utc).date()
+                    except ValueError:
+                        generated = None
+                    if generated is not None and self.lifecycle.date_provider.today() >= generated + timedelta(days=threshold):
+                        due = generated + timedelta(days=threshold)
+                        return ContractOperationalSignal(ContractOperationalSignalKind.ACTION, "Relance signature à effectuer", due, 3)
             return ContractOperationalSignal(ContractOperationalSignalKind.ACTION, "Signature à enregistrer", priority=3)
         if authority:
             copy_state = self.lifecycle.signed_copy_state(authority.document)

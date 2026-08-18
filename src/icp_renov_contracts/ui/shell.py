@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
 
 from .styles import SPACING
 from .surfaces import build_surfaces
-from ..services import CompanySettingsService, ContractLifecycleService, ContractService, DocumentGenerationService, InterventionSheetGenerationService, MasterDataService, ReviewService, TemplateCatalogService
+from ..services import AlertSettingsService, CompanySettingsService, ContractLifecycleService, ContractService, DocumentGenerationService, InterventionSheetGenerationService, MasterDataService, NumberingSettingsService, ReviewService, TemplateCatalogService
 
 
 NAVIGATION_LABELS = ("Contrats", "Clients & installations", "Paramètres")
@@ -25,7 +25,9 @@ class ApplicationShell(QWidget):
                  lifecycle: ContractLifecycleService | None = None,
                  interventions: InterventionSheetGenerationService | None = None,
                  company: CompanySettingsService | None = None,
-                 template_catalog: TemplateCatalogService | None = None) -> None:
+                 template_catalog: TemplateCatalogService | None = None,
+                 numbering: NumberingSettingsService | None = None,
+                 alerts: AlertSettingsService | None = None) -> None:
         super().__init__()
         self.setObjectName("applicationRoot")
         root = QHBoxLayout(self)
@@ -62,7 +64,7 @@ class ApplicationShell(QWidget):
         sidebar_layout.addStretch(1)
 
         self.stack = QStackedWidget()
-        self._surfaces = build_surfaces(master_data, contracts, review, generation, lifecycle, interventions, company, template_catalog)
+        self._surfaces = build_surfaces(master_data, contracts, review, generation, lifecycle, interventions, company, template_catalog, numbering, alerts)
         self._indices: dict[str, int] = {}
         for label in NAVIGATION_LABELS:
             self._indices[label] = self.stack.addWidget(self._surfaces[label])

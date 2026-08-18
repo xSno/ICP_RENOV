@@ -39,7 +39,7 @@ class CompanySettingsS11Tests(unittest.TestCase):
 
     def test_migration_ten_creates_one_defaulted_singleton(self):
         with self.database.connection() as connection:
-            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 11)
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 12)
             self.assertEqual(connection.execute("SELECT COUNT(*) FROM company_settings").fetchone()[0], 1)
         settings = self.service.get()
         self.assertEqual(settings.trade_name, "ICP Renov")

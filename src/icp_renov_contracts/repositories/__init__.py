@@ -6,5 +6,6 @@ from .conditions import ContractConditionsRepository
 from .documents import ContractDocumentRepository
 from .events import ContractEventRepository
 from .company import CompanySettingsRepository
+from .settings import AlertSettingsRepository, NumberingSettingsRepository
 
-__all__ = ["CompanySettingsRepository", "ContractConditionsRepository", "ContractDocumentRepository", "ContractEventRepository", "ContractRepository", "MasterDataRepository", "TemplateCatalogRepository", "TemplateValidationRepository"]
+__all__ = ["AlertSettingsRepository", "NumberingSettingsRepository", "CompanySettingsRepository", "ContractConditionsRepository", "ContractDocumentRepository", "ContractEventRepository", "ContractRepository", "MasterDataRepository", "TemplateCatalogRepository", "TemplateValidationRepository"]

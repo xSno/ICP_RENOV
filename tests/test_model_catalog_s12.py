@@ -104,7 +104,7 @@ class ModelCatalogS12Tests(unittest.TestCase):
         connection.commit(); connection.close()
         migrated = DatabaseService(legacy_path); migrated.initialize(); migrated.initialize()
         with migrated.connection() as connection:
-            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 11)
+            self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 12)
             self.assertEqual(connection.execute("SELECT functional_name FROM contract_templates WHERE id='t'").fetchone()[0], "Existant")
             self.assertEqual(connection.execute("SELECT COUNT(*) FROM template_version_validation WHERE version_id='v'").fetchone()[0], 1)
 

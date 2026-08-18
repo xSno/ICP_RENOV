@@ -92,7 +92,16 @@ class ReviewView(QWidget):
         contract = self.service.contracts.get(contract_id)
         if self.generation and contract.number:
             self.number_context.setText(f"Numéro conservé : {contract.number} · Prochaine révision : {self.generation.next_revision(contract_id)}")
-        else:self.number_context.setText("Numéro attribué après génération réussie")
+        else:
+            reason = getattr(self.generation.number_allocator, "unavailability_reason", None) if self.generation else None
+            if result.data_complete and reason == "collision":
+                self.number_context.setText("Le prochain numéro configuré existe déjà. Corrigez-le dans Paramètres > Numérotation & alertes.")
+                self.distinction.setText("Le contrat est complet, mais la génération est indisponible à cause d’une collision de numéro.")
+            elif result.data_complete and reason == "unconfigured":
+                self.number_context.setText("La numérotation des contrats est à configurer — Paramètres > Numérotation & alertes")
+                self.distinction.setText("Le contrat est complet, mais la génération est indisponible : la numérotation doit être configurée avant la première génération.")
+            else:
+                self.number_context.setText("Numéro attribué après génération réussie")
         locked = contract.status.value == "TO_SIGN"
         for button in self.modify_buttons: button.setEnabled(not locked)
         if locked:

@@ -7,11 +7,11 @@ from enum import Enum
 from ..config import BootstrapConfig, MachineConfigStore
 from ..database import DatabaseService
 from ..repositories import (
-    CompanySettingsRepository, ContractConditionsRepository, ContractDocumentRepository, ContractEventRepository, ContractRepository, MasterDataRepository, TemplateCatalogRepository, TemplateValidationRepository,
+    AlertSettingsRepository, CompanySettingsRepository, ContractConditionsRepository, ContractDocumentRepository, ContractEventRepository, ContractRepository, MasterDataRepository, NumberingSettingsRepository, TemplateCatalogRepository, TemplateValidationRepository,
 )
 from ..documents import (LibreOfficeConverter, NonOfficialModelValidationRunner, PersistedCompanyDocumentDataProvider, ProductionDocxRenderer, TemplateSourceStore,
-                         UnavailableContractNumberAllocator)
-from ..services import CompanySettingsService, ContractLifecycleService, ContractService, DocumentGenerationService, InterventionSheetGenerationService, MasterDataService, ReviewService, TemplateCatalogService
+                         )
+from ..services import AlertSettingsService, CompanySettingsService, ContractLifecycleService, ContractService, DocumentGenerationService, InterventionSheetGenerationService, LocalBusinessDateProvider, MasterDataService, NumberingSettingsService, PersistedContractNumberAllocator, ReviewService, TemplateCatalogService
 from ..storage import Workspace, WorkspaceService
 
 
@@ -36,6 +36,8 @@ class ApplicationContext:
     intervention_generation: InterventionSheetGenerationService | None
     lifecycle: ContractLifecycleService | None
     company: CompanySettingsService | None
+    numbering: NumberingSettingsService | None
+    alerts: AlertSettingsService | None
     logger: logging.Logger
 
 
@@ -65,6 +67,8 @@ def build_application_context(
             None,
             None,
             None,
+            None,
+            None,
             application_logger,
         )
 
@@ -82,18 +86,22 @@ def build_application_context(
         validation_runner=NonOfficialModelValidationRunner(workspace.root, renderer, converter, company_provider),
         company_provider=company_provider,
     )
+    date_provider = LocalBusinessDateProvider()
+    alerts = AlertSettingsService(AlertSettingsRepository(database))
+    numbering = NumberingSettingsService(NumberingSettingsRepository(database), date_provider)
     contracts = ContractService(
-        ContractRepository(database), master_data, ContractConditionsRepository(database), template_catalog
+        ContractRepository(database), master_data, ContractConditionsRepository(database), template_catalog, alerts
     )
     review = ReviewService(contracts, workspaces, workspace)
     company = CompanySettingsService(company_repository, TemplateCatalogRepository(database), workspace.root)
     generation = DocumentGenerationService(
         database, contracts, ContractDocumentRepository(database), review, source_store,
         renderer, converter, company_provider,
-        UnavailableContractNumberAllocator(), workspace.root, application_logger,
+        PersistedContractNumberAllocator(numbering, lambda: workspaces.inspect(workspace.root).writable), workspace.root, application_logger,
     )
     lifecycle = ContractLifecycleService(
-        database, contracts, ContractDocumentRepository(database), ContractEventRepository(database), workspace.root
+        database, contracts, ContractDocumentRepository(database), ContractEventRepository(database), workspace.root,
+        date_provider=date_provider,
     )
     intervention_generation=InterventionSheetGenerationService(
         database,contracts,ContractDocumentRepository(database),source_store,
@@ -119,5 +127,7 @@ def build_application_context(
         intervention_generation,
         lifecycle,
         company,
+        numbering,
+        alerts,
         application_logger,
     )
