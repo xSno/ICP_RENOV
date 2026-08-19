@@ -1,40 +1,18 @@
-S15 — final visual-fixture correction
+C1 — first-use / workspace bootstrap handoff
 
-- Direct Paramètres > Diagnostic génération no longer selects a model/version implicitly. It shows « Sélectionnez un modèle et une version pour lancer un test. » until an exact Models or Review navigation context is supplied. Models and Review exact preselection remain covered.
-- Schema remains v12; the two Diagnostic groups and four Review checks are unchanged.
+- Schema remains v12. On a clean profile, Configurer ce poste is enabled and Restore remains a separate first-use path.
+- The native folder picker leads to a bounded confirmation showing the selected path. New or empty folders are initialized only through WorkspaceService and DatabaseService; singleton settings are initialized by normal schema migration.
+- Existing ICP workspaces are checked read-only for SQLite integrity and future schema before attachment; supported older schemas continue through the accepted migration authority.
+- A non-empty unrecognized folder is rejected untouched. Corrupt/unopenable and future-schema workspaces are rejected without downgrading or changing MachineConfig.
+- MachineConfig is saved only after workspace/database initialization succeeds, and is restored if the subsequent context rebuild fails. Cancel leaves configuration and target unchanged.
+- Company settings, models, numbering, backup destination and LibreOffice remain contextual non-blockers. Restore semantics are unchanged.
 
-Independent TEMP fixtures
-- Root: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819
-- A: workspace C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\A_workspace; profile C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\A_profile
-- B: workspace C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\B_workspace; profile C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\B_profile
-- C: workspace C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\C_workspace; profile C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\C_profile
-- D: workspace C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\D_workspace; profile C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\D_profile
-- E: workspace C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\E_workspace; profile C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\E_profile
-- F: workspace C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\F_workspace; profile C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\F_profile
-- All six profile configurations were tested and independently resolved READY to their matching distinct workspace.
+Tests
+- New C1 tests: 5 passed (clean controls, fresh workspace/schema/zero business rows, foreign sentinel, fresh-attempt cleanup, existing-empty-root preservation).
+- Full application suite: 246 passed.
 
-Launch commands
-- A: $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\A_profile'; python -m icp_renov_contracts
-- B: $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\B_profile'; python -m icp_renov_contracts
-- C: $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\C_profile'; python -m icp_renov_contracts
-- D: $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\D_profile'; python -m icp_renov_contracts
-- E: $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\E_profile'; python -m icp_renov_contracts
-- F: $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\F_profile'; python -m icp_renov_contracts
+Real-smoke / visual evidence
+- The real GUI first-use, restart, existing-workspace and foreign-folder smoke runs remain to be performed manually; no TEMP visual fixture command is advertised as tested in this pass.
 
-Repository safety and tests
-- The old in-repository evidence root was removed; repository status has no fixture residue.
-- Application suite: 241 passed. Frozen spike retained: 38 passed, 1 Word integration skip.
-
-Remaining S15 risk
-- Fixture workspaces are independent copies of accepted real diagnostic evidence; named A–F visual cases still require their natural in-app navigation and selection where session state is intentionally non-persistent.
-
-S15 D/E/F fixture patch
-- D workspace/profile: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\D_workspace / C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\D_profile. Version aee44fc7-86d6-48df-a7a9-1a682137146f has required_company_fields=('email',), CompanySettings.email is empty, source is VALID, and Diagnostic returns « Des informations société requises par ce modèle sont à compléter. » before rendering.
-- E workspace/profile: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\E_workspace / C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\E_profile. Version a2772985-b053-48e4-882b-2d924b363fad has its exact governed source removed; source authority returns MISSING / « Fichier source introuvable » and Diagnostic stops before rendering.
-- D command tested: $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\D_profile'; python -m icp_renov_contracts
-- E command tested: $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\E_profile'; python -m icp_renov_contracts
-- F remains a fixture-only gap: its independent workspace/profile exists, but a visual-only injected PDF capability failure and complete representative Contract are not materialized because current production composition provides no fixture-scoped injection seam. No production debug capability was added.
-
-S15 D/E resolution UX micro-correction
-- Missing version-required company data now lists French field labels (for D: « E-mail »), disables the test action, and exposes « Ouvrir Société » which navigates to Paramètres > Société.
-- Missing/hash-invalid governed source disables the test action and exposes « Ouvrir le modèle », navigating to the exact selected governed version. No renderer/converter is invoked for either known blocker.
+Remaining C1 risks
+- The real interactive GUI smoke/visual fixture pass remains outstanding; no untested command is advertised.

@@ -1,24 +1,13 @@
-S15 current uncommitted Git delta
+C1 current uncommitted Git delta
 
 Created
-- src/icp_renov_contracts/services/generation_diagnostic.py
-- src/icp_renov_contracts/ui/generation_diagnostic_view.py
-- tests/test_generation_diagnostic_s15.py
+- tests/test_bootstrap_c1.py
 
 Modified
-- recap.txt; diff.txt
-- src/icp_renov_contracts/bootstrap/context.py
-- src/icp_renov_contracts/documents/model_validation.py
-- src/icp_renov_contracts/services/__init__.py
-- src/icp_renov_contracts/services/capabilities.py
-- src/icp_renov_contracts/ui/contracts_view.py
+- recap.txt
+- diff.txt
+- src/icp_renov_contracts/ui/bootstrap_view.py
 - src/icp_renov_contracts/ui/main_window.py
-- src/icp_renov_contracts/ui/models_settings_view.py
-- src/icp_renov_contracts/ui/review_view.py
-- src/icp_renov_contracts/ui/settings_view.py
-- src/icp_renov_contracts/ui/shell.py
-- src/icp_renov_contracts/ui/surfaces.py
-- tests/test_review.py
 
 Removed
 - None
