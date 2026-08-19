@@ -15,6 +15,7 @@ from ..services import AlertSettingsService, BackupError, BackupService, Company
 from ..storage import WorkspaceService
 from .models_settings_view import ModelsSettingsPage
 from .numbering_alerts_view import NumberingAlertsSettingsPage
+from .generation_diagnostic_view import GenerationDiagnosticPage
 from .styles import SPACING
 
 
@@ -28,12 +29,12 @@ class CompanySettingsView(QWidget):
                  template_catalog: TemplateCatalogService | None = None,
                  numbering: NumberingSettingsService | None = None,
                  alerts: AlertSettingsService | None = None, backup: BackupService | None = None,
-                 restore: RestoreService | None = None) -> None:
+                 restore: RestoreService | None = None, diagnostic=None) -> None:
         super().__init__()
         self.setObjectName("contentSurface")
         self.service = service
         self.workspaces = workspaces
-        self.backup_service = backup; self.restore_service = restore
+        self.backup_service = backup; self.restore_service = restore; self.diagnostic_service = diagnostic
         self._fields: dict[str, QLineEdit] = {}
         self._editable: list[QWidget] = []
 
@@ -53,10 +54,12 @@ class CompanySettingsView(QWidget):
 
         self.stack = QStackedWidget(); self._indices: dict[str, int] = {}
         self._indices["Soci\u00e9t\u00e9"] = self.stack.addWidget(self._company_page())
-        self._indices["Mod\u00e8les"] = self.stack.addWidget(ModelsSettingsPage(template_catalog) if template_catalog else self._unavailable_page("Mod\u00e8les"))
+        self.models_page = ModelsSettingsPage(template_catalog, open_diagnostic=self.open_diagnostic) if template_catalog else None
+        self._indices["Mod\u00e8les"] = self.stack.addWidget(self.models_page or self._unavailable_page("Mod\u00e8les"))
         self._indices["Numérotation & alertes"] = self.stack.addWidget(NumberingAlertsSettingsPage(numbering, alerts) if numbering and alerts else self._unavailable_page("Numérotation & alertes"))
         self._indices["Stockage & sauvegarde"] = self.stack.addWidget(self._storage_page() if backup and restore else self._unavailable_page("Stockage & sauvegarde"))
-        self._indices["Diagnostic génération"] = self.stack.addWidget(self._unavailable_page("Diagnostic génération"))
+        self.diagnostic_page = GenerationDiagnosticPage(diagnostic, template_catalog, open_company=lambda:self._show_section("Société"), open_model=self._open_model_detail) if diagnostic and template_catalog else None
+        self._indices["Diagnostic génération"] = self.stack.addWidget(self.diagnostic_page or self._unavailable_page("Diagnostic génération"))
         root.addWidget(self.stack, 1)
         self._show_section("Soci\u00e9t\u00e9")
         self._load()
@@ -153,6 +156,16 @@ class CompanySettingsView(QWidget):
     def _show_section(self, label: str) -> None:
         self.stack.setCurrentIndex(self._indices[label])
         for name, button in self._section_buttons.items(): button.setChecked(name == label)
+
+    def open_diagnostic(self, version_id: str | None = None, validation_mode: bool = False) -> None:
+        self._show_section("Diagnostic génération")
+        if self.diagnostic_page:
+            self.diagnostic_page.refresh()
+            if version_id: self.diagnostic_page.preselect(version_id, validation_mode)
+
+    def _open_model_detail(self, version_id: str) -> None:
+        self._show_section("Modèles")
+        if self.models_page: self.models_page.open_version(version_id)
 
     def _load(self) -> None:
         self.current = self.service.get()

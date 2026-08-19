@@ -100,13 +100,14 @@ class ContractsView(QWidget):
                  intervention_service: InterventionSheetGenerationService | None = None,
                  register_service: ContractRegisterService | None = None,
                  backup_provider: BackupSummaryProvider | None = None,
-                 alert_settings: AlertSettingsService | None = None) -> None:
+                 alert_settings: AlertSettingsService | None = None, open_diagnostic=None) -> None:
         super().__init__()
         self.service = service
         self.review_service = review_service
         self.generation_service = generation_service
         self.lifecycle_service = lifecycle_service
         self.intervention_service = intervention_service
+        self.open_diagnostic_callback = open_diagnostic
         self.register_service = register_service or (
             ContractRegisterService(service, review_service, lifecycle_service, review_service.workspace_service, backup_provider, alert_settings)
             if lifecycle_service else None
@@ -230,7 +231,7 @@ class ContractsView(QWidget):
         self.conditions_view = ConditionsView(self.service, self._condition_feedback, self._conditions_drawer)
         conditions_scroll = QScrollArea(); conditions_scroll.setWidgetResizable(True); conditions_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
         conditions_scroll.setWidget(self.conditions_view)
-        self.review_view = ReviewView(self.review_service, self.navigate_step, self.generation_service, self._generation_finished)
+        self.review_view = ReviewView(self.review_service, self.navigate_step, self.generation_service, self._generation_finished, self.open_diagnostic_callback)
         review_scroll = QScrollArea(); review_scroll.setWidgetResizable(True); review_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
         review_scroll.setWidget(self.review_view)
         self.documents_view = DocumentsView(self.lifecycle_service,self._documents_changed,self._linked_created,self.intervention_service) if self.lifecycle_service else QWidget()

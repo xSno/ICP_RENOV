@@ -86,14 +86,15 @@ class NonOfficialModelValidationRunner:
         self.converter = converter
         self.company_provider = company_provider
 
-    def run(self, version, source: Path) -> ValidationRunResult:
+    def run(self, version, source: Path, output_root: Path | None = None) -> ValidationRunResult:
         if not self.converter.available():
             raise DocumentGenerationError(
                 "converter_unavailable",
                 "LibreOffice 26.2.5.2 n’est pas disponible sur ce poste.",
             )
         attempt = uuid.uuid4().hex
-        root = self.workspace_root / "validation" / "models" / version.id / attempt
+        base = output_root.resolve() if output_root else self.workspace_root / "validation" / "models" / version.id
+        root = base / attempt
         root.mkdir(parents=True, exist_ok=False)
         has_loop = source_has_equipment_loop(source)
         counts = (1, 10, 30) if has_loop else (1,)
@@ -115,7 +116,7 @@ class NonOfficialModelValidationRunner:
             self.converter.convert(docx, pdf)
             validate_pdf(pdf)
             for path in (docx, pdf):
-                paths.append(path.relative_to(self.workspace_root).as_posix())
+                paths.append(str(path) if output_root else path.relative_to(self.workspace_root).as_posix())
                 hashes.append(sha256_file(path))
         return ValidationRunResult(tuple(cases), counts if has_loop else (), tuple(paths), tuple(hashes))
 

@@ -322,6 +322,22 @@ class ReviewUiTests(ReviewCase):
         before = self._artifact_counts(); QTest.mouseClick(self.view.review_view.generate_button, Qt.MouseButton.LeftButton)
         self.assertEqual(self._artifact_counts(), before)
 
+    def test_generation_chain_failure_opens_diagnostic_with_exact_selected_version(self):
+        version = self.complete()[-1]; self.view.open_contract(self.contract.id); self.view.navigate_step(2); self.application.processEvents()
+        review = self.view.review_view
+        self.assertEqual(len(review.generation_checks), 4); self.assertTrue(review.diagnostic_button.isVisible())
+        QTest.mouseClick(review.diagnostic_button, Qt.MouseButton.LeftButton); self.application.processEvents()
+        settings = self.window.shell.surface("Paramètres")
+        self.assertEqual(settings.stack.currentIndex(), settings._indices["Diagnostic génération"])
+        self.assertEqual(settings.diagnostic_page.version_id, version.id)
+
+    def test_direct_diagnostic_entry_keeps_model_and_version_unselected(self):
+        self.complete(); settings = self.window.shell.surface("Paramètres")
+        settings.open_diagnostic(); self.application.processEvents()
+        page = settings.diagnostic_page
+        self.assertIsNone(page.version_id); self.assertEqual(page.model.currentIndex(), -1)
+        self.assertIn("Sélectionnez un modèle", page.source.text())
+
     def _artifact_counts(self):
         with self.context.database.connection() as connection:
             tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}

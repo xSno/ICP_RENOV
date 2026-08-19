@@ -17,6 +17,7 @@ class DocumentCapabilities:
     pdf_available: bool
     pdf_detail: str
     libreoffice_version: str | None = None
+    executable: Path | None = None
 
 
 class DocumentCapabilityProbe:
@@ -38,7 +39,7 @@ class DocumentCapabilityProbe:
         version = match.group(1) if match else None
         accepted = result.returncode == 0 and version == ACCEPTED_LIBREOFFICE_VERSION
         return DocumentCapabilities(
-            False, accepted, "Conversion PDF disponible" if accepted else "Conversion PDF à vérifier", version
+            False, accepted, "Conversion PDF disponible" if accepted else "Conversion PDF à vérifier", version, executable
         )
 
     @staticmethod

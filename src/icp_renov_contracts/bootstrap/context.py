@@ -11,7 +11,7 @@ from ..repositories import (
 )
 from ..documents import (LibreOfficeConverter, NonOfficialModelValidationRunner, PersistedCompanyDocumentDataProvider, ProductionDocxRenderer, TemplateSourceStore,
                          )
-from ..services import AlertSettingsService, BackupService, CompanySettingsService, ContractLifecycleService, ContractService, DocumentGenerationService, InterventionSheetGenerationService, LocalBusinessDateProvider, MasterDataService, NumberingSettingsService, PersistedContractNumberAllocator, RealBackupSummaryProvider, ReviewService, RestoreService, TemplateCatalogService
+from ..services import AlertSettingsService, BackupService, CompanySettingsService, ContractLifecycleService, ContractService, DocumentGenerationService, GenerationDiagnosticService, InterventionSheetGenerationService, LocalBusinessDateProvider, MasterDataService, NumberingSettingsService, PersistedContractNumberAllocator, RealBackupSummaryProvider, ReviewService, RestoreService, TemplateCatalogService
 from ..storage import Workspace, WorkspaceService
 
 
@@ -40,6 +40,7 @@ class ApplicationContext:
     alerts: AlertSettingsService | None
     backup: BackupService | None
     restore: RestoreService
+    diagnostic: GenerationDiagnosticService | None
     logger: logging.Logger
 
 
@@ -73,6 +74,7 @@ def build_application_context(
             None,
             None,
             RestoreService(store),
+            None,
             application_logger,
         )
 
@@ -116,6 +118,7 @@ def build_application_context(
     if failures:
         application_logger.error("Due contract activation reconciliation failed for %s", ",".join(failures))
     review.generation_ready = generation.available
+    diagnostic = GenerationDiagnosticService(workspace, workspaces, template_catalog, template_catalog.validation_runner)
     application_logger.info("Local workspace and database initialized")
     return ApplicationContext(
         ApplicationState.READY,
@@ -136,5 +139,6 @@ def build_application_context(
         alerts,
         backup,
         RestoreService(store),
+        diagnostic,
         application_logger,
     )

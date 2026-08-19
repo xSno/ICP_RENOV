@@ -154,8 +154,8 @@ class NewVersionDialog(QDialog):
 class ModelsSettingsPage(QWidget):
     COLUMNS = ("Modèle", "Régime confirmé", "Version", "État", "Dernière utilisation", "Actions")
 
-    def __init__(self, service: TemplateCatalogService, opener: FileOpener | None = None) -> None:
-        super().__init__(); self.service = service; self.opener = opener or FileOpener(); self.current_version_id: str | None = None
+    def __init__(self, service: TemplateCatalogService, opener: FileOpener | None = None, open_diagnostic=None) -> None:
+        super().__init__(); self.service = service; self.opener = opener or FileOpener(); self.open_diagnostic_callback = open_diagnostic; self.current_version_id: str | None = None
         root = QVBoxLayout(self); root.setContentsMargins(0, 0, 0, 0)
         self.stack = QStackedWidget(); self.overview = self._overview(); self.stack.addWidget(self.overview); root.addWidget(self.stack)
         self.refresh()
@@ -216,7 +216,7 @@ class ModelsSettingsPage(QWidget):
     def open_version(self, version_id: str) -> None:
         if self.stack.count() > 1:
             old = self.stack.widget(1); self.stack.removeWidget(old); old.deleteLater()
-        detail = ModelVersionDetail(self.service, version_id, self._close_detail, self.opener)
+        detail = ModelVersionDetail(self.service, version_id, self._close_detail, self.opener, self.open_diagnostic_callback)
         self.stack.addWidget(detail); self.stack.setCurrentWidget(detail)
 
     def _close_detail(self) -> None:
@@ -232,8 +232,8 @@ class ModelVersionDetail(QWidget):
         "Contrôle de structure", "Test de génération", "Validation externe", "Conditions de mise à disposition",
     )
 
-    def __init__(self, service: TemplateCatalogService, version_id: str, close_callback, opener: FileOpener) -> None:
-        super().__init__(); self.service = service; self.version_id = version_id; self.close_callback = close_callback; self.opener = opener
+    def __init__(self, service: TemplateCatalogService, version_id: str, close_callback, opener: FileOpener, open_diagnostic=None) -> None:
+        super().__init__(); self.service = service; self.version_id = version_id; self.close_callback = close_callback; self.opener = opener; self.open_diagnostic_callback = open_diagnostic
         root = QVBoxLayout(self); root.setContentsMargins(0, 0, 0, 0)
         back = QPushButton("Retour aux modèles"); back.setObjectName("secondaryButton"); back.clicked.connect(close_callback); root.addWidget(back, 0, Qt.AlignmentFlag.AlignLeft)
         self.feedback = QLabel(""); self.feedback.setWordWrap(True); self.feedback.hide(); root.addWidget(self.feedback)
@@ -323,7 +323,7 @@ class ModelVersionDetail(QWidget):
         test = self._section("Test de génération")
         test.layout().addWidget(QLabel("Test non officiel : aucun contrat, numéro, document métier, événement ou révision n’est créé."))
         test.layout().addWidget(QLabel(f"Résultat : {record.render_status.value} · Cas : {', '.join(record.render_cases) or 'aucun'}"))
-        run = QPushButton("Tester la génération"); run.setEnabled(editable); run.clicked.connect(self._test); test.layout().addWidget(run)
+        run = QPushButton("Tester la génération"); run.setEnabled(editable); run.clicked.connect(self._open_diagnostic if self.open_diagnostic_callback else self._test); test.layout().addWidget(run)
         self.visual_status = QComboBox()
         for label, value in (("À contrôler visuellement", ReviewEvidenceStatus.TO_REVIEW), ("Confirmé", ReviewEvidenceStatus.CONFIRMED), ("Non requis", ReviewEvidenceStatus.NOT_APPLICABLE)): self.visual_status.addItem(label, value)
         self.visual_status.setCurrentIndex(max(self.visual_status.findData(record.visual_review_status), 0)); self.visual_status.setEnabled(editable)
@@ -399,6 +399,7 @@ class ModelVersionDetail(QWidget):
         self._run(save, "Autorisation de contexte enregistrée.")
     def _control(self): self._run(lambda: self.service.control_structure(self.version_id), "Contrôle de structure terminé.")
     def _test(self): self._run(lambda: self.service.test_generation(self.version_id), "Test non officiel terminé.")
+    def _open_diagnostic(self): self.open_diagnostic_callback(self.version_id, True)
     def _save_visual(self): self._run(lambda: self.service.set_visual_review(self.version_id, self.visual_status.currentData()), "Contrôle visuel enregistré.")
     def _save_external(self):
         def save():

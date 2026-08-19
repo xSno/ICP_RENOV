@@ -1,58 +1,40 @@
-S14 FINAL REAL BACKUP / RESTORE ACCEPTANCE
+S15 — final visual-fixture correction
 
-Implementation status
-- Database schema remains v12; no S14 migration.
-- MachineConfig.backup_directory is optional, backward-compatible, machine-specific, and not a restored business authority.
-- BackupService creates version-1 .icprenovbackup ZIP archives with deterministic UTF-8 manifest, SHA-256 payload entries, online SQLite backup snapshot, staging, self-validation, and atomic publish.
-- RestoreService validates manifest/product/version/hash/size/path safety/database integrity and restores only to a new or empty target through staging; MachineConfig switches only after publication.
-- S10 uses RealBackupSummaryProvider; backup_reminder_days remains global and never changes Contract actions. PQ-09 remains separate/open.
+- Direct Paramètres > Diagnostic génération no longer selects a model/version implicitly. It shows « Sélectionnez un modèle et une version pour lancer un test. » until an exact Models or Review navigation context is supplied. Models and Review exact preselection remain covered.
+- Schema remains v12; the two Diagnostic groups and four Review checks are unchanged.
 
-Real representative fixture
-- Fixture root: C:\Users\xSn\AppData\Local\Temp\icp-renov-s14-final-cm22eohq
-- Source workspace: C:\Users\xSn\AppData\Local\Temp\icp-renov-s14-final-cm22eohq\representative_workspace
-- External backup destination: C:\Users\xSn\AppData\Local\Temp\icp-renov-s14-final-cm22eohq\external_backup
-- Exact archive: C:\Users\xSn\AppData\Local\Temp\icp-renov-s14-final-cm22eohq\external_backup\ICP_RENOV_BACKUP_2026-08-18_08-55-33_62420d24.icprenovbackup
-- Restored workspace: C:\Users\xSn\AppData\Local\Temp\icp-renov-s14-final-cm22eohq\restored_workspace
+Independent TEMP fixtures
+- Root: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819
+- A: workspace C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\A_workspace; profile C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\A_profile
+- B: workspace C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\B_workspace; profile C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\B_profile
+- C: workspace C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\C_workspace; profile C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\C_profile
+- D: workspace C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\D_workspace; profile C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\D_profile
+- E: workspace C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\E_workspace; profile C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\E_profile
+- F: workspace C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\F_workspace; profile C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\F_profile
+- All six profile configurations were tested and independently resolved READY to their matching distinct workspace.
 
-Real archive verification
-- Manifest parses; product marker ICP_RENOV_CONTRACTS; backup_format_version 1; source schema 12.
-- 7 payload entries, all unique normalized paths, all sizes/SHA-256 verified; database payload present.
-- No WAL/SHM, cache, tmp or recursive backups entries.
-- SQLite snapshot and restored database: PRAGMA integrity_check = ok.
-- Representative content verified: numbered R01 contract, 2 immutable ContractDocuments (CONTRACT and Intervention Sheet), 3 ContractEvents, governed contract/intervention template sources, CompanySettings, NumberingSettings and AlertSettings in the SQLite payload.
-- Exact Contract number source/restored: S14-2026-0042 / S14-2026-0042.
-- Exact next_counter source/restored: 43 / 43. No inference/recalculation occurred.
-- Source workspace was copied before backup and remains separate from restored target; the archive was not modified after creation.
-- S10 real provider result: Dernière sauvegarde : 18/08/2026 10:55. The configured backup button is backed by create_now; no Contract action/filter state is touched.
+Launch commands
+- A: $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\A_profile'; python -m icp_renov_contracts
+- B: $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\B_profile'; python -m icp_renov_contracts
+- C: $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\C_profile'; python -m icp_renov_contracts
+- D: $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\D_profile'; python -m icp_renov_contracts
+- E: $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\E_profile'; python -m icp_renov_contracts
+- F: $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\F_profile'; python -m icp_renov_contracts
 
-Visual fixture profiles
-- Profiles root: C:\Users\xSn\AppData\Local\Temp\icp-renov-s14-final-cm22eohq\profiles
-- A_unconfigured: backup non configurée.
-- B_configured_no_backup: destination configurée/vide, Aucune sauvegarde créée and Sauvegarde à effectuer.
-- C_D_recent_backup: Settings and Contracts banner show real latest backup.
-- E_due_backup: copied workspace with backup_reminder_days=0, showing the global due reminder.
-- F_restore_modal: open any configured fixture, Paramètres > Stockage & sauvegarde > Restaurer une sauvegarde.
-- G_restored: restored workspace.
+Repository safety and tests
+- The old in-repository evidence root was removed; repository status has no fixture residue.
+- Application suite: 241 passed. Frozen spike retained: 38 passed, 1 Word integration skip.
 
-TESTED copy/paste commands from repository root
-- A: $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\icp-renov-s14-final-cm22eohq\profiles\A_unconfigured'; python -m icp_renov_contracts
-- B: $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\icp-renov-s14-final-cm22eohq\profiles\B_configured_no_backup'; python -m icp_renov_contracts
-- C/D/F: $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\icp-renov-s14-final-cm22eohq\profiles\C_D_recent_backup'; python -m icp_renov_contracts
-- E: $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\icp-renov-s14-final-cm22eohq\profiles\E_due_backup'; python -m icp_renov_contracts
-- G: $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\icp-renov-s14-final-cm22eohq\profiles\G_restored'; python -m icp_renov_contracts
-- Each profile was opened through build_application_context and resolved READY with the intended workspace pointer before handoff.
+Remaining S15 risk
+- Fixture workspaces are independent copies of accepted real diagnostic evidence; named A–F visual cases still require their natural in-app navigation and selection where session state is intentionally non-persistent.
 
-S14 micro-correction
-- Backup staging cleanup now closes snapshot SQLite handles before final cleanup and removes only the exact .icp-backup-<uuid> attempt directory.
-- Real post-fix backup destination: C:\Users\xSn\AppData\Local\Temp\icp-renov-s14-final-cm22eohq\external_backup
-- Exact post-fix archive: C:\Users\xSn\AppData\Local\Temp\icp-renov-s14-final-cm22eohq\external_backup\ICP_RENOV_BACKUP_2026-08-18_11-16-08_28d4d4d5.icprenovbackup
-- Micro-smoke result: final archive exists; no .icp-backup-* attempt directory remains.
-- Restore UI now identifies a non-empty target explicitly: « Le dossier de restauration doit être vide. Choisissez un nouveau dossier ou un dossier vide. » It never empties that directory.
-- A valid empty target reaches the bounded confirmation modal with Annuler / Restaurer la sauvegarde; cancel performs no restore side effect.
+S15 D/E/F fixture patch
+- D workspace/profile: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\D_workspace / C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\D_profile. Version aee44fc7-86d6-48df-a7a9-1a682137146f has required_company_fields=('email',), CompanySettings.email is empty, source is VALID, and Diagnostic returns « Des informations société requises par ce modèle sont à compléter. » before rendering.
+- E workspace/profile: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\E_workspace / C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\E_profile. Version a2772985-b053-48e4-882b-2d924b363fad has its exact governed source removed; source authority returns MISSING / « Fichier source introuvable » and Diagnostic stops before rendering.
+- D command tested: $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\D_profile'; python -m icp_renov_contracts
+- E command tested: $env:LOCALAPPDATA='C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_S15_VISUAL_FINAL_20260819\E_profile'; python -m icp_renov_contracts
+- F remains a fixture-only gap: its independent workspace/profile exists, but a visual-only injected PDF capability failure and complete representative Contract are not materialized because current production composition provides no fixture-scoped injection seam. No production debug capability was added.
 
-Tests
-- Final application suite: 236 tests passed.
-- Frozen spike: 38 passed, 1 Word integration skipped, 0 failed.
-
-Remaining S14 risk
-- No actual remaining S14 data-integrity risk found in this final real archive/restore pass. Fixture data is disposable TEMP content.
+S15 D/E resolution UX micro-correction
+- Missing version-required company data now lists French field labels (for D: « E-mail »), disables the test action, and exposes « Ouvrir Société » which navigates to Paramètres > Société.
+- Missing/hash-invalid governed source disables the test action and exposes « Ouvrir le modèle », navigating to the exact selected governed version. No renderer/converter is invoked for either known blocker.

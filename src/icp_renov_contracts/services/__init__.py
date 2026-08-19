@@ -2,6 +2,7 @@ from .master_data import MasterDataService
 from .contracts import ContractService
 from .template_catalog import TemplateCatalogService
 from .capabilities import DocumentCapabilities, DocumentCapabilityProbe
+from .generation_diagnostic import GenerationDiagnosticResult, GenerationDiagnosticService, WorkstationGenerationStatus
 from .review import ReviewService
 from .document_generation import DocumentGenerationService, GenerationResult
 from .intervention_sheets import InterventionGenerationResult,InterventionInput,InterventionSheetGenerationService
@@ -12,6 +13,6 @@ from .contract_register import BackupSummary, BackupSummaryProvider, ContractOpe
 from .company import CompanySettingsService
 
 __all__ = [
-    "ContractService", "DocumentCapabilities", "DocumentCapabilityProbe", "MasterDataService",
+    "ContractService", "DocumentCapabilities", "DocumentCapabilityProbe", "GenerationDiagnosticResult", "GenerationDiagnosticService", "WorkstationGenerationStatus", "MasterDataService",
     "BackupError", "BackupService", "RealBackupSummaryProvider", "RestoreError", "RestoreService", "AlertSettingsService", "NumberingSettingsService", "PersistedContractNumberAllocator", "ContractLifecycleService", "ContractPeriod", "ContractPrice", "FileOpener", "LifecycleProjection", "LocalBusinessDateProvider", "SignedContractAuthority", "DocumentGenerationService", "GenerationResult", "InterventionGenerationResult", "InterventionInput", "InterventionSheetGenerationService", "ReviewService", "TemplateCatalogService", "CompanySettingsService", "BackupSummary", "BackupSummaryProvider", "ContractOperationalSignal", "ContractOperationalSignalKind", "ContractRegisterFilter", "ContractRegisterRow", "ContractRegisterService",
 ]

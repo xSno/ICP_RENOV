@@ -28,7 +28,7 @@ class ApplicationShell(QWidget):
                  template_catalog: TemplateCatalogService | None = None,
                  numbering: NumberingSettingsService | None = None,
                  alerts: AlertSettingsService | None = None, backup: BackupService | None = None,
-                 restore: RestoreService | None = None) -> None:
+                 restore: RestoreService | None = None, diagnostic=None) -> None:
         super().__init__()
         self.setObjectName("applicationRoot")
         root = QHBoxLayout(self)
@@ -65,7 +65,7 @@ class ApplicationShell(QWidget):
         sidebar_layout.addStretch(1)
 
         self.stack = QStackedWidget()
-        self._surfaces = build_surfaces(master_data, contracts, review, generation, lifecycle, interventions, company, template_catalog, numbering, alerts, backup, restore)
+        self._surfaces = build_surfaces(master_data, contracts, review, generation, lifecycle, interventions, company, template_catalog, numbering, alerts, backup, restore, diagnostic)
         self._indices: dict[str, int] = {}
         for label in NAVIGATION_LABELS:
             self._indices[label] = self.stack.addWidget(self._surfaces[label])

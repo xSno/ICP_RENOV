@@ -28,9 +28,10 @@ class GenerationConfirmationDialog(QDialog):
 class ReviewView(QWidget):
     def __init__(self, service: ReviewService, navigate: Callable[[int], None],
                  generation: DocumentGenerationService | None = None,
-                 finished: Callable[[str, bool], None] | None = None) -> None:
+                 finished: Callable[[str, bool], None] | None = None,
+                 open_diagnostic: Callable[[str | None], None] | None = None) -> None:
         super().__init__(); self.setObjectName("reviewStep")
-        self.service = service; self.navigate = navigate; self.generation = generation; self.finished = finished
+        self.service = service; self.navigate = navigate; self.generation = generation; self.finished = finished; self.open_diagnostic = open_diagnostic
         self.contract_id: str | None = None
         root = QVBoxLayout(self); root.setContentsMargins(0, 0, 8, 0); root.setSpacing(14)
         title = QLabel("Revue avant génération"); title.setObjectName("screenTitle"); root.addWidget(title)
@@ -43,6 +44,8 @@ class ReviewView(QWidget):
         heading = QLabel("Disponibilité de la génération"); heading.setObjectName("sectionTitle"); generation_layout.addWidget(heading)
         self.checks_host = QWidget(); self.checks_layout = QVBoxLayout(self.checks_host); self.checks_layout.setContentsMargins(0, 0, 0, 0)
         generation_layout.addWidget(self.checks_host); root.addWidget(generation)
+        self.diagnostic_button = QPushButton("Ouvrir le diagnostic"); self.diagnostic_button.setObjectName("secondaryButton")
+        self.diagnostic_button.clicked.connect(self._open_diagnostic); self.diagnostic_button.hide(); root.addWidget(self.diagnostic_button)
         self.distinction = QLabel(); self.distinction.setWordWrap(True); root.addWidget(self.distinction)
         self.number_context = QLabel("Numéro attribué après génération réussie"); self.number_context.setObjectName("screenDescription"); root.addWidget(self.number_context)
         self.generate_button = QPushButton("Générer le DOCX et le PDF")
@@ -83,6 +86,8 @@ class ReviewView(QWidget):
             label = QLabel(check.label); value = QLabel(("✓ " if check.available else "! ") + check.detail)
             value.setObjectName("generationCheckState"); line.addWidget(label); line.addStretch(1); line.addWidget(value)
             self.checks_layout.addWidget(row); self.generation_checks.append(row)
+        chain_failure = any(not check.available for check in result.generation.checks if check.key in {"WORKSPACE", "DOCX", "PDF"})
+        self.diagnostic_button.setVisible(chain_failure and self.open_diagnostic is not None)
         if result.data_complete and not result.generation.generation_available:
             self.distinction.setText("Le contrat est complet, mais la génération est indisponible.")
         elif not result.data_complete:
@@ -106,6 +111,10 @@ class ReviewView(QWidget):
         for button in self.modify_buttons: button.setEnabled(not locked)
         if locked:
             self.generate_button.setEnabled(False); self.distinction.setText("R01 est créée. Le contrat est verrouillé et À signer.")
+
+    def _open_diagnostic(self) -> None:
+        if self.contract_id and self.open_diagnostic:
+            self.open_diagnostic(self.service.contracts.get(self.contract_id).template_version_id)
 
     def confirm_generation(self) -> None:
         if not self.contract_id or not self.generation or not self.generation.available(self.contract_id): return

@@ -38,11 +38,11 @@ def build_surfaces(master_data: MasterDataService, contracts: ContractService, r
                    template_catalog: TemplateCatalogService | None = None,
                    numbering: NumberingSettingsService | None = None,
                    alerts: AlertSettingsService | None = None, backup: BackupService | None = None,
-                   restore: RestoreService | None = None) -> dict[str, QWidget]:
+                   restore: RestoreService | None = None, diagnostic=None) -> dict[str, QWidget]:
+    settings = CompanySettingsView(company, review.workspace_service, template_catalog, numbering, alerts, backup, restore, diagnostic) if company else PlaceholderSurface(
+        "Paramètres", "Les paramètres société ne sont pas disponibles dans ce contexte.")
     return {
-        "Contrats": ContractsView(contracts, review, generation, lifecycle,interventions, backup_provider=RealBackupSummaryProvider(backup, alerts) if backup else None, alert_settings=alerts),
+        "Contrats": ContractsView(contracts, review, generation, lifecycle,interventions, backup_provider=RealBackupSummaryProvider(backup, alerts) if backup else None, alert_settings=alerts, open_diagnostic=getattr(settings, "open_diagnostic", None)),
         "Clients & installations": ClientsInstallationsView(master_data),
-        "Param\u00e8tres": CompanySettingsView(company, review.workspace_service, template_catalog, numbering, alerts, backup, restore) if company else PlaceholderSurface(
-            "Param\u00e8tres", "Les param\u00e8tres soci\u00e9t\u00e9 ne sont pas disponibles dans ce contexte.",
-        ),
+        "Paramètres": settings,
     }
