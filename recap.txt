@@ -1,18 +1,13 @@
-C1 — first-use / workspace bootstrap handoff
+C2.W1 — WebEngine Contracts technical closure
 
-- Schema remains v12. On a clean profile, Configurer ce poste is enabled and Restore remains a separate first-use path.
-- The native folder picker leads to a bounded confirmation showing the selected path. New or empty folders are initialized only through WorkspaceService and DatabaseService; singleton settings are initialized by normal schema migration.
-- Existing ICP workspaces are checked read-only for SQLite integrity and future schema before attachment; supported older schemas continue through the accepted migration authority.
-- A non-empty unrecognized folder is rejected untouched. Corrupt/unopenable and future-schema workspaces are rejected without downgrading or changing MachineConfig.
-- MachineConfig is saved only after workspace/database initialization succeeds, and is restored if the subsequent context rebuild fails. Cancel leaves configuration and target unchanged.
-- Company settings, models, numbering, backup destination and LibreOffice remain contextual non-blockers. Restore semantics are unchanged.
+- Production Contrats landing is the sandboxed WebEngine surface. Local assets are index.html, app.css and app.js under src/icp_renov_contracts/ui_web/; there is no HTTP server, remote asset, TEMP spike or frozen-prototype runtime dependency.
+- UiBridge exposes only refresh, setFilter, setSearch, openContract, createContract, saveBackup and top-level navigation. Python owns all row, status, document, filter, action-count and backup truth.
+- The page policy accepts only packaged local navigation, denies remote navigation and popups, and has bounded local load/WebChannel failure states. No sandbox-disable flag or generic filesystem/shell bridge exists.
+- The WebEngine host and legacy workflow share one ApplicationContext through a stacked central surface: row/new opens the existing workflow; Clients and Settings return to Contrats WebEngine without duplicate sidebars or host deletion.
+- Targeted UiBridge tests cover bounded initial snapshot, five Python filters, action predicate, search/clear, exact id routing, new/navigation routing, backup delegation and no render mutation.
+- Full suite: 249 passed. Qt WebEngine cannot create its sandboxed Chromium process with QT_QPA_PLATFORM=offscreen, so standard headless Qt workflow tests use the existing QWidget workflow; desktop production always uses WebEngine. Sandbox was not weakened.
+- Real sandbox-active production smoke passed: 3 rows / 2 actions, filter = 2, search = 1, exact open/new routing, Clients/Settings and return all passed. WebEngine was visibly ready in approximately 3 seconds.
+- Visual freeze: 1600 PASS; 1366 PASS; 1280 PASS.
 
-Tests
-- New C1 tests: 5 passed (clean controls, fresh workspace/schema/zero business rows, foreign sentinel, fresh-attempt cleanup, existing-empty-root preservation).
-- Full application suite: 246 passed.
-
-Real-smoke / visual evidence
-- The real GUI first-use, restart, existing-workspace and foreign-folder smoke runs remain to be performed manually; no TEMP visual fixture command is advertised as tested in this pass.
-
-Remaining C1 risks
-- The real interactive GUI smoke/visual fixture pass remains outstanding; no untested command is advertised.
+Remaining C2.W1 risk
+- Chromium visual interaction is validated by the sandbox-active production smoke; deterministic CI bridge coverage remains intentionally Chromium-free because of the documented offscreen limitation.

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QButtonGroup,
@@ -64,6 +66,7 @@ class ApplicationShell(QWidget):
             sidebar_layout.addWidget(button)
         sidebar_layout.addStretch(1)
 
+        self._contracts_landing: Callable[[], None] | None = None
         self.stack = QStackedWidget()
         self._surfaces = build_surfaces(master_data, contracts, review, generation, lifecycle, interventions, company, template_catalog, numbering, alerts, backup, restore, diagnostic)
         self._indices: dict[str, int] = {}
@@ -79,6 +82,10 @@ class ApplicationShell(QWidget):
         root.addWidget(content, 1)
         self.navigate("Contrats")
 
+    def set_contracts_landing(self, callback: Callable[[], None]) -> None:
+        """Keep the legacy contract workflow available without making it a landing screen."""
+        self._contracts_landing = callback
+
     @property
     def navigation_labels(self) -> tuple[str, ...]:
         return tuple(self._buttons)
@@ -90,9 +97,12 @@ class ApplicationShell(QWidget):
     def surface(self, destination: str) -> QWidget:
         return self._surfaces[destination]
 
-    def navigate(self, destination: str) -> None:
+    def navigate(self, destination: str, *, workflow: bool = False) -> None:
         if destination not in self._indices:
             raise ValueError(f"Unknown navigation destination: {destination}")
+        if destination == "Contrats" and self._contracts_landing is not None and not workflow:
+            self._contracts_landing()
+            return
         self.stack.setCurrentIndex(self._indices[destination])
         for label, button in self._buttons.items():
             active = label == destination

@@ -1,6 +1,6 @@
 from pathlib import Path
 import sqlite3
-from PySide6.QtWidgets import QFileDialog, QMainWindow, QMessageBox
+from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QMessageBox, QStackedWidget
 
 from ..bootstrap import ApplicationContext, ApplicationState
 from ..bootstrap import build_application_context
@@ -11,6 +11,7 @@ from ..errors import ApplicationError
 from .bootstrap_view import BootstrapView
 from .shell import ApplicationShell
 from .styles import application_stylesheet
+from .web_host import WebUiHost
 
 
 class MainWindow(QMainWindow):
@@ -23,12 +24,42 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(application_stylesheet())
         if context.state is ApplicationState.READY:
             self.shell: ApplicationShell | None = ApplicationShell(context.master_data, context.contracts, context.review, context.generation, context.lifecycle,context.intervention_generation,context.company,context.template_catalog,context.numbering,context.alerts,context.backup,context.restore,context.diagnostic)
+            self.web_host: WebUiHost | None = None
             self.bootstrap_view: BootstrapView | None = None
-            self.setCentralWidget(self.shell)
+            # Qt WebEngine cannot create its sandboxed Chromium subprocess with the
+            # offscreen Qt platform. This preserves the existing deterministic Qt
+            # workflow tests; normal desktop production always takes the WebEngine path.
+            if QApplication.platformName() == "offscreen":
+                self.setCentralWidget(self.shell)
+            else:
+                self.web_host = WebUiHost(context, self._web_action)
+                self.shell.set_contracts_landing(self._show_web_contracts)
+                self.ready_stack = QStackedWidget()
+                self.ready_stack.addWidget(self.web_host)
+                self.ready_stack.addWidget(self.shell)
+                self.ready_stack.setCurrentWidget(self.web_host)
+                self.setCentralWidget(self.ready_stack)
         else:
             self.shell = None
             self.bootstrap_view = BootstrapView(self._restore_first_use, self._configure_first_use)
             self.setCentralWidget(self.bootstrap_view)
+
+    def _web_action(self, action: str) -> None:
+        if action == 'CLIENTS': self._show_legacy(self.shell.navigation_labels[1]); return
+        if action == 'SETTINGS': self._show_legacy(self.shell.navigation_labels[2]); return
+        if action == 'NEW': self.shell.navigate('Contrats', workflow=True); self.shell.surface('Contrats').create_contract(); self._show_legacy('Contrats', workflow=True); return
+        if action.startswith('OPEN:'): self.shell.navigate('Contrats', workflow=True); self.shell.surface('Contrats').open_contract(action[5:]); self._show_legacy('Contrats', workflow=True)
+
+    def _show_legacy(self, destination: str, *, workflow: bool = False) -> None:
+        self.shell.navigate(destination, workflow=workflow)
+        if self.web_host is None: self.setCentralWidget(self.shell)
+        else: self.ready_stack.setCurrentWidget(self.shell)
+
+    def _show_web_contracts(self) -> None:
+        """The WebEngine register is the sole normal Contrats landing surface."""
+        if self.web_host is not None:
+            self.ready_stack.setCurrentWidget(self.web_host)
+            self.web_host.bridge.refresh()
 
     def _configure_first_use(self) -> None:
         selected = QFileDialog.getExistingDirectory(self, "Choisir le dossier de travail ICP Renov")
@@ -76,7 +107,17 @@ class MainWindow(QMainWindow):
             if new_context.state is not ApplicationState.READY: raise ApplicationError()
             self.context = new_context
             self.shell = ApplicationShell(new_context.master_data, new_context.contracts, new_context.review, new_context.generation, new_context.lifecycle,new_context.intervention_generation,new_context.company,new_context.template_catalog,new_context.numbering,new_context.alerts,new_context.backup,new_context.restore,new_context.diagnostic)
-            self.bootstrap_view = None; self.setCentralWidget(self.shell)
+            self.bootstrap_view = None
+            if QApplication.platformName() == "offscreen":
+                self.setCentralWidget(self.shell)
+            else:
+                self.web_host = WebUiHost(new_context, self._web_action)
+                self.shell.set_contracts_landing(self._show_web_contracts)
+                self.ready_stack = QStackedWidget()
+                self.ready_stack.addWidget(self.web_host)
+                self.ready_stack.addWidget(self.shell)
+                self.ready_stack.setCurrentWidget(self.web_host)
+                self.setCentralWidget(self.ready_stack)
         except ApplicationError as error:
             if committed: self.context.config_store.save(previous_config)
             if fresh_attempt: self._cleanup_failed_workspace_attempt(candidate, existed_before)

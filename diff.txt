@@ -1,13 +1,20 @@
-C1 current uncommitted Git delta
+C2.W1 current uncommitted delta
 
 Created
-- tests/test_bootstrap_c1.py
+- src/icp_renov_contracts/ui/web_host.py
+- src/icp_renov_contracts/ui_web/index.html
+- src/icp_renov_contracts/ui_web/app.css
+- src/icp_renov_contracts/ui_web/app.js
+- tests/test_web_bridge_c2w1.py
 
 Modified
+- src/icp_renov_contracts/ui/main_window.py
+- src/icp_renov_contracts/ui/shell.py
 - recap.txt
 - diff.txt
-- src/icp_renov_contracts/ui/bootstrap_view.py
-- src/icp_renov_contracts/ui/main_window.py
 
 Removed
 - None
+
+Not changed
+- docs/, templates/, spike/, frozen UX authority files
