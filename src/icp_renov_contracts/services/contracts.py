@@ -254,11 +254,14 @@ class ContractService:
     def selectable_sites(self, contract_id: str):
         contract = self.get(contract_id)
         if contract.client_source_id is None: return []
+        if self.master_data.get_client(contract.client_source_id).archived: return []
         return [site for site in self.master_data.list_sites(contract.client_source_id) if not site.archived]
 
     def select_site(self, contract_id: str, site_id: str) -> Contract:
         current = self._editable(contract_id)
         if current.client_source_id is None: raise ContractValidationError("client required")
+        if self.master_data.get_client(current.client_source_id).archived:
+            raise ContractValidationError("client archived")
         site = self.master_data.get_site(site_id)
         if site.archived or site.client_id != current.client_source_id:
             raise ContractValidationError("site outside selected client")
@@ -275,6 +278,8 @@ class ContractService:
     def selectable_equipment(self, contract_id: str):
         contract = self.get(contract_id)
         if contract.site_source_id is None: return []
+        site = self.master_data.get_site(contract.site_source_id)
+        if site.archived or self.master_data.get_client(site.client_id).archived: return []
         return [item for item in self.master_data.list_equipment(contract.site_source_id) if not item.archived]
 
     def select_equipment(self, contract_id: str, equipment_id: str) -> Contract:
@@ -282,6 +287,9 @@ class ContractService:
         if contract.site_source_id is None: raise ContractValidationError("site required")
         if any(item.source_equipment_id == equipment_id for item in contract.equipment_items):
             return contract
+        site = self.master_data.get_site(contract.site_source_id)
+        if site.archived or self.master_data.get_client(site.client_id).archived:
+            raise ContractValidationError("equipment parent archived")
         equipment = self.master_data.get_equipment(equipment_id)
         if equipment.archived or equipment.site_id != contract.site_source_id:
             raise ContractValidationError("equipment outside selected site")

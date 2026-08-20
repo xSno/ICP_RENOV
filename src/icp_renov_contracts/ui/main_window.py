@@ -49,6 +49,16 @@ class MainWindow(QMainWindow):
         if action == 'SETTINGS': self._show_legacy(self.shell.navigation_labels[2]); return
         if action == 'NEW': self.shell.navigate('Contrats', workflow=True); self.shell.surface('Contrats').create_contract(); self._show_legacy('Contrats', workflow=True); return
         if action.startswith('OPEN:'): self.shell.navigate('Contrats', workflow=True); self.shell.surface('Contrats').open_contract(action[5:]); self._show_legacy('Contrats', workflow=True)
+        if action.startswith('EDIT_SITE:'):
+            self._show_legacy(self.shell.navigation_labels[1]); self.shell.surface(self.shell.navigation_labels[1]).open_edit_site(self.context.master_data.get_site(action[10:])); return
+        if action.startswith('EDIT_EQUIPMENT:'):
+            self._show_legacy(self.shell.navigation_labels[1]); self.shell.surface(self.shell.navigation_labels[1]).open_edit_equipment(self.context.master_data.get_equipment(action[15:])); return
+        if action.startswith('ADD_EQUIPMENT:'):
+            self._show_legacy(self.shell.navigation_labels[1]); self.shell.surface(self.shell.navigation_labels[1]).open_new_equipment(self.context.master_data.get_site(action[14:]).id); return
+        if action.startswith('NEW_FOR_SITE:'):
+            site = self.context.master_data.get_site(action[13:]); client = self.context.master_data.get_client(site.client_id)
+            if site.archived or client.archived: return
+            self.shell.navigate('Contrats', workflow=True); view = self.shell.surface('Contrats'); view.create_contract(); view.contracts.select_client(view.contract_id, site.client_id); view.contracts.select_site(view.contract_id, site.id); self._show_legacy('Contrats', workflow=True); return
 
     def _show_legacy(self, destination: str, *, workflow: bool = False) -> None:
         self.shell.navigate(destination, workflow=workflow)

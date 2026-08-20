@@ -68,7 +68,11 @@ class MasterDataService:
         return site
 
     def create_site(self, client_id: str, draft: SiteDraft) -> SiteMaster:
-        self.get_client(client_id)
+        client = self.get_client(client_id)
+        if client.archived:
+            raise MasterDataValidationError({
+                "client_id": "Un site ne peut pas être ajouté à un client archivé."
+            })
         clean = self._validate_site(draft)
         now = _now()
         site = SiteMaster(**clean.__dict__, id=str(uuid.uuid4()), client_id=client_id, created_at_utc=now, updated_at_utc=now)
@@ -104,7 +108,12 @@ class MasterDataService:
         return equipment
 
     def create_equipment(self, site_id: str, draft: EquipmentDraft) -> EquipmentMaster:
-        self.get_site(site_id)
+        site = self.get_site(site_id)
+        client = self.get_client(site.client_id)
+        if site.archived or client.archived:
+            raise MasterDataValidationError({
+                "site_id": "Un équipement ne peut pas être ajouté dans un site ou un client archivé."
+            })
         clean = self._validate_equipment(draft)
         now = _now()
         equipment = EquipmentMaster(

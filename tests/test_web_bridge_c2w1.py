@@ -61,7 +61,8 @@ class WebBridgeC2W1Tests(GenerationCase):
         self.bridge.navigate("CLIENTS")
         self.bridge.navigate("SETTINGS")
         self.bridge.navigate("unknown")
-        self.assertEqual(self.actions, [f"OPEN:{self.contract.id}", "NEW", "CLIENTS", "SETTINGS"])
+        self.assertEqual(self.actions, [f"OPEN:{self.contract.id}", "NEW", "SETTINGS"])
+        self.assertEqual(self.bridge.page_name, "CLIENTS")
         with mock.patch.object(self.context.backup, "create_now") as create_now:
             self.bridge.saveBackup()
         create_now.assert_called_once_with()
