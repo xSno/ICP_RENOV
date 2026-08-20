@@ -57,6 +57,14 @@ CONTRACT_PRICING_DTO_FIELDS = frozenset({
     "annual_ht", "vat_rate", "payment_terms_code", "payment_due_days",
     "payment_terms_custom_text", "payment_methods",
 })
+CONTRACT_RENEWAL_DTO_FIELDS = frozenset({
+    "renewal_mode", "renewal_period_months", "non_renewal_notice_days",
+    "non_renewal_notice_channels", "internal_alert_days", "renewal_price_rule",
+})
+CONTRACT_EARLY_TERMINATION_DTO_FIELDS = frozenset({
+    "early_termination_reason_codes", "early_termination_custom_text", "breach_cure_period_days",
+})
+CONTRACT_SPECIAL_TERMS_DTO_FIELDS = frozenset({"special_terms"})
 
 
 def _client_editor_payload(client: ClientMaster) -> dict[str, str]:
@@ -280,8 +288,12 @@ class UiBridge(QObject):
             "OTHER_DISTANCE": "Autre vente à distance",
         }.get(conditions.conclusion_mode, "Non configuré")
         renewal = {
-            "NONE": "Sans renouvellement", "MANUAL": "Renouvellement manuel", "TACIT": "Tacite reconduction",
+            "NONE": "Aucun", "MANUAL": "Renouvellement manuel", "TACIT": "Reconduction tacite",
         }.get(conditions.renewal_mode, "Non configuré")
+        renewal_price = {
+            "FIXED": "Même prix",
+            "NEW_PRICE_ON_RENEWAL": "Nouveau prix défini au renouvellement",
+        }.get(conditions.renewal_price_rule, "")
         complete_step_one = bool(
             contract.client_snapshot and contract.signatory_name.strip() and contract.signatory_role.strip()
             and contract.site_snapshot and contract.equipment_items
@@ -385,6 +397,45 @@ class UiBridge(QObject):
                 ],
                 "pricing_catalog_available": catalogs is not None,
             },
+            "conditions_b3": {
+                "renewal_mode": conditions.renewal_mode,
+                "renewal_modes": [
+                    {"id": "NONE", "label": "Aucun"},
+                    {"id": "MANUAL", "label": "Renouvellement manuel"},
+                    {"id": "TACIT", "label": "Reconduction tacite"},
+                ],
+                "renewal_period_months": conditions.renewal_period_months,
+                "non_renewal_notice_days": conditions.non_renewal_notice_days,
+                "non_renewal_notice_channels": list(conditions.non_renewal_notice_channels),
+                "requires_non_renewal_notice_days": bool(
+                    selected_compatible and version.validation.requires_non_renewal_notice_days
+                ),
+                "requires_non_renewal_notice_channels": bool(
+                    selected_compatible and version.validation.requires_non_renewal_notice_channels
+                ),
+                "non_renewal_channel_options": [
+                    {"id": item.code, "label": item.label}
+                    for item in (catalogs.non_renewal_channels if catalogs else ())
+                ],
+                "internal_alert_days": conditions.internal_alert_days,
+                "renewal_price_rule": conditions.renewal_price_rule,
+                "renewal_price_rules": [
+                    {"id": "FIXED", "label": "Même prix"},
+                    {"id": "NEW_PRICE_ON_RENEWAL", "label": "Nouveau prix défini au renouvellement"},
+                ],
+                "early_termination_reason_codes": list(conditions.early_termination_reason_codes),
+                "early_termination_custom_text": conditions.early_termination_custom_text,
+                "early_termination_reason_options": [
+                    {"id": item.code, "label": item.label}
+                    for item in (catalogs.early_termination_reasons if catalogs else ())
+                ],
+                "breach_cure_period_required": bool(
+                    selected_compatible and version.validation.requires_breach_cure_period_days
+                ),
+                "breach_cure_period_days": conditions.breach_cure_period_days,
+                "special_terms": conditions.special_terms,
+                "catalog_available": catalogs is not None,
+            },
             "summary": {
                 "client": contract.client_snapshot.display_name if contract.client_snapshot else "Non sélectionné",
                 "signatory": " · ".join(part for part in (contract.signatory_name, contract.signatory_role) if part) or "Non renseigné",
@@ -398,7 +449,7 @@ class UiBridge(QObject):
                 "price": (
                     f"{_money_fr(annual_ttc)} € TTC / an" if annual_ttc is not None else "Non configuré"
                 ),
-                "renewal": renewal,
+                "renewal": " · ".join(value for value in (renewal, renewal_price) if value),
                 "template": version.display_name if version else "Non configuré",
                 "completion": (
                     "Étape 2 à compléter" if self.contract_step == 2
@@ -772,6 +823,93 @@ class UiBridge(QObject):
             "vat_amount": _money_fr(saved.vat_amount) if saved.vat_amount is not None else "",
             "annual_ttc": _money_fr(saved.annual_ttc) if saved.annual_ttc is not None else "",
         }
+
+    @Slot(str, "QVariant", result="QVariant")
+    def updateContractRenewal(self, contract_id: str, payload: object) -> dict:
+        try:
+            values = _closed_contract_dto(payload, CONTRACT_RENEWAL_DTO_FIELDS)
+            if set(values) != CONTRACT_RENEWAL_DTO_FIELDS:
+                raise ContractConditionsValidationError({
+                    "payload": "Complétez les informations de renouvellement transmises."
+                })
+            for field in ("renewal_mode", "renewal_price_rule"):
+                if values[field] is not None and not isinstance(values[field], str):
+                    raise ContractConditionsValidationError({field: "Cette valeur est invalide."})
+            for field in ("renewal_period_months", "non_renewal_notice_days", "internal_alert_days"):
+                value = values[field]
+                if value is not None and (
+                    isinstance(value, bool) or not isinstance(value, (int, float)) or int(value) != value
+                ):
+                    raise ContractConditionsValidationError({field: "Saisissez un nombre entier valide."})
+                values[field] = int(value) if value is not None else None
+            channels = values["non_renewal_notice_channels"]
+            if not isinstance(channels, list) or any(not isinstance(item, str) for item in channels):
+                raise ContractConditionsValidationError({
+                    "non_renewal_notice_channels": "Les canaux de non-renouvellement sont invalides."
+                })
+            values["non_renewal_notice_channels"] = tuple(channels)
+            current = asdict(self.context.contracts.get_conditions(contract_id))
+            current.update(values)
+            saved = self.context.contracts.save_conditions(contract_id, ContractConditions(**current))
+        except ApplicationError as error:
+            return _master_error(error)
+        self.contract_id = contract_id
+        self.refresh()
+        return {"ok": True, "id": contract_id, "renewal_mode": saved.renewal_mode}
+
+    @Slot(str, "QVariant", result="QVariant")
+    def updateContractEarlyTermination(self, contract_id: str, payload: object) -> dict:
+        try:
+            values = _closed_contract_dto(payload, CONTRACT_EARLY_TERMINATION_DTO_FIELDS)
+            if set(values) != CONTRACT_EARLY_TERMINATION_DTO_FIELDS:
+                raise ContractConditionsValidationError({
+                    "payload": "Complétez les conditions de fin anticipée transmises."
+                })
+            reasons = values["early_termination_reason_codes"]
+            if not isinstance(reasons, list) or any(not isinstance(item, str) for item in reasons):
+                raise ContractConditionsValidationError({
+                    "early_termination_reason_codes": "Les motifs de fin anticipée sont invalides."
+                })
+            if not isinstance(values["early_termination_custom_text"], str):
+                raise ContractConditionsValidationError({
+                    "early_termination_custom_text": "Le motif complémentaire doit être du texte."
+                })
+            cure_days = values["breach_cure_period_days"]
+            if cure_days is not None and (
+                isinstance(cure_days, bool) or not isinstance(cure_days, (int, float)) or int(cure_days) != cure_days
+            ):
+                raise ContractConditionsValidationError({
+                    "breach_cure_period_days": "Saisissez un nombre entier valide."
+                })
+            current = asdict(self.context.contracts.get_conditions(contract_id))
+            current.update(
+                early_termination_reason_codes=tuple(reasons),
+                early_termination_custom_text=values["early_termination_custom_text"],
+                breach_cure_period_days=int(cure_days) if cure_days is not None else None,
+            )
+            saved = self.context.contracts.save_conditions(contract_id, ContractConditions(**current))
+        except ApplicationError as error:
+            return _master_error(error)
+        self.contract_id = contract_id
+        self.refresh()
+        return {"ok": True, "id": contract_id, "reason_count": len(saved.early_termination_reason_codes)}
+
+    @Slot(str, "QVariant", result="QVariant")
+    def updateContractSpecialTerms(self, contract_id: str, payload: object) -> dict:
+        try:
+            values = _closed_contract_dto(payload, CONTRACT_SPECIAL_TERMS_DTO_FIELDS)
+            if set(values) != CONTRACT_SPECIAL_TERMS_DTO_FIELDS or not isinstance(values["special_terms"], str):
+                raise ContractConditionsValidationError({
+                    "special_terms": "Les conditions particulières doivent être du texte."
+                })
+            current = asdict(self.context.contracts.get_conditions(contract_id))
+            current.update(values)
+            saved = self.context.contracts.save_conditions(contract_id, ContractConditions(**current))
+        except ApplicationError as error:
+            return _master_error(error)
+        self.contract_id = contract_id
+        self.refresh()
+        return {"ok": True, "id": contract_id, "special_terms": saved.special_terms}
 
     @Slot()
     def openContractModels(self) -> None:

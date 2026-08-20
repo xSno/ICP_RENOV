@@ -270,6 +270,92 @@ function renderContractB2(state) {
   return period + intervention + pricing;
 }
 
+function renewalDependentMarkup(mode, values) {
+  if (!['MANUAL', 'TACIT'].includes(mode)) return '';
+  const b3 = contractWorkspaceState.conditions_b3;
+  const selectedChannels = new Set(values.channels || []);
+  const noticeDays = mode === 'TACIT' && b3.requires_non_renewal_notice_days ? `<label class="condition-field"><span>Préavis de non-renouvellement (jours)</span><input id="contract-non-renewal-notice-days" type="number" min="0" step="1" value="${esc(values.noticeDays ?? '')}"></label>` : '';
+  const noticeChannels = mode === 'TACIT' && b3.requires_non_renewal_notice_channels ? `<fieldset class="condition-choice field-wide renewal-channels"><legend>Canaux de non-renouvellement</legend>${b3.non_renewal_channel_options.map(item => `<label><input type="checkbox" name="non-renewal-channel" value="${esc(item.id)}" ${selectedChannels.has(item.id) ? 'checked' : ''}> ${esc(item.label)}</label>`).join('') || '<span>Aucun canal contrôlé configuré</span>'}</fieldset>` : '';
+  return `<div class="b3-form-grid"><label class="condition-field"><span>Durée de renouvellement (mois)</span><input id="contract-renewal-period" type="number" min="1" step="1" value="${esc(values.period ?? '')}"></label><label class="condition-field"><span>Prix au renouvellement</span><select id="contract-renewal-price-rule"><option value="">À confirmer</option>${b3.renewal_price_rules.map(item => `<option value="${item.id}" ${values.priceRule === item.id ? 'selected' : ''}>${esc(item.label)}</option>`).join('')}</select></label><label class="condition-field internal-alert-field"><span>Alerte interne (jours)</span><input id="contract-internal-alert-days" type="number" min="0" step="1" value="${esc(values.alertDays ?? '')}"><small>Usage interne uniquement · distinct du préavis contractuel</small></label>${noticeDays}${noticeChannels}</div>`;
+}
+
+function syncRenewalFields() {
+  const host = document.querySelector('#renewal-dependent-fields');
+  if (!host) return;
+  const b3 = contractWorkspaceState.conditions_b3;
+  const mode = document.querySelector('#contract-renewal-mode')?.value || '';
+  host.innerHTML = renewalDependentMarkup(mode, {
+    period: document.querySelector('#contract-renewal-period')?.value || b3.renewal_period_months || '',
+    noticeDays: document.querySelector('#contract-non-renewal-notice-days')?.value || b3.non_renewal_notice_days || '',
+    channels: [...document.querySelectorAll('input[name="non-renewal-channel"]:checked')].map(node => node.value).length ? [...document.querySelectorAll('input[name="non-renewal-channel"]:checked')].map(node => node.value) : b3.non_renewal_notice_channels,
+    alertDays: document.querySelector('#contract-internal-alert-days')?.value || b3.internal_alert_days || '',
+    priceRule: document.querySelector('#contract-renewal-price-rule')?.value || b3.renewal_price_rule || '',
+  });
+}
+
+function saveContractRenewal() {
+  const mode = document.querySelector('#contract-renewal-mode')?.value || null;
+  const integerValue = selector => {
+    const value = document.querySelector(selector)?.value;
+    return value === undefined || value === '' ? null : Number(value);
+  };
+  contractMutation(callback => bridge.updateContractRenewal(contractWorkspaceState.contract.id, {
+    renewal_mode: mode,
+    renewal_period_months: mode === 'MANUAL' || mode === 'TACIT' ? integerValue('#contract-renewal-period') : null,
+    non_renewal_notice_days: integerValue('#contract-non-renewal-notice-days'),
+    non_renewal_notice_channels: [...document.querySelectorAll('input[name="non-renewal-channel"]:checked')].map(node => node.value),
+    internal_alert_days: mode === 'MANUAL' || mode === 'TACIT' ? integerValue('#contract-internal-alert-days') : null,
+    renewal_price_rule: mode === 'MANUAL' || mode === 'TACIT' ? document.querySelector('#contract-renewal-price-rule')?.value || null : null,
+  }, callback), true);
+}
+
+function openEarlyTerminationDrawer(trigger) {
+  const state = contractWorkspaceState;
+  if (!state?.contract.editable) return;
+  contractDrawerTrigger = trigger || document.activeElement;
+  contractDrawer = { kind: 'early-termination' };
+  const b3 = state.conditions_b3;
+  const selected = new Set(b3.early_termination_reason_codes);
+  const cure = b3.breach_cure_period_required ? `<label class="drawer-field"><span>Délai de régularisation (jours)</span><input id="contract-breach-cure" type="number" min="0" step="1" value="${esc(b3.breach_cure_period_days ?? '')}"></label>` : '';
+  document.querySelector('.contract-selector-overlay')?.remove();
+  const overlay = document.createElement('div');
+  overlay.className = 'drawer-overlay contract-selector-overlay';
+  overlay.innerHTML = `<div class="drawer-backdrop" onclick="closeContractDrawer()"></div><aside class="client-drawer early-termination-drawer" role="dialog" aria-modal="true" aria-labelledby="early-termination-title"><header class="drawer-header"><div><span class="eyebrow">Fin du contrat</span><h2 id="early-termination-title">Conditions de fin anticipée</h2><p>Ces informations modifient uniquement les conditions du brouillon.</p></div><button class="drawer-close" aria-label="Fermer" onclick="closeContractDrawer()">×</button></header><div class="drawer-body"><fieldset class="condition-choice early-reasons"><legend>Motifs prévus</legend>${b3.early_termination_reason_options.map(item => `<label><input type="checkbox" name="early-termination-reason" value="${esc(item.id)}" ${selected.has(item.id) ? 'checked' : ''}> ${esc(item.label)}</label>`).join('') || '<span>Aucun motif contrôlé configuré par ce modèle.</span>'}</fieldset><label class="drawer-field"><span>Motifs supplémentaires</span><textarea id="early-termination-custom" rows="6">${esc(b3.early_termination_custom_text || '')}</textarea><small>Texte brut limité aux précisions propres à ce contrat.</small></label>${cure}</div><footer class="drawer-footer"><button class="button button-secondary" onclick="closeContractDrawer()">Annuler</button><button class="primary" onclick="saveEarlyTermination()">Enregistrer</button></footer></aside>`;
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.querySelector('input, textarea, button')?.focus());
+}
+
+function saveEarlyTermination() {
+  const cure = document.querySelector('#contract-breach-cure')?.value;
+  contractMutation(callback => bridge.updateContractEarlyTermination(contractWorkspaceState.contract.id, {
+    early_termination_reason_codes: [...document.querySelectorAll('input[name="early-termination-reason"]:checked')].map(node => node.value),
+    early_termination_custom_text: document.querySelector('#early-termination-custom')?.value || '',
+    breach_cure_period_days: cure === undefined || cure === '' ? null : Number(cure),
+  }, callback), true);
+}
+
+function saveContractSpecialTerms() {
+  contractMutation(callback => bridge.updateContractSpecialTerms(contractWorkspaceState.contract.id, {
+    special_terms: document.querySelector('#contract-special-terms')?.value || '',
+  }, callback), true);
+}
+
+function renderContractB3(state) {
+  const b3 = state.conditions_b3;
+  const editable = state.contract.editable;
+  const renewalValues = {
+    period: b3.renewal_period_months, noticeDays: b3.non_renewal_notice_days,
+    channels: b3.non_renewal_notice_channels, alertDays: b3.internal_alert_days,
+    priceRule: b3.renewal_price_rule,
+  };
+  const renewal = `<article class="contract-section conditions-b3-section renewal-section"><div class="contract-section-head"><div><span class="eyebrow">Renouvellement</span><h3>Mode et conditions de renouvellement</h3></div></div><label class="condition-field renewal-mode-field"><span>Mode de renouvellement</span><select id="contract-renewal-mode" ${editable ? '' : 'disabled'} onchange="syncRenewalFields()"><option value="">À confirmer</option>${b3.renewal_modes.map(item => `<option value="${item.id}" ${b3.renewal_mode === item.id ? 'selected' : ''}>${esc(item.label)}</option>`).join('')}</select></label><div id="renewal-dependent-fields">${renewalDependentMarkup(b3.renewal_mode, renewalValues)}</div>${editable ? '<div class="conditions-actions"><button class="primary" onclick="saveContractRenewal()">Enregistrer le renouvellement</button></div>' : ''}</article>`;
+  const reasonCount = b3.early_termination_reason_codes.length;
+  const reasons = reasonCount === 0 ? 'Aucun motif sélectionné' : reasonCount === 1 ? '1 motif sélectionné' : `${reasonCount} motifs sélectionnés`;
+  const ending = `<article class="contract-section conditions-b3-section ending-section"><div class="contract-section-head"><div><span class="eyebrow">Fin du contrat / fin anticipée</span><h3>Conditions de fin anticipée</h3></div>${editable ? '<button class="button button-secondary" onclick="openEarlyTerminationDrawer(this)">Modifier les conditions de fin anticipée</button>' : ''}</div><div class="ending-summary"><strong>${esc(reasons)}</strong><small>${b3.early_termination_custom_text ? 'Une précision contractuelle est renseignée.' : 'Aucune précision contractuelle renseignée.'}</small></div></article>`;
+  const special = `<article class="contract-section conditions-b3-section special-terms-section"><div class="contract-section-head"><div><span class="eyebrow">Conditions particulières</span><h3>Précisions propres au contrat</h3></div></div><label class="condition-field field-wide"><span>Conditions particulières</span><textarea id="contract-special-terms" rows="5" ${editable ? '' : 'disabled'}>${esc(b3.special_terms || '')}</textarea><small>Texte brut uniquement · les retours à la ligne sont conservés.</small></label>${editable ? '<div class="conditions-actions"><button class="primary" onclick="saveContractSpecialTerms()">Enregistrer les conditions particulières</button></div>' : ''}</article>`;
+  return renewal + ending + special;
+}
+
 function renderContractConditions(state) {
   const b1 = state.conditions_b1;
   const editable = state.contract.editable;
@@ -312,6 +398,7 @@ function renderContractWorkspace(state) {
     const body = document.querySelector('.contract-workspace-body');
     body.innerHTML = failure + renderContractConditions(state);
     body.querySelector('.conditions-step-panel').insertAdjacentHTML('beforeend', renderContractB2(state));
+    body.querySelector('.conditions-step-panel').insertAdjacentHTML('beforeend', renderContractB3(state));
   }
 }
 

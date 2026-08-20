@@ -60,7 +60,10 @@ class ReviewCase(unittest.TestCase):
             ),
         )
 
-    def complete(self, renewal="NONE", validation=TemplateValidationMetadata()):
+    def complete(self, renewal="NONE", validation=TemplateValidationMetadata(
+        requires_non_renewal_notice_days=True,
+        requires_non_renewal_notice_channels=True,
+    )):
         client = self.master.create_client(organization("Client Snapshot"))
         selected_site = self.master.create_site(client.id, site("Site Snapshot"))
         selected_equipment = self.master.create_equipment(selected_site.id, equipment("Unité Snapshot", "Accueil"))

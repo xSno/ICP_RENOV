@@ -72,6 +72,13 @@ REQUIRED_COMPANY_FIELDS=("registered_address","phone","email","signatory_name","
 
 
 class GenerationCase(ReviewCase):
+    def complete(self, renewal="NONE", validation=None):
+        return super().complete(renewal, validation or TemplateValidationMetadata(
+            requires_non_renewal_notice_days=True,
+            requires_non_renewal_notice_channels=True,
+            requires_breach_cure_period_days=True,
+        ))
+
     def setUp(self):
         super().setUp();self.complete(renewal="TACIT")
         self.contracts.save_conditions(self.contract.id,replace(self.contracts.get_conditions(self.contract.id),breach_cure_period_days=15))
@@ -98,7 +105,10 @@ class GenerationCase(ReviewCase):
         self.assertFalse(any(path.suffix==".pdf" for path in folder.glob("*") if folder.exists()))
 
     def authorize(self,blocks,early=False):
-        metadata=TemplateValidationMetadata(("CONSUMER",),(ContextAuthorization("CONSUMER","OFF_PREMISES",tuple(blocks)),))
+        metadata=TemplateValidationMetadata(
+            ("CONSUMER",), (ContextAuthorization("CONSUMER", "OFF_PREMISES", tuple(blocks)),),
+            True, True, True,
+        )
         with self.context.database.transaction() as connection:
             connection.execute("UPDATE contract_template_versions SET validation_metadata_json=? WHERE id=?",(metadata.to_json(),self.version.id))
         self.version=self.catalog.get_version(self.version.id)

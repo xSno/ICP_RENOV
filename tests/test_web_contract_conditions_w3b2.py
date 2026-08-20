@@ -322,10 +322,9 @@ class WebContractConditionsW3B2Tests(unittest.TestCase):
             "syncPaymentTermFields", "Montant TVA", "Total TTC",
         ):
             self.assertIn(text, js)
-        self.assertNotIn("renewal_price_rule", js)
-        b2_render = js[js.index("function renderContractB2"):js.index("function renderContractConditions")]
+        b2_render = js[js.index("function renderContractB2"):js.index("function renewalDependentMarkup")]
         for forbidden in (
-            "INDEXED", "Renouvellement", "Fin anticipée", "Conditions particulières",
+            "renewal_price_rule", "INDEXED", "Renouvellement", "Fin anticipée", "Conditions particulières",
             "Revue", "Documents & suivi",
         ):
             self.assertNotIn(forbidden, b2_render)

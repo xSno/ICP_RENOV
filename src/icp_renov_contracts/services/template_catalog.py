@@ -60,6 +60,12 @@ class TemplateCatalogService:
                 or (template.document_kind=="INTERVENTION_SHEET" and regimes)):
             raise ContractValidationError("template version metadata")
         metadata = validation or TemplateValidationMetadata()
+        if any(not isinstance(value, bool) for value in (
+            metadata.requires_non_renewal_notice_days,
+            metadata.requires_non_renewal_notice_channels,
+            metadata.requires_breach_cure_period_days,
+        )):
+            raise ContractValidationError("template requiredness metadata")
         if any(regime not in regimes for regime in metadata.conclusion_required_regimes):
             raise ContractValidationError("template context metadata")
         for context in metadata.context_authorizations:
@@ -244,7 +250,12 @@ class TemplateCatalogService:
         if any(value not in regimes for value in conclusion_required_regimes):
             raise ContractValidationError("template context metadata")
         self.repository.update_context_metadata(
-            version_id, TemplateValidationMetadata(tuple(conclusion_required_regimes), tuple(authorizations)), _now(),
+            version_id, TemplateValidationMetadata(
+                tuple(conclusion_required_regimes), tuple(authorizations),
+                version.validation.requires_non_renewal_notice_days,
+                version.validation.requires_non_renewal_notice_channels,
+                version.validation.requires_breach_cure_period_days,
+            ), _now(),
         )
         self.validation_repository.set_context_review(version_id, status, _now())
 

@@ -77,6 +77,9 @@ class ContextAuthorization:
 class TemplateValidationMetadata:
     conclusion_required_regimes: tuple[str, ...] = ()
     context_authorizations: tuple[ContextAuthorization, ...] = ()
+    requires_non_renewal_notice_days: bool = False
+    requires_non_renewal_notice_channels: bool = False
+    requires_breach_cure_period_days: bool = False
 
     def to_json(self) -> str:
         return _json(self)
@@ -84,10 +87,16 @@ class TemplateValidationMetadata:
     @classmethod
     def from_json(cls, value: str) -> "TemplateValidationMetadata":
         raw = json.loads(value)
-        return cls(tuple(raw.get("conclusion_required_regimes", ())), tuple(
-            ContextAuthorization(item["regime"], item["conclusion_mode"], tuple(item.get("blocks", ())))
-            for item in raw.get("context_authorizations", ())
-        ))
+        return cls(
+            conclusion_required_regimes=tuple(raw.get("conclusion_required_regimes", ())),
+            context_authorizations=tuple(
+                ContextAuthorization(item["regime"], item["conclusion_mode"], tuple(item.get("blocks", ())))
+                for item in raw.get("context_authorizations", ())
+            ),
+            requires_non_renewal_notice_days=raw.get("requires_non_renewal_notice_days", False) is True,
+            requires_non_renewal_notice_channels=raw.get("requires_non_renewal_notice_channels", False) is True,
+            requires_breach_cure_period_days=raw.get("requires_breach_cure_period_days", False) is True,
+        )
 
     def requires_conclusion(self, regime: str | None) -> bool:
         return regime is not None and regime in self.conclusion_required_regimes

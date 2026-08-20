@@ -213,6 +213,17 @@ class ContractService:
                                 ("renewal_price_rule", None)): data[name] = empty
         elif data["renewal_mode"] == RenewalMode.MANUAL.value:
             data["non_renewal_notice_days"] = None; data["non_renewal_notice_channels"] = ()
+        available_validation = (
+            version.validation if version and version.status is TemplateVersionStatus.AVAILABLE else None
+        )
+        if (data["renewal_mode"] != RenewalMode.TACIT.value or not available_validation
+                or not available_validation.requires_non_renewal_notice_days):
+            data["non_renewal_notice_days"] = None
+        if (data["renewal_mode"] != RenewalMode.TACIT.value or not available_validation
+                or not available_validation.requires_non_renewal_notice_channels):
+            data["non_renewal_notice_channels"] = ()
+        if not available_validation or not available_validation.requires_breach_cure_period_days:
+            data["breach_cure_period_days"] = None
         allowed_channels = {item.code for item in catalogs.non_renewal_channels} if catalogs else set()
         if any(code not in allowed_channels for code in data["non_renewal_notice_channels"]):
             errors["non_renewal_notice_channels"] = "Un canal de non-renouvellement est inconnu."

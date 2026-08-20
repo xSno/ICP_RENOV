@@ -214,6 +214,7 @@ class ReviewService:
     def _renewal(self, conditions, version) -> ReviewBlockResult:
         issues = []
         mode = conditions.renewal_mode
+        validation = version.validation if version and version.status is TemplateVersionStatus.AVAILABLE else None
         if mode not in {"NONE", "MANUAL", "TACIT"}: issues.append("Choisissez le mode de renouvellement.")
         if mode in {"MANUAL", "TACIT"}:
             if not conditions.renewal_period_months: issues.append("Renseignez la durée de renouvellement.")
@@ -221,11 +222,15 @@ class ReviewService:
                 issues.append("Choisissez la règle de prix au renouvellement.")
             if conditions.internal_alert_days is None: issues.append("Renseignez l’alerte interne.")
         if mode == "TACIT":
-            if conditions.non_renewal_notice_days is None: issues.append("Renseignez le préavis de non-renouvellement.")
+            if validation and validation.requires_non_renewal_notice_days and conditions.non_renewal_notice_days is None:
+                issues.append("Renseignez le préavis de non-renouvellement.")
             allowed = {item.code for item in version.catalogs.non_renewal_channels} if version else set()
-            if not conditions.non_renewal_notice_channels: issues.append("Sélectionnez un canal de non-renouvellement.")
+            if validation and validation.requires_non_renewal_notice_channels and not conditions.non_renewal_notice_channels:
+                issues.append("Sélectionnez un canal de non-renouvellement.")
             elif any(code not in allowed for code in conditions.non_renewal_notice_channels):
                 issues.append("Un canal de non-renouvellement n’est plus configuré.")
+        if validation and validation.requires_breach_cure_period_days and conditions.breach_cure_period_days is None:
+            issues.append("Renseignez le délai de régularisation.")
         if conditions.renewal_price_rule == "INDEXED": issues.append("L’indexation n’est pas disponible en V1.")
         label = {"NONE": "Aucun renouvellement", "MANUAL": "Renouvellement manuel",
                  "TACIT": "Reconduction tacite"}.get(mode, "Renouvellement à compléter")

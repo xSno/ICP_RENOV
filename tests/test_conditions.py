@@ -32,6 +32,7 @@ def validation(required: bool = True) -> TemplateValidationMetadata:
         ("CONSUMER",) if required else (),
         (ContextAuthorization("CONSUMER", "OFF_PREMISES", ("BLOCK_WITHDRAWAL", "BLOCK_EARLY_PERFORMANCE")),
          ContextAuthorization("CONSUMER", "DISTANCE_EMAIL", ("BLOCK_WITHDRAWAL",))),
+        True, True, True,
     )
 
 
