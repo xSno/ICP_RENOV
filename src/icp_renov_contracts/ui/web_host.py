@@ -9,7 +9,7 @@ from PySide6.QtWebEngineCore import QWebEnginePage
 from PySide6.QtWebEngineWidgets import QWebEngineView
 
 from ..domain import (
-    ClientDraft, ClientMaster, EquipmentDraft, EquipmentMaster, SiteDraft, SiteMaster,
+    ClientDraft, ClientMaster, ContractStatus, EquipmentDraft, EquipmentMaster, SiteDraft, SiteMaster,
 )
 from ..errors import ApplicationError, MasterDataValidationError
 from ..services import (
@@ -120,12 +120,15 @@ class UiBridge(QObject):
         self.client_archived = False
         self.selected_client_id: str | None = None
         self.show_archived_master_data = False
+        self.contract_id: str | None = None
         self.register = ContractRegisterService(
             context.contracts, context.review, context.lifecycle, context.workspace_service,
             RealBackupSummaryProvider(context.backup, context.alerts), context.alerts,
         )
 
     def snapshot(self) -> dict:
+        if self.page_name == "CONTRACT_WORKSPACE":
+            return self.contract_workspace_snapshot()
         if self.page_name == "CLIENTS":
             return self.clients_snapshot()
         rows = self.register.rows()
@@ -161,6 +164,97 @@ class UiBridge(QObject):
                 }
                 for row in visible
             ],
+        }
+
+    @staticmethod
+    def _address(value) -> str:
+        return ", ".join(part for part in (
+            value.address_line1, value.address_line2,
+            " ".join(part for part in (value.postal_code, value.city) if part), value.country,
+        ) if part)
+
+    def contract_workspace_snapshot(self) -> dict:
+        contract = self.context.contracts.get(self.contract_id)
+        editable = contract.status is ContractStatus.DRAFT
+        selected_by_source = {item.source_equipment_id: item for item in contract.equipment_items}
+        available_equipment = self.context.contracts.selectable_equipment(contract.id) if editable else []
+        available_by_id = {item.id: item for item in available_equipment}
+        equipment = []
+        for item in contract.equipment_items:
+            equipment.append({
+                "id": item.source_equipment_id, "item_id": item.id, "selected": True,
+                "position": item.position, "name": item.snapshot.display_name or item.snapshot.equipment_type,
+                "location": item.snapshot.location, "observation": item.observation,
+                "available": item.source_equipment_id in available_by_id,
+            })
+        for master in available_equipment:
+            if master.id not in selected_by_source:
+                equipment.append({
+                    "id": master.id, "item_id": None, "selected": False, "position": None,
+                    "name": master.display_name or master.equipment_type, "location": master.location,
+                    "observation": "", "available": True,
+                })
+        conditions = self.context.contracts.get_conditions(contract.id)
+        version = self.context.contracts.selected_template_version(contract.id) if contract.template_version_id else None
+        regime = {
+            "CONSUMER": "Consommateur", "NON_PROFESSIONAL": "Non-professionnel",
+            "PROFESSIONAL": "Professionnel",
+        }.get(contract.regime.value if contract.regime else None, "Non configuré")
+        conclusion = {
+            "IN_PREMISES": "Dans les locaux", "OFF_PREMISES": "Hors établissement",
+            "DISTANCE_EMAIL": "À distance — e-mail", "ONLINE_INTERFACE": "Interface en ligne",
+            "OTHER_DISTANCE": "Autre vente à distance",
+        }.get(conditions.conclusion_mode, "Non configuré")
+        period = "Non configurée"
+        if conditions.start_date:
+            period = conditions.start_date
+            if conditions.resolved_end_date:
+                period += f" → {conditions.resolved_end_date}"
+        renewal = {
+            "NONE": "Sans renouvellement", "MANUAL": "Renouvellement manuel", "TACIT": "Tacite reconduction",
+        }.get(conditions.renewal_mode, "Non configuré")
+        complete_step_one = bool(
+            contract.client_snapshot and contract.signatory_name.strip() and contract.signatory_role.strip()
+            and contract.site_snapshot and contract.equipment_items
+        )
+        backup = self.register.backup_summary().label
+        return {
+            "page": "CONTRACT_WORKSPACE", "backup": backup,
+            "contract": {
+                "id": contract.id, "status": contract.status.value,
+                "status_label": STATUS_LABELS[contract.status],
+                "number": contract.number or "Brouillon sans numéro", "editable": editable,
+                "client_id": contract.client_source_id,
+                "client": contract.client_snapshot.display_name if contract.client_snapshot else "",
+                "client_address": ({
+                    field: getattr(contract.client_snapshot, field) for field in
+                    ("address_line1", "address_line2", "postal_code", "city", "country")
+                } if contract.client_snapshot else {}),
+                "site_id": contract.site_source_id,
+                "site": contract.site_snapshot.label if contract.site_snapshot else "",
+                "signatory_name": contract.signatory_name, "signatory_role": contract.signatory_role,
+                "saved_label": "Enregistré", "document_folder_available": False,
+            },
+            "clients": [{
+                "id": row.client.id, "name": row.client.display_name,
+                "type": "Personne" if row.client.party_type == "PERSON" else "Organisation",
+                "secondary": row.client.email or row.client.phone or self._address(row.client),
+            } for row in self.context.contracts.selectable_clients()],
+            "sites": [{
+                "id": site.id, "name": site.label, "address": self._address(site),
+            } for site in (self.context.contracts.selectable_sites(contract.id) if editable else [])],
+            "equipment": equipment,
+            "summary": {
+                "client": contract.client_snapshot.display_name if contract.client_snapshot else "Non sélectionné",
+                "signatory": " · ".join(part for part in (contract.signatory_name, contract.signatory_role) if part) or "Non renseigné",
+                "site": contract.site_snapshot.label if contract.site_snapshot else "Non sélectionné",
+                "equipment": [item.snapshot.display_name or item.snapshot.equipment_type for item in contract.equipment_items],
+                "regime": regime, "conclusion": conclusion, "period": period,
+                "price": f"{conditions.annual_ht} € HT / an" if conditions.annual_ht else "Non configuré",
+                "renewal": renewal,
+                "template": version.display_name if version else "Non configuré",
+                "completion": "Étape 1 complète" if complete_step_one else "Étape 1 à compléter",
+            },
         }
 
     def clients_snapshot(self) -> dict:
@@ -270,13 +364,25 @@ class UiBridge(QObject):
         self.search = value
         self.refresh()
 
-    @Slot(str)
-    def openContract(self, contract_id: str) -> None:
-        self.navigate_legacy(f"OPEN:{contract_id}")
+    @Slot(str, result="QVariant")
+    def openContract(self, contract_id: str) -> dict:
+        try:
+            self.context.contracts.get(contract_id)
+        except ApplicationError as error:
+            return _master_error(error)
+        self.contract_id = contract_id
+        self.page_name = "CONTRACT_WORKSPACE"
+        self.refresh()
+        return {"ok": True, "id": contract_id}
 
-    @Slot()
-    def createContract(self) -> None:
-        self.navigate_legacy("NEW")
+    @Slot(result="QVariant")
+    def createContract(self) -> dict:
+        try:
+            contract = self.context.contracts.create_draft()
+        except ApplicationError as error:
+            return _master_error(error)
+        self.openContract(contract.id)
+        return {"ok": True, "id": contract.id}
 
     @Slot()
     def saveBackup(self) -> None:
@@ -291,6 +397,7 @@ class UiBridge(QObject):
             return
         if destination == "CONTRACTS":
             self.page_name = "CONTRACTS"
+            self.contract_id = None
             self.refresh()
             return
         if destination in {"CLIENTS", "SETTINGS"}:
@@ -316,6 +423,104 @@ class UiBridge(QObject):
     def selectClient(self, client_id: str) -> None:
         self.selected_client_id = client_id
         self.refresh()
+
+    @Slot()
+    def returnToContracts(self) -> None:
+        self.page_name = "CONTRACTS"
+        self.contract_id = None
+        self.refresh()
+
+    @Slot(str, str, result="QVariant")
+    def selectContractClient(self, contract_id: str, client_id: str) -> dict:
+        try:
+            contract = self.context.contracts.select_client(contract_id, client_id)
+        except ApplicationError as error:
+            return _master_error(error)
+        self.contract_id = contract.id
+        self.refresh()
+        return {"ok": True, "id": contract.id, "client_id": contract.client_source_id}
+
+    @Slot(str, str, str, result="QVariant")
+    def updateContractSignatory(self, contract_id: str, name: str, role: str) -> dict:
+        try:
+            contract = self.context.contracts.update_signatory(contract_id, name, role)
+        except ApplicationError as error:
+            return _master_error(error)
+        self.contract_id = contract.id
+        self.refresh()
+        return {"ok": True, "id": contract.id}
+
+    @Slot(str, str, result="QVariant")
+    def selectContractSite(self, contract_id: str, site_id: str) -> dict:
+        try:
+            contract = self.context.contracts.select_site(contract_id, site_id)
+        except ApplicationError as error:
+            return _master_error(error)
+        self.contract_id = contract.id
+        self.refresh()
+        return {"ok": True, "id": contract.id, "site_id": contract.site_source_id}
+
+    @Slot(str, str, bool, result="QVariant")
+    def setContractEquipment(self, contract_id: str, equipment_id: str, selected: bool) -> dict:
+        try:
+            operation = self.context.contracts.select_equipment if selected else self.context.contracts.deselect_equipment
+            contract = operation(contract_id, equipment_id)
+        except ApplicationError as error:
+            return _master_error(error)
+        self.contract_id = contract.id
+        self.refresh()
+        return {"ok": True, "id": contract.id, "equipment_id": equipment_id, "selected": selected}
+
+    @Slot(str, str, int, result="QVariant")
+    def moveContractEquipment(self, contract_id: str, item_id: str, delta: int) -> dict:
+        try:
+            contract = self.context.contracts.move_equipment(contract_id, item_id, delta)
+        except ApplicationError as error:
+            return _master_error(error)
+        self.contract_id = contract.id
+        self.refresh()
+        return {"ok": True, "id": contract.id, "item_id": item_id}
+
+    @Slot(str, str, str, result="QVariant")
+    def updateContractEquipmentObservation(self, contract_id: str, item_id: str, observation: str) -> dict:
+        try:
+            contract = self.context.contracts.update_observation(contract_id, item_id, observation)
+        except ApplicationError as error:
+            return _master_error(error)
+        self.contract_id = contract.id
+        self.refresh()
+        return {"ok": True, "id": contract.id, "item_id": item_id}
+
+    @Slot(str, "QVariant", result="QVariant")
+    def createContractClient(self, contract_id: str, payload: object) -> dict:
+        try:
+            contract = self.context.contracts.create_and_select_client(contract_id, _client_draft(payload))
+        except ApplicationError as error:
+            return _master_error(error)
+        self.contract_id = contract.id
+        self.refresh()
+        return {"ok": True, "id": contract.id, "client_id": contract.client_source_id}
+
+    @Slot(str, "QVariant", result="QVariant")
+    def createContractSite(self, contract_id: str, payload: object) -> dict:
+        try:
+            contract = self.context.contracts.create_and_select_site(contract_id, _site_draft(payload))
+        except ApplicationError as error:
+            return _master_error(error)
+        self.contract_id = contract.id
+        self.refresh()
+        return {"ok": True, "id": contract.id, "site_id": contract.site_source_id}
+
+    @Slot(str, "QVariant", result="QVariant")
+    def createContractEquipment(self, contract_id: str, payload: object) -> dict:
+        try:
+            contract = self.context.contracts.create_and_select_equipment(contract_id, _equipment_draft(payload))
+        except ApplicationError as error:
+            return _master_error(error)
+        created = contract.equipment_items[-1]
+        self.contract_id = contract.id
+        self.refresh()
+        return {"ok": True, "id": contract.id, "equipment_id": created.source_equipment_id, "item_id": created.id}
 
     @Slot("QVariant", result="QVariant")
     def createClient(self, payload: object) -> dict:
@@ -486,10 +691,15 @@ class UiBridge(QObject):
                 raise MasterDataValidationError({
                     "site_id": "Un contrat ne peut pas être créé pour un site ou un client archivé."
                 })
+            contract = self.context.contracts.create_draft()
+            self.context.contracts.select_client(contract.id, client.id)
+            contract = self.context.contracts.select_site(contract.id, site.id)
         except ApplicationError as error:
             return _master_error(error)
-        self.navigate_legacy(f"NEW_FOR_SITE:{site_id}")
-        return {"ok": True, "site_id": site.id, "client_id": client.id}
+        self.contract_id = contract.id
+        self.page_name = "CONTRACT_WORKSPACE"
+        self.refresh()
+        return {"ok": True, "id": contract.id, "site_id": site.id, "client_id": client.id}
 
 
 class TrustedLocalPage(QWebEnginePage):

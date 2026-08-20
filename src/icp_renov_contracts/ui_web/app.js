@@ -62,7 +62,7 @@ function collectClientPayload() {
 }
 
 function openClientDrawer(mode, trigger) {
-  if (!clientsState) return;
+  if (!clientsState && mode !== 'contract-create') return;
   clientDrawerTrigger = trigger || document.activeElement;
   clientDrawer = {
     mode,
@@ -95,12 +95,12 @@ function renderClientDrawer(focus = false) {
   if (!clientDrawer) return;
   document.querySelector('.drawer-overlay')?.remove();
   const person = clientDrawer.payload.party_type === 'PERSON';
-  const title = clientDrawer.mode === 'create' ? 'Nouveau client' : 'Modifier le client';
+  const title = clientDrawer.mode === 'edit' ? 'Modifier le client' : 'Nouveau client';
   const errors = clientDrawer.error?.field_errors || {};
   const errorCopy = clientDrawer.error
     ? `<div class="drawer-error" role="alert"><strong>${esc(clientDrawer.error.message)}</strong>${Object.values(errors).map(message => `<span>${esc(message)}</span>`).join('')}</div>`
     : '';
-  const typeControl = clientDrawer.mode === 'create'
+  const typeControl = clientDrawer.mode !== 'edit'
     ? `<div class="type-choice" role="group" aria-label="Type de fiche"><button type="button" class="${person ? 'active' : ''}" onclick="setClientType('PERSON')">Personne</button><button type="button" class="${person ? '' : 'active'}" onclick="setClientType('ORGANIZATION')">Organisation</button></div>`
     : `<div class="drawer-readonly"><span>Type de fiche</span><strong>${person ? 'Personne' : 'Organisation'}</strong></div>`;
   const identity = person
@@ -109,7 +109,7 @@ function renderClientDrawer(focus = false) {
   const billing = person ? '' : drawerField('billing_address', 'Adresse de facturation si différente', { wide: true });
   const overlay = document.createElement('div');
   overlay.className = 'drawer-overlay';
-  overlay.innerHTML = `<div class="drawer-backdrop" onclick="closeClientDrawer()"></div><aside class="client-drawer" role="dialog" aria-modal="true" aria-labelledby="client-drawer-title"><header class="drawer-header"><div><span class="eyebrow">Fiche maître</span><h2 id="client-drawer-title">${title}</h2><p>Informations réutilisables pour les futurs contrats.</p></div><button type="button" class="drawer-close" aria-label="Fermer" onclick="closeClientDrawer()">×</button></header><form id="client-drawer-form" onsubmit="saveClient(event)"><div class="drawer-body">${errorCopy}<section class="drawer-section"><h3>Type de fiche</h3>${typeControl}</section><section class="drawer-section"><h3>Identité</h3><div class="drawer-form-grid">${identity}</div></section><section class="drawer-section"><h3>Adresse</h3><div class="drawer-form-grid">${drawerField('address_line1', 'Adresse', { required: true, wide: true })}${drawerField('address_line2', 'Complément d’adresse', { wide: true })}${drawerField('postal_code', 'Code postal', { required: true })}${drawerField('city', 'Ville', { required: true })}${drawerField('country', 'Pays', { required: true })}</div></section><section class="drawer-section"><h3>Contact & repères</h3><div class="drawer-form-grid">${billing}${drawerField('email', 'E-mail')}${drawerField('phone', 'Téléphone')}${drawerField('internal_reference', 'Référence interne', { wide: true })}${drawerField('internal_notes', 'Notes internes', { multiline: true, wide: true })}</div></section><div class="drawer-notice">${icon('info')}<span><strong>Aucun régime dans la fiche maître</strong><small>Le régime applicable et le signataire sont confirmés dans chaque contrat.</small></span></div></div><footer class="drawer-footer"><button type="button" class="button button-secondary" onclick="closeClientDrawer()">Annuler</button><button type="submit" class="primary" ${clientDrawer.saving ? 'disabled' : ''}>${clientDrawer.saving ? 'Enregistrement…' : clientDrawer.mode === 'create' ? 'Créer le client' : 'Enregistrer les modifications'}</button></footer></form></aside>`;
+  overlay.innerHTML = `<div class="drawer-backdrop" onclick="closeClientDrawer()"></div><aside class="client-drawer" role="dialog" aria-modal="true" aria-labelledby="client-drawer-title"><header class="drawer-header"><div><span class="eyebrow">Fiche maître</span><h2 id="client-drawer-title">${title}</h2><p>Informations réutilisables pour les futurs contrats.</p></div><button type="button" class="drawer-close" aria-label="Fermer" onclick="closeClientDrawer()">×</button></header><form id="client-drawer-form" onsubmit="saveClient(event)"><div class="drawer-body">${errorCopy}<section class="drawer-section"><h3>Type de fiche</h3>${typeControl}</section><section class="drawer-section"><h3>Identité</h3><div class="drawer-form-grid">${identity}</div></section><section class="drawer-section"><h3>Adresse</h3><div class="drawer-form-grid">${drawerField('address_line1', 'Adresse', { required: true, wide: true })}${drawerField('address_line2', 'Complément d’adresse', { wide: true })}${drawerField('postal_code', 'Code postal', { required: true })}${drawerField('city', 'Ville', { required: true })}${drawerField('country', 'Pays', { required: true })}</div></section><section class="drawer-section"><h3>Contact & repères</h3><div class="drawer-form-grid">${billing}${drawerField('email', 'E-mail')}${drawerField('phone', 'Téléphone')}${drawerField('internal_reference', 'Référence interne', { wide: true })}${drawerField('internal_notes', 'Notes internes', { multiline: true, wide: true })}</div></section><div class="drawer-notice">${icon('info')}<span><strong>Aucun régime dans la fiche maître</strong><small>Le régime applicable et le signataire sont confirmés dans chaque contrat.</small></span></div></div><footer class="drawer-footer"><button type="button" class="button button-secondary" onclick="closeClientDrawer()">Annuler</button><button type="submit" class="primary" ${clientDrawer.saving ? 'disabled' : ''}>${clientDrawer.saving ? 'Enregistrement…' : clientDrawer.mode === 'edit' ? 'Enregistrer les modifications' : 'Créer le client'}</button></footer></form></aside>`;
   document.body.appendChild(overlay);
   if (focus) requestAnimationFrame(() => overlay.querySelector('input, textarea, button')?.focus());
 }
@@ -128,7 +128,8 @@ function saveClient(event) {
     clientDrawer.error = result || { message: 'Les données ne peuvent pas être enregistrées.', field_errors: {} };
     renderClientDrawer(true);
   };
-  if (clientDrawer.mode === 'create') bridge.createClient(clientDrawer.payload, callback);
+  if (clientDrawer.mode === 'contract-create') bridge.createContractClient(contractWorkspaceState.contract.id, clientDrawer.payload, callback);
+  else if (clientDrawer.mode === 'create') bridge.createClient(clientDrawer.payload, callback);
   else bridge.updateClient(clientDrawer.clientId, clientDrawer.payload, callback);
 }
 
@@ -364,7 +365,7 @@ function renderEntityDrawer(focus = false) {
   if (!entityDrawer) return;
   document.querySelector('.drawer-overlay')?.remove();
   const siteDrawer = entityDrawer.kind === 'site';
-  const title = siteDrawer ? entityDrawer.mode === 'edit' ? 'Modifier le site' : 'Ajouter un site' : entityDrawer.mode === 'create' ? 'Ajouter un équipement' : 'Modifier l’équipement';
+  const title = siteDrawer ? entityDrawer.mode === 'edit' ? 'Modifier le site' : 'Ajouter un site' : entityDrawer.mode === 'edit' ? 'Modifier l’équipement' : 'Ajouter un équipement';
   const errors = entityDrawer.error?.field_errors || {};
   const errorCopy = entityDrawer.error
     ? `<div class="drawer-error" role="alert"><strong>${esc(entityDrawer.error.message)}</strong>${Object.values(errors).map(message => `<span>${esc(message)}</span>`).join('')}</div>`
@@ -397,7 +398,9 @@ function saveEntity(event) {
     entityDrawer.error = result || { message: 'Les données ne peuvent pas être enregistrées.', field_errors: {} };
     renderEntityDrawer(true);
   };
-  if (entityDrawer.kind === 'site' && entityDrawer.mode === 'create') bridge.createSite(entityDrawer.clientId, entityDrawer.payload, callback);
+  if (entityDrawer.kind === 'site' && entityDrawer.mode === 'contract-create') bridge.createContractSite(contractWorkspaceState.contract.id, entityDrawer.payload, callback);
+  else if (entityDrawer.kind === 'equipment' && entityDrawer.mode === 'contract-create') bridge.createContractEquipment(contractWorkspaceState.contract.id, entityDrawer.payload, callback);
+  else if (entityDrawer.kind === 'site' && entityDrawer.mode === 'create') bridge.createSite(entityDrawer.clientId, entityDrawer.payload, callback);
   else if (entityDrawer.kind === 'site') bridge.updateSite(entityDrawer.siteId, entityDrawer.payload, callback);
   else if (entityDrawer.mode === 'create') bridge.createEquipment(entityDrawer.siteId, entityDrawer.payload, callback);
   else bridge.updateEquipment(entityDrawer.equipmentId, entityDrawer.payload, callback);
@@ -415,6 +418,7 @@ document.addEventListener('mousedown', event => {
 });
 
 function render(state) {
+  if (state.page === 'CONTRACT_WORKSPACE') { renderContractWorkspace(state); return; }
   if (state.page === 'CLIENTS') { renderClients(state); return; }
   const rows = state.rows.map(row => `<tr onclick="bridge.openContract('${row.id}')">
     <td><strong>${esc(row.number)}</strong>${updateLine(row.updated)}</td>

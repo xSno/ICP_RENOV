@@ -55,13 +55,20 @@ class WebBridgeC2W1Tests(GenerationCase):
         self.bridge.setSearch("")
         self.assertEqual(len(self.states[-1]["rows"]), 3)
 
-    def test_explicit_actions_route_without_js_business_logic(self) -> None:
-        self.bridge.openContract(self.contract.id)
-        self.bridge.createContract()
+    def test_explicit_actions_open_the_bounded_web_workspace(self) -> None:
+        opened = self.bridge.openContract(self.contract.id)
+        self.assertTrue(opened["ok"])
+        self.assertEqual(self.bridge.page_name, "CONTRACT_WORKSPACE")
+        self.assertEqual(self.bridge.contract_id, self.contract.id)
+        self.bridge.returnToContracts()
+        created = self.bridge.createContract()
+        self.assertTrue(created["ok"])
+        self.assertEqual(self.bridge.page_name, "CONTRACT_WORKSPACE")
+        self.assertEqual(self.bridge.contract_id, created["id"])
         self.bridge.navigate("CLIENTS")
         self.bridge.navigate("SETTINGS")
         self.bridge.navigate("unknown")
-        self.assertEqual(self.actions, [f"OPEN:{self.contract.id}", "NEW", "SETTINGS"])
+        self.assertEqual(self.actions, ["SETTINGS"])
         self.assertEqual(self.bridge.page_name, "CLIENTS")
         with mock.patch.object(self.context.backup, "create_now") as create_now:
             self.bridge.saveBackup()
