@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import asdict
 from pathlib import Path
 from typing import Callable
 
@@ -9,9 +10,10 @@ from PySide6.QtWebEngineCore import QWebEnginePage
 from PySide6.QtWebEngineWidgets import QWebEngineView
 
 from ..domain import (
-    ClientDraft, ClientMaster, ContractStatus, EquipmentDraft, EquipmentMaster, SiteDraft, SiteMaster,
+    ClientDraft, ClientMaster, ContractConditions, ContractStatus, EquipmentDraft, EquipmentMaster,
+    SiteDraft, SiteMaster, TemplateVersionStatus,
 )
-from ..errors import ApplicationError, MasterDataValidationError
+from ..errors import ApplicationError, ContractConditionsValidationError, MasterDataValidationError
 from ..services import (
     ContractOperationalSignalKind,
     ContractRegisterFilter,
@@ -33,6 +35,13 @@ SITE_DTO_FIELDS = frozenset({
 EQUIPMENT_DTO_FIELDS = frozenset({
     "equipment_type", "brand", "model", "serial_number", "power_kw", "location",
     "installation_date", "internal_reference", "internal_notes",
+})
+CONTRACT_FRAMEWORK_DTO_FIELDS = frozenset({
+    "regime", "conclusion_mode", "early_performance_requested",
+})
+CONTRACT_SERVICE_DTO_FIELDS = frozenset({
+    "visits_per_year", "refrigerant_handling_mode", "included_options",
+    "priority_breakdown", "priority_breakdown_delay",
 })
 
 
@@ -100,8 +109,17 @@ def _text_dto(payload: object, allowed: frozenset[str], label: str) -> dict[str,
 
 
 def _master_error(error: ApplicationError) -> dict:
-    fields = error.field_errors if isinstance(error, MasterDataValidationError) else {}
+    fields = getattr(error, "field_errors", {})
     return {"ok": False, "message": error.user_message, "field_errors": fields}
+
+
+def _closed_contract_dto(payload: object, allowed: frozenset[str]) -> dict:
+    if not isinstance(payload, dict):
+        raise ContractConditionsValidationError({"payload": "Les conditions transmises sont invalides."})
+    unsupported = set(payload) - allowed
+    if unsupported:
+        raise ContractConditionsValidationError({"payload": "Certaines conditions ne sont pas autorisées."})
+    return payload
 
 
 class UiBridge(QObject):
@@ -121,6 +139,7 @@ class UiBridge(QObject):
         self.selected_client_id: str | None = None
         self.show_archived_master_data = False
         self.contract_id: str | None = None
+        self.contract_step = 1
         self.register = ContractRegisterService(
             context.contracts, context.review, context.lifecycle, context.workspace_service,
             RealBackupSummaryProvider(context.backup, context.alerts), context.alerts,
@@ -196,6 +215,33 @@ class UiBridge(QObject):
                 })
         conditions = self.context.contracts.get_conditions(contract.id)
         version = self.context.contracts.selected_template_version(contract.id) if contract.template_version_id else None
+        compatible_versions = self.context.contracts.compatible_template_versions(contract.id)
+        regime_code = contract.regime.value if contract.regime else None
+        selected_compatible = bool(
+            version and version.document_kind == "CONTRACT"
+            and version.status is TemplateVersionStatus.AVAILABLE
+            and version.contract_type_code == contract.type_code.value
+            and regime_code in version.allowed_client_regimes
+        )
+        conclusion_required = bool(
+            selected_compatible and version.validation.requires_conclusion(regime_code)
+        )
+        conclusion_labels = {
+            "IN_PREMISES": "Dans les locaux du professionnel",
+            "OFF_PREMISES": "Hors établissement",
+            "DISTANCE_EMAIL": "À distance par e-mail",
+            "ONLINE_INTERFACE": "Interface en ligne",
+            "OTHER_DISTANCE": "Autre conclusion à distance",
+        }
+        authorized_conclusions = tuple(dict.fromkeys(
+            item.conclusion_mode for item in version.validation.context_authorizations
+            if conclusion_required and item.regime == regime_code and item.conclusion_mode in conclusion_labels
+        )) if version else ()
+        early_performance_visible = bool(
+            conclusion_required and {"BLOCK_WITHDRAWAL", "BLOCK_EARLY_PERFORMANCE"}.issubset(
+                version.validation.blocks_for(regime_code, conditions.conclusion_mode)
+            )
+        )
         regime = {
             "CONSUMER": "Consommateur", "NON_PROFESSIONAL": "Non-professionnel",
             "PROFESSIONAL": "Professionnel",
@@ -219,7 +265,7 @@ class UiBridge(QObject):
         )
         backup = self.register.backup_summary().label
         return {
-            "page": "CONTRACT_WORKSPACE", "backup": backup,
+            "page": "CONTRACT_WORKSPACE", "backup": backup, "active_step": self.contract_step,
             "contract": {
                 "id": contract.id, "status": contract.status.value,
                 "status_label": STATUS_LABELS[contract.status],
@@ -244,6 +290,39 @@ class UiBridge(QObject):
                 "id": site.id, "name": site.label, "address": self._address(site),
             } for site in (self.context.contracts.selectable_sites(contract.id) if editable else [])],
             "equipment": equipment,
+            "conditions_b1": {
+                "regime": regime_code,
+                "regime_options": [
+                    {"id": "CONSUMER", "label": "Consommateur"},
+                    {"id": "NON_PROFESSIONAL", "label": "Non-professionnel"},
+                    {"id": "PROFESSIONAL", "label": "Professionnel"},
+                ],
+                "templates": [{
+                    "id": item.id, "template_id": item.template_id,
+                    "name": item.template_name, "version": item.version,
+                    "display": item.display_name,
+                } for item in compatible_versions],
+                "selected_template_id": contract.template_id,
+                "selected_template_version_id": contract.template_version_id,
+                "selected_template_display": version.display_name if version else "",
+                "selected_template_compatible": selected_compatible,
+                "model_state": (
+                    "REGIME_REQUIRED" if regime_code is None else
+                    "NO_MODEL" if not compatible_versions else "AVAILABLE"
+                ),
+                "conclusion_required": conclusion_required,
+                "conclusion_mode": conditions.conclusion_mode,
+                "conclusion_options": [
+                    {"id": code, "label": conclusion_labels[code]} for code in authorized_conclusions
+                ],
+                "early_performance_visible": early_performance_visible,
+                "early_performance_requested": conditions.early_performance_requested,
+                "visits_per_year": conditions.visits_per_year,
+                "refrigerant_handling_mode": conditions.refrigerant_handling_mode,
+                "included_options": list(conditions.included_options),
+                "priority_breakdown": conditions.priority_breakdown,
+                "priority_breakdown_delay": conditions.priority_breakdown_delay or "",
+            },
             "summary": {
                 "client": contract.client_snapshot.display_name if contract.client_snapshot else "Non sélectionné",
                 "signatory": " · ".join(part for part in (contract.signatory_name, contract.signatory_role) if part) or "Non renseigné",
@@ -253,7 +332,10 @@ class UiBridge(QObject):
                 "price": f"{conditions.annual_ht} € HT / an" if conditions.annual_ht else "Non configuré",
                 "renewal": renewal,
                 "template": version.display_name if version else "Non configuré",
-                "completion": "Étape 1 complète" if complete_step_one else "Étape 1 à compléter",
+                "completion": (
+                    "Étape 2 à compléter" if self.contract_step == 2
+                    else "Étape 1 complète" if complete_step_one else "Étape 1 à compléter"
+                ),
             },
         }
 
@@ -372,6 +454,7 @@ class UiBridge(QObject):
             return _master_error(error)
         self.contract_id = contract_id
         self.page_name = "CONTRACT_WORKSPACE"
+        self.contract_step = 1
         self.refresh()
         return {"ok": True, "id": contract_id}
 
@@ -428,7 +511,110 @@ class UiBridge(QObject):
     def returnToContracts(self) -> None:
         self.page_name = "CONTRACTS"
         self.contract_id = None
+        self.contract_step = 1
         self.refresh()
+
+    @Slot(str, int, result="QVariant")
+    def setContractStep(self, contract_id: str, step: int) -> dict:
+        if contract_id != self.contract_id or step not in {1, 2}:
+            return {"ok": False, "message": "Cette étape n’est pas disponible."}
+        self.contract_step = step
+        self.refresh()
+        return {"ok": True, "id": contract_id, "step": step}
+
+    @Slot(str, "QVariant", result="QVariant")
+    def updateContractFramework(self, contract_id: str, payload: object) -> dict:
+        try:
+            values = _closed_contract_dto(payload, CONTRACT_FRAMEWORK_DTO_FIELDS)
+            if not values:
+                raise ContractConditionsValidationError({"payload": "Aucune condition à enregistrer."})
+            contract = self.context.contracts.get(contract_id)
+            if "regime" in values:
+                regime = values["regime"]
+                if regime is not None and not isinstance(regime, str):
+                    raise ContractConditionsValidationError({"regime": "Le régime est invalide."})
+                contract = self.context.contracts.change_regime(contract_id, regime)
+                compatible = self.context.contracts.compatible_template_versions(contract_id)
+                if contract.template_version_id is None and len(compatible) == 1:
+                    contract = self.context.contracts.select_template_version(contract_id, compatible[0].id)
+            context_fields = {"conclusion_mode", "early_performance_requested"} & set(values)
+            if context_fields:
+                current = self.context.contracts.get_conditions(contract_id)
+                updated = asdict(current)
+                if "conclusion_mode" in values:
+                    conclusion = values["conclusion_mode"]
+                    if conclusion is not None and not isinstance(conclusion, str):
+                        raise ContractConditionsValidationError({"conclusion_mode": "Le mode de conclusion est invalide."})
+                    updated["conclusion_mode"] = conclusion
+                if "early_performance_requested" in values:
+                    early = values["early_performance_requested"]
+                    if early is not None and not isinstance(early, bool):
+                        raise ContractConditionsValidationError({"early_performance_requested": "Cette réponse est invalide."})
+                    updated["early_performance_requested"] = early
+                self.context.contracts.save_conditions(contract_id, ContractConditions(**updated))
+                contract = self.context.contracts.get(contract_id)
+        except ApplicationError as error:
+            return _master_error(error)
+        self.contract_id = contract.id
+        self.refresh()
+        return {
+            "ok": True, "id": contract.id,
+            "regime": contract.regime.value if contract.regime else None,
+            "template_version_id": contract.template_version_id,
+        }
+
+    @Slot(str, str, result="QVariant")
+    def selectContractTemplateVersion(self, contract_id: str, version_id: str) -> dict:
+        try:
+            contract = self.context.contracts.select_template_version(contract_id, version_id)
+        except ApplicationError as error:
+            return _master_error(error)
+        self.contract_id = contract.id
+        self.refresh()
+        return {"ok": True, "id": contract.id, "template_version_id": contract.template_version_id}
+
+    @Slot(str, "QVariant", result="QVariant")
+    def updateContractServiceOffer(self, contract_id: str, payload: object) -> dict:
+        try:
+            values = _closed_contract_dto(payload, CONTRACT_SERVICE_DTO_FIELDS)
+            missing = CONTRACT_SERVICE_DTO_FIELDS - set(values)
+            if missing:
+                raise ContractConditionsValidationError({"payload": "Complétez l’offre de services avant de l’enregistrer."})
+            visits = values["visits_per_year"]
+            if isinstance(visits, bool) or not isinstance(visits, (int, float)) or int(visits) != visits or visits < 1:
+                raise ContractConditionsValidationError({"visits_per_year": "Le nombre de visites doit être au moins égal à 1."})
+            refrigerant = values["refrigerant_handling_mode"]
+            if refrigerant not in {"IN_HOUSE_AUTHORIZED", "PARTNER", "EXCLUDED"}:
+                raise ContractConditionsValidationError({"refrigerant_handling_mode": "Choisissez la gestion des fluides."})
+            options = values["included_options"]
+            if not isinstance(options, list) or any(
+                option not in {"DEEP_CLEANING", "DISINFECTION"} for option in options
+            ):
+                raise ContractConditionsValidationError({"included_options": "Une prestation incluse est inconnue."})
+            priority = values["priority_breakdown"]
+            if not isinstance(priority, bool):
+                raise ContractConditionsValidationError({"priority_breakdown": "Indiquez si le dépannage prioritaire est inclus."})
+            delay = values["priority_breakdown_delay"]
+            if priority and (not isinstance(delay, str) or not delay.strip()):
+                raise ContractConditionsValidationError({"priority_breakdown_delay": "Renseignez le délai d’intervention."})
+            if not priority:
+                delay = None
+            current = asdict(self.context.contracts.get_conditions(contract_id))
+            current.update(
+                visits_per_year=int(visits), refrigerant_handling_mode=refrigerant,
+                included_options=tuple(dict.fromkeys(options)), priority_breakdown=priority,
+                priority_breakdown_delay=delay,
+            )
+            saved = self.context.contracts.save_conditions(contract_id, ContractConditions(**current))
+        except ApplicationError as error:
+            return _master_error(error)
+        self.contract_id = contract_id
+        self.refresh()
+        return {"ok": True, "id": contract_id, "visits_per_year": saved.visits_per_year}
+
+    @Slot()
+    def openContractModels(self) -> None:
+        self.navigate_legacy("SETTINGS_MODELS")
 
     @Slot(str, str, result="QVariant")
     def selectContractClient(self, contract_id: str, client_id: str) -> dict:

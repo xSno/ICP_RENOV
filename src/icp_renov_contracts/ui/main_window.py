@@ -47,6 +47,9 @@ class MainWindow(QMainWindow):
     def _web_action(self, action: str) -> None:
         if action == 'CLIENTS': self._show_legacy(self.shell.navigation_labels[1]); return
         if action == 'SETTINGS': self._show_legacy(self.shell.navigation_labels[2]); return
+        if action == 'SETTINGS_MODELS':
+            destination = self.shell.navigation_labels[2]; self._show_legacy(destination)
+            self.shell.surface(destination)._show_section('Modèles'); return
         if action == 'NEW': self.shell.navigate('Contrats', workflow=True); self.shell.surface('Contrats').create_contract(); self._show_legacy('Contrats', workflow=True); return
         if action.startswith('OPEN:'): self.shell.navigate('Contrats', workflow=True); self.shell.surface('Contrats').open_contract(action[5:]); self._show_legacy('Contrats', workflow=True)
         if action.startswith('EDIT_SITE:'):

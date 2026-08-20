@@ -67,7 +67,12 @@ class ContractService:
     def compatible_template_versions(self, contract_id: str):
         contract = self.get(contract_id)
         if contract.regime is None or self.template_catalog is None: return []
-        return self.template_catalog.list_compatible(contract.type_code.value, contract.regime.value)
+        return [
+            version for version in self.template_catalog.list_compatible(
+                contract.type_code.value, contract.regime.value
+            )
+            if version.document_kind == "CONTRACT"
+        ]
 
     def _editable(self, contract_id: str) -> Contract:
         contract = self.get(contract_id)
@@ -83,7 +88,12 @@ class ContractService:
         keep = False
         if contract.template_version_id and regime and self.template_catalog:
             version = self.template_catalog.get_version(contract.template_version_id)
-            keep = version.contract_type_code == contract.type_code.value and regime in version.allowed_client_regimes
+            keep = (
+                version.document_kind == "CONTRACT"
+                and version.status is TemplateVersionStatus.AVAILABLE
+                and version.contract_type_code == contract.type_code.value
+                and regime in version.allowed_client_regimes
+            )
         self._persist(self.conditions_repository.change_regime, contract_id, regime, keep, _now())
         return self.get(contract_id)
 
@@ -93,6 +103,7 @@ class ContractService:
             raise ContractValidationError("regime required")
         version = self.template_catalog.get_version(version_id)
         if (version.status is not TemplateVersionStatus.AVAILABLE or
+                version.document_kind != "CONTRACT" or
                 version.contract_type_code != contract.type_code.value or
                 contract.regime.value not in version.allowed_client_regimes):
             raise ContractValidationError("incompatible template version")
