@@ -1,13 +1,20 @@
-C2.W1 — WebEngine Contracts technical closure
+C2.W3-C1 — Step 3 Review
 
-- Production Contrats landing is the sandboxed WebEngine surface. Local assets are index.html, app.css and app.js under src/icp_renov_contracts/ui_web/; there is no HTTP server, remote asset, TEMP spike or frozen-prototype runtime dependency.
-- UiBridge exposes only refresh, setFilter, setSearch, openContract, createContract, saveBackup and top-level navigation. Python owns all row, status, document, filter, action-count and backup truth.
-- The page policy accepts only packaged local navigation, denies remote navigation and popups, and has bounded local load/WebChannel failure states. No sandbox-disable flag or generic filesystem/shell bridge exists.
-- The WebEngine host and legacy workflow share one ApplicationContext through a stacked central surface: row/new opens the existing workflow; Clients and Settings return to Contrats WebEngine without duplicate sidebars or host deletion.
-- Targeted UiBridge tests cover bounded initial snapshot, five Python filters, action predicate, search/clear, exact id routing, new/navigation routing, backup delegation and no render mutation.
-- Full suite: 249 passed. Qt WebEngine cannot create its sandboxed Chromium process with QT_QPA_PLATFORM=offscreen, so standard headless Qt workflow tests use the existing QWidget workflow; desktop production always uses WebEngine. Sandbox was not weakened.
-- Real sandbox-active production smoke passed: 3 rows / 2 actions, filter = 2, search = 1, exact open/new routing, Clients/Settings and return all passed. WebEngine was visibly ready in approximately 3 seconds.
-- Visual freeze: 1600 PASS; 1366 PASS; 1280 PASS.
+Baseline
+- Accepted B3 HEAD: 16912d6.
+- C1 remains uncommitted.
 
-Remaining C2.W1 risk
-- Chromium visual interaction is validated by the sandbox-active production smoke; deterministic CI bridge coverage remains intentionally Chromium-free because of the documented offscreen limitation.
+Scope
+- Step 3 presents a structured, read-only review of the current Contract draft and routes each Modifier action back to its exact Step 1 or Step 2 editing target.
+- The exact nine review blocks, in authoritative order, are: Client & signataire; Site & équipements; Cadre du contrat; Modèle & prestations; Période; Conditions d’intervention; Prix & paiement; Renouvellement & fin du contrat; Conditions particulières.
+- ReviewService remains the Python authority for block state, summaries, issues, business completeness, and generation readiness checks; the Web layer only projects that result.
+- Business-data completeness is explicitly separate from generation availability for the model, workspace, DOCX, and PDF capabilities.
+- The « Générer le DOCX et le PDF » CTA remains disabled and non-operative. C1 allocates no number, creates no ContractDocument or revision, changes no Contract status, and records no generation event.
+- The incorrect sentence stating that official generation would be available in the next workflow step was removed without replacement. Official generation still belongs to Step 3, but is outside this implementation slice.
+- TACIT renewal notices remain governed by the selected template version metadata; no Person/Organization inference determines the Contract regime.
+
+Validation and evidence
+- Targeted C1 tests: 8/8 PASS.
+- Full application suite: 328/328 PASS.
+- Previously obtained production evidence remains valid: sandbox-active WebEngine smoke, 1600 visual review, and responsive 1366/1280 checks. The accepted shell, right-side summary, Step 1 and Step 2 surfaces remain intact.
+- No Step 4 behavior or official-generation side effect was introduced.

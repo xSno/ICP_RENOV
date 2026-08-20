@@ -172,6 +172,7 @@ class UiBridge(QObject):
         self.show_archived_master_data = False
         self.contract_id: str | None = None
         self.contract_step = 1
+        self.contract_focus_target: str | None = None
         self.register = ContractRegisterService(
             context.contracts, context.review, context.lifecycle, context.workspace_service,
             RealBackupSummaryProvider(context.backup, context.alerts), context.alerts,
@@ -298,9 +299,11 @@ class UiBridge(QObject):
             contract.client_snapshot and contract.signatory_name.strip() and contract.signatory_role.strip()
             and contract.site_snapshot and contract.equipment_items
         )
+        review = self.context.review.review(contract.id)
         backup = self.register.backup_summary().label
         return {
             "page": "CONTRACT_WORKSPACE", "backup": backup, "active_step": self.contract_step,
+            "contract_focus_target": self.contract_focus_target,
             "contract": {
                 "id": contract.id, "status": contract.status.value,
                 "status_label": STATUS_LABELS[contract.status],
@@ -436,6 +439,24 @@ class UiBridge(QObject):
                 "special_terms": conditions.special_terms,
                 "catalog_available": catalogs is not None,
             },
+            "review": {
+                "data_complete": review.data_complete,
+                "generation_available": review.generation_available,
+                "blocks": [{
+                    "id": block.id.value,
+                    "title": block.title,
+                    "state": block.state.value,
+                    "summary": block.summary,
+                    "issues": [issue.message for issue in block.issues],
+                    "target_step": block.target_step + 1,
+                } for block in review.blocks],
+                "generation_checks": [{
+                    "key": check.key,
+                    "label": check.label,
+                    "available": check.available,
+                    "detail": check.detail,
+                } for check in review.generation.checks],
+            },
             "summary": {
                 "client": contract.client_snapshot.display_name if contract.client_snapshot else "Non sélectionné",
                 "signatory": " · ".join(part for part in (contract.signatory_name, contract.signatory_role) if part) or "Non renseigné",
@@ -452,7 +473,8 @@ class UiBridge(QObject):
                 "renewal": " · ".join(value for value in (renewal, renewal_price) if value),
                 "template": version.display_name if version else "Non configuré",
                 "completion": (
-                    "Étape 2 à compléter" if self.contract_step == 2
+                    ("Revue complète" if review.data_complete else "Revue à corriger") if self.contract_step == 3
+                    else "Étape 2 à compléter" if self.contract_step == 2
                     else "Étape 1 complète" if complete_step_one else "Étape 1 à compléter"
                 ),
             },
@@ -574,6 +596,7 @@ class UiBridge(QObject):
         self.contract_id = contract_id
         self.page_name = "CONTRACT_WORKSPACE"
         self.contract_step = 1
+        self.contract_focus_target = None
         self.refresh()
         return {"ok": True, "id": contract_id}
 
@@ -635,11 +658,32 @@ class UiBridge(QObject):
 
     @Slot(str, int, result="QVariant")
     def setContractStep(self, contract_id: str, step: int) -> dict:
-        if contract_id != self.contract_id or step not in {1, 2}:
+        if contract_id != self.contract_id or step not in {1, 2, 3}:
             return {"ok": False, "message": "Cette étape n’est pas disponible."}
         self.contract_step = step
+        self.contract_focus_target = None
         self.refresh()
         return {"ok": True, "id": contract_id, "step": step}
+
+    @Slot(str, str, result="QVariant")
+    def openContractReviewBlock(self, contract_id: str, block_id: str) -> dict:
+        targets = {
+            "CLIENT_SIGNATORY": (1, "client-signatory"),
+            "SITE_EQUIPMENT": (1, "site-equipment"),
+            "CONTRACT_CONTEXT": (2, "contract-context"),
+            "MODEL_SERVICES": (2, "model-services"),
+            "PERIOD": (2, "period"),
+            "INTERVENTION": (2, "intervention"),
+            "PRICE_PAYMENT": (2, "price-payment"),
+            "RENEWAL_END": (2, "renewal-end"),
+            "SPECIAL_TERMS": (2, "special-terms"),
+        }
+        target = targets.get(block_id)
+        if contract_id != self.contract_id or target is None:
+            return {"ok": False, "message": "Cette section n’est pas disponible."}
+        self.contract_step, self.contract_focus_target = target
+        self.refresh()
+        return {"ok": True, "id": contract_id, "step": target[0], "target": target[1]}
 
     @Slot(str, "QVariant", result="QVariant")
     def updateContractFramework(self, contract_id: str, payload: object) -> dict:

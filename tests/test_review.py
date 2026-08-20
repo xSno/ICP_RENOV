@@ -133,7 +133,7 @@ class SnapshotReviewTests(ReviewCase):
         result = self.review.review(self.contract.id)
         self.assertIn("Client Snapshot", self.block(result, ReviewBlockId.CLIENT_SIGNATORY).summary)
         equipment_block = self.block(result, ReviewBlockId.SITE_EQUIPMENT)
-        self.assertIn("Site Snapshot", equipment_block.summary); self.assertIn("1 avec observations", equipment_block.summary)
+        self.assertIn("Site Snapshot", equipment_block.summary); self.assertIn("1 avec observation", equipment_block.summary)
         self.assertIs(equipment_block.state, ReviewState.VALID)
 
     def test_missing_signatory_site_and_equipment_are_localized(self):
@@ -164,7 +164,7 @@ class ModelContextReviewTests(ReviewCase):
         with self.context.database.transaction() as connection:
             connection.execute("UPDATE contract_templates SET contract_type_code='OTHER' WHERE id=?", (model.template_id,))
         result = self.review.review(self.contract.id)
-        self.assertIn("Le modèle sélectionné n’est pas compatible avec ce contrat.",
+        self.assertIn("Le modèle sélectionné n’est plus disponible pour ce contrat.",
                       [issue.message for issue in self.block(result, ReviewBlockId.MODEL_SERVICES).issues])
 
     def test_required_conclusion_and_exact_early_performance_context(self):
@@ -220,7 +220,8 @@ class ConditionsReviewTests(ReviewCase):
         self.save(initial_duration_mode="STANDARD", initial_duration_months=12, initial_end_date=None)
         block = self.block(self.review.review(self.contract.id), ReviewBlockId.PERIOD)
         self.assertIs(block.state, ReviewState.VALID)
-        self.assertEqual(block.summary, "Du 01/09/2026 au 31/08/2027")
+        self.assertIn("Du 01/09/2026 au 31/08/2027", block.summary)
+        self.assertIn("Durée standard · 12 mois", block.summary)
 
     def test_intervention_missing_and_optional_fee(self):
         self.save(included_area="", business_hours="", travel_included=None, missed_appointment_fee=None)
@@ -236,7 +237,9 @@ class ConditionsReviewTests(ReviewCase):
         self.save(payment_due_days=30)
         block = self.block(self.review.review(self.contract.id), ReviewBlockId.PRICE_PAYMENT)
         self.assertIs(block.state, ReviewState.VALID)
-        self.assertEqual(block.summary, "100,00 € HT · 20,00 € TVA · 120,00 € TTC")
+        self.assertIn("100,00 € HT", block.summary)
+        self.assertIn("TVA 20 % (20,00 €)", block.summary)
+        self.assertIn("120,00 € TTC", block.summary)
 
     def test_custom_payment_text_is_conditional(self):
         self.save(payment_terms_code="CUSTOM", payment_due_days=None, payment_terms_custom_text="")

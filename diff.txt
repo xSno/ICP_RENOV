@@ -1,20 +1,30 @@
-C2.W1 current uncommitted delta
+C2.W3-C1 current uncommitted delta against B3 HEAD 16912d6
 
 Created
-- src/icp_renov_contracts/ui/web_host.py
-- src/icp_renov_contracts/ui_web/index.html
-- src/icp_renov_contracts/ui_web/app.css
-- src/icp_renov_contracts/ui_web/app.js
-- tests/test_web_bridge_c2w1.py
+- src/icp_renov_contracts/ui_web/contract-review.css
+- tests/test_web_contract_review_w3c1.py
 
 Modified
-- src/icp_renov_contracts/ui/main_window.py
-- src/icp_renov_contracts/ui/shell.py
 - recap.txt
 - diff.txt
+- src/icp_renov_contracts/services/review.py
+- src/icp_renov_contracts/ui/web_host.py
+- src/icp_renov_contracts/ui_web/contract-workspace.js
+- src/icp_renov_contracts/ui_web/index.html
+- tests/test_review.py
+- tests/test_web_contract_conditions_w3b3.py
 
 Removed
 - None
 
-Not changed
-- docs/, templates/, spike/, frozen UX authority files
+Accepted / frozen and intentionally unchanged
+- Step 1 and Step 2 business behavior and layouts.
+- Step 4 and official generation: no number allocation, document/revision creation, status transition, or generation event.
+- Contract domain and persistence semantics; WebEngine architecture and sandbox policy.
+- docs/, templates/, and spike/.
+
+Final validation
+- C1 targeted: 8/8 PASS.
+- Full suite: 328/328 PASS.
+- git diff --check: PASS.
+- Closing correction removes only the misleading generation-next-step sentence; the disabled CTA and all accepted C1 behavior remain unchanged.

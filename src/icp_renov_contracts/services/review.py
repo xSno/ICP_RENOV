@@ -97,7 +97,8 @@ class ReviewService:
         if not contract.signatory_name.strip(): issues.append("Renseignez le nom du signataire.")
         if not contract.signatory_role.strip(): issues.append("Renseignez la qualité du signataire.")
         if contract.client_snapshot:
-            summary = contract.client_snapshot.display_name
+            identity = "Personne" if contract.client_snapshot.party_type == "PERSON" else "Organisation"
+            summary = f"{contract.client_snapshot.display_name} · {identity}"
             if contract.signatory_name.strip():
                 summary += f" · signataire {contract.signatory_name.strip()}"
                 if contract.signatory_role.strip(): summary += f", {contract.signatory_role.strip()}"
@@ -109,7 +110,13 @@ class ReviewService:
         if contract.site_snapshot is None: issues.append("Sélectionnez un site.")
         if not contract.equipment_items: issues.append("Aucun équipement sélectionné.")
         observed = sum(bool(item.observation.strip()) for item in contract.equipment_items)
-        summary = f"{len(contract.equipment_items)} équipement(s) · {observed} avec observations contractuelles"
+        count = len(contract.equipment_items)
+        equipment_label = f"{count} équipement" if count == 1 else f"{count} équipements"
+        observation_label = (
+            "1 avec observation contractuelle" if observed == 1
+            else f"{observed} avec observations contractuelles"
+        )
+        summary = f"{equipment_label} · {observation_label}"
         if contract.site_snapshot: summary = f"{contract.site_snapshot.label} · {summary}"
         return self._block(ReviewBlockId.SITE_EQUIPMENT, summary, issues)
 
@@ -129,8 +136,24 @@ class ReviewService:
                     issues.append("Indiquez si un démarrage anticipé est demandé.")
                 elif conditions.early_performance_requested and not early_authorized:
                     issues.append("La demande de démarrage anticipé ne correspond pas au contexte configuré.")
-        summary = {"CONSUMER": "Consommateur", "NON_PROFESSIONAL": "Non-professionnel",
-                   "PROFESSIONAL": "Professionnel"}.get(regime, "Régime à compléter")
+        summary_parts = [{"CONSUMER": "Consommateur", "NON_PROFESSIONAL": "Non-professionnel",
+                          "PROFESSIONAL": "Professionnel"}.get(regime, "Régime à compléter")]
+        if version and version.validation.requires_conclusion(regime):
+            summary_parts.append({
+                "IN_PREMISES": "Conclusion dans les locaux du professionnel",
+                "OFF_PREMISES": "Conclusion hors établissement",
+                "DISTANCE_EMAIL": "Conclusion à distance par e-mail",
+                "ONLINE_INTERFACE": "Conclusion via une interface en ligne",
+                "OTHER_DISTANCE": "Autre conclusion à distance",
+            }.get(conditions.conclusion_mode, "Mode de conclusion à compléter"))
+            blocks = version.validation.blocks_for(regime, conditions.conclusion_mode)
+            if {"BLOCK_WITHDRAWAL", "BLOCK_EARLY_PERFORMANCE"}.issubset(blocks):
+                summary_parts.append(
+                    "Démarrage anticipé demandé" if conditions.early_performance_requested is True
+                    else "Aucun démarrage anticipé demandé" if conditions.early_performance_requested is False
+                    else "Démarrage anticipé à confirmer"
+                )
+        summary = " · ".join(summary_parts)
         return self._block(ReviewBlockId.CONTRACT_CONTEXT, summary, issues)
 
     def _model_services(self, contract, conditions, version) -> ReviewBlockResult:
@@ -140,9 +163,7 @@ class ReviewService:
         elif version is None:
             issues.append("Le modèle sélectionné est introuvable.")
         elif not self._model_compatible(contract, version):
-            if version.status is not TemplateVersionStatus.AVAILABLE:
-                issues.append("Le modèle sélectionné n’est plus disponible pour ce contrat.")
-            else: issues.append("Le modèle sélectionné n’est pas compatible avec ce contrat.")
+            issues.append("Le modèle sélectionné n’est plus disponible pour ce contrat.")
         if conditions.visits_per_year is None or conditions.visits_per_year < 1:
             issues.append("Renseignez un nombre de visites valide.")
         if not conditions.refrigerant_handling_mode: issues.append("Choisissez la gestion des fluides.")
@@ -150,8 +171,31 @@ class ReviewService:
         elif conditions.priority_breakdown and not (conditions.priority_breakdown_delay or "").strip():
             issues.append("Renseignez le délai d’intervention prioritaire.")
         model = version.display_name if version else "Modèle à sélectionner"
-        visits = f"{conditions.visits_per_year} visite(s) par an" if conditions.visits_per_year else "Visites à compléter"
-        return self._block(ReviewBlockId.MODEL_SERVICES, f"{model} · {visits} · entretien courant inclus", issues)
+        visits = (
+            "1 visite par an" if conditions.visits_per_year == 1
+            else f"{conditions.visits_per_year} visites par an" if conditions.visits_per_year
+            else "Visites à compléter"
+        )
+        fluid = {
+            "IN_HOUSE_AUTHORIZED": "Fluides gérés en interne",
+            "PARTNER": "Fluides gérés par un partenaire habilité",
+            "EXCLUDED": "Gestion des fluides exclue",
+        }.get(conditions.refrigerant_handling_mode, "Gestion des fluides à compléter")
+        option_labels = {
+            "DEEP_CLEANING": "Nettoyage approfondi",
+            "DISINFECTION": "Désinfection",
+        }
+        services = [model, "Entretien préventif inclus", visits, fluid]
+        if conditions.included_options:
+            services.append("Options : " + ", ".join(option_labels.get(code, "Option non reconnue") for code in conditions.included_options))
+        if conditions.priority_breakdown is True:
+            priority = "Dépannage prioritaire inclus"
+            if (conditions.priority_breakdown_delay or "").strip():
+                priority += f" · délai {conditions.priority_breakdown_delay.strip()}"
+            services.append(priority)
+        elif conditions.priority_breakdown is False:
+            services.append("Dépannage prioritaire non inclus")
+        return self._block(ReviewBlockId.MODEL_SERVICES, " · ".join(services), issues)
 
     def _period(self, conditions) -> ReviewBlockResult:
         issues = []
@@ -171,8 +215,16 @@ class ReviewService:
                     issues.append("La date de fin doit être postérieure à la date de prise d’effet.")
             except ValueError: issues.append("La période contient une date invalide.")
         if not end and conditions.initial_duration_mode: issues.append("La date de fin ne peut pas être déterminée.")
-        summary = (f"Du {_format_date_fr(conditions.start_date)} au {_format_date_fr(end)}"
-                   if conditions.start_date and end else "Période à compléter")
+        summary_parts = []
+        if conditions.issue_date: summary_parts.append(f"Émise le {_format_date_fr(conditions.issue_date)}")
+        if conditions.start_date and end:
+            summary_parts.append(f"Du {_format_date_fr(conditions.start_date)} au {_format_date_fr(end)}")
+        if conditions.initial_duration_mode == "STANDARD" and conditions.initial_duration_months:
+            summary_parts.append(f"Durée standard · {conditions.initial_duration_months} mois")
+        elif conditions.initial_duration_mode == "CUSTOM" and end:
+            summary_parts.append("Date de fin personnalisée")
+        if conditions.signature_city.strip(): summary_parts.append(f"Signature à {conditions.signature_city.strip()}")
+        summary = " · ".join(summary_parts) or "Période à compléter"
         return self._block(ReviewBlockId.PERIOD, summary, list(dict.fromkeys(issues)))
 
     def _intervention(self, conditions) -> ReviewBlockResult:
@@ -182,7 +234,11 @@ class ReviewService:
         if conditions.travel_included is None: issues.append("Indiquez si les déplacements sont inclus.")
         travel = "déplacements inclus" if conditions.travel_included is True else (
             "déplacements non inclus" if conditions.travel_included is False else "déplacements à compléter")
-        summary = " · ".join(value for value in (conditions.included_area, conditions.business_hours, travel) if value)
+        values = [conditions.included_area, conditions.business_hours, travel]
+        if conditions.missed_appointment_fee is not None:
+            values.append(f"Rendez-vous manqué : {_format_money_fr(Decimal(conditions.missed_appointment_fee))} €")
+        if conditions.additional_exclusions.strip(): values.append(f"Exclusions : {conditions.additional_exclusions.strip()}")
+        summary = " · ".join(value for value in values if value)
         return self._block(ReviewBlockId.INTERVENTION, summary or "Conditions à compléter", issues)
 
     def _price_payment(self, conditions, version) -> ReviewBlockResult:
@@ -206,9 +262,23 @@ class ReviewService:
         methods = {item.code for item in catalogs.payment_methods} if catalogs else set()
         if not conditions.payment_methods: issues.append("Sélectionnez au moins un moyen de paiement.")
         elif any(code not in methods for code in conditions.payment_methods): issues.append("Un moyen de paiement n’est plus configuré.")
-        summary = (f"{_format_money_fr(Decimal(conditions.annual_ht))} € HT · "
-                   f"{_format_money_fr(vat)} € TVA · {_format_money_fr(total)} € TTC"
-                   if conditions.annual_ht is not None and vat is not None and total is not None else "Prix et paiement à compléter")
+        summary_parts = []
+        if conditions.annual_ht is not None and vat is not None and total is not None:
+            summary_parts.append(
+                f"{_format_money_fr(Decimal(conditions.annual_ht))} € HT · TVA {conditions.vat_rate} % "
+                f"({_format_money_fr(vat)} €) · {_format_money_fr(total)} € TTC"
+            )
+        if term:
+            payment = term.label
+            if term.requires_day_count and conditions.payment_due_days is not None:
+                payment += f" · {conditions.payment_due_days} jours"
+            if term.allows_custom_text and conditions.payment_terms_custom_text.strip():
+                payment += f" · {conditions.payment_terms_custom_text.strip()}"
+            summary_parts.append(payment)
+        method_labels = {item.code: item.label for item in catalogs.payment_methods} if catalogs else {}
+        if conditions.payment_methods:
+            summary_parts.append("Moyens : " + ", ".join(method_labels.get(code, "Moyen non reconnu") for code in conditions.payment_methods))
+        summary = " · ".join(summary_parts) or "Prix et paiement à compléter"
         return self._block(ReviewBlockId.PRICE_PAYMENT, summary, issues)
 
     def _renewal(self, conditions, version) -> ReviewBlockResult:
@@ -232,9 +302,31 @@ class ReviewService:
         if validation and validation.requires_breach_cure_period_days and conditions.breach_cure_period_days is None:
             issues.append("Renseignez le délai de régularisation.")
         if conditions.renewal_price_rule == "INDEXED": issues.append("L’indexation n’est pas disponible en V1.")
-        label = {"NONE": "Aucun renouvellement", "MANUAL": "Renouvellement manuel",
-                 "TACIT": "Reconduction tacite"}.get(mode, "Renouvellement à compléter")
-        return self._block(ReviewBlockId.RENEWAL_END, label, issues)
+        parts = [{"NONE": "Aucun renouvellement", "MANUAL": "Renouvellement manuel",
+                  "TACIT": "Reconduction tacite"}.get(mode, "Renouvellement à compléter")]
+        if mode in {"MANUAL", "TACIT"}:
+            if conditions.renewal_period_months: parts.append(f"Période de {conditions.renewal_period_months} mois")
+            price = {"FIXED": "Même prix", "NEW_PRICE_ON_RENEWAL": "Nouveau prix défini au renouvellement"}.get(
+                conditions.renewal_price_rule
+            )
+            if price: parts.append(price)
+            if conditions.internal_alert_days is not None:
+                parts.append(f"Alerte interne {conditions.internal_alert_days} jours avant")
+        if mode == "TACIT" and validation:
+            if validation.requires_non_renewal_notice_days and conditions.non_renewal_notice_days is not None:
+                parts.append(f"Préavis de non-renouvellement : {conditions.non_renewal_notice_days} jours")
+            if validation.requires_non_renewal_notice_channels and conditions.non_renewal_notice_channels:
+                labels = {item.code: item.label for item in version.catalogs.non_renewal_channels}
+                parts.append("Canaux : " + ", ".join(labels.get(code, "Canal non reconnu") for code in conditions.non_renewal_notice_channels))
+        ending = []
+        if conditions.early_termination_reason_codes:
+            labels = {item.code: item.label for item in version.catalogs.early_termination_reasons} if version else {}
+            ending.append(", ".join(labels.get(code, "Motif non reconnu") for code in conditions.early_termination_reason_codes))
+        if conditions.early_termination_custom_text.strip(): ending.append("précision complémentaire renseignée")
+        if validation and validation.requires_breach_cure_period_days and conditions.breach_cure_period_days is not None:
+            ending.append(f"délai de régularisation {conditions.breach_cure_period_days} jours")
+        if ending: parts.append("Fin anticipée : " + " · ".join(ending))
+        return self._block(ReviewBlockId.RENEWAL_END, " · ".join(parts), issues)
 
     def _special(self, conditions) -> ReviewBlockResult:
         summary = "Conditions particulières renseignées" if conditions.special_terms else "Aucune condition particulière"

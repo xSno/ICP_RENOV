@@ -355,7 +355,7 @@ class WebContractConditionsW3B3Tests(unittest.TestCase):
         bridge = (root / "ui" / "web_host.py").read_text(encoding="utf-8")
         for intent in ("updateContractRenewal", "updateContractEarlyTermination", "updateContractSpecialTerms"):
             self.assertIn(f"def {intent}", bridge)
-        b3 = js[js.index("function renewalDependentMarkup"):js.index("function renderContractConditions")]
+        b3 = js[js.index("function renewalDependentMarkup"):js.index("function openReviewBlock")]
         for forbidden in (
             "future_annual_ht", "index reference", "CPI", "INSEE", "Step 3", "Étape 3",
             "generation", "document generation", "termination scheduling",
