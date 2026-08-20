@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+from datetime import date
+from decimal import Decimal
 from pathlib import Path
 from typing import Callable
 
@@ -42,6 +44,18 @@ CONTRACT_FRAMEWORK_DTO_FIELDS = frozenset({
 CONTRACT_SERVICE_DTO_FIELDS = frozenset({
     "visits_per_year", "refrigerant_handling_mode", "included_options",
     "priority_breakdown", "priority_breakdown_delay",
+})
+CONTRACT_PERIOD_DTO_FIELDS = frozenset({
+    "issue_date", "start_date", "initial_duration_mode", "initial_duration_months",
+    "initial_end_date", "signature_city",
+})
+CONTRACT_INTERVENTION_DTO_FIELDS = frozenset({
+    "included_area", "business_hours", "travel_included",
+    "missed_appointment_fee", "additional_exclusions",
+})
+CONTRACT_PRICING_DTO_FIELDS = frozenset({
+    "annual_ht", "vat_rate", "payment_terms_code", "payment_due_days",
+    "payment_terms_custom_text", "payment_methods",
 })
 
 
@@ -120,6 +134,16 @@ def _closed_contract_dto(payload: object, allowed: frozenset[str]) -> dict:
     if unsupported:
         raise ContractConditionsValidationError({"payload": "Certaines conditions ne sont pas autorisées."})
     return payload
+
+
+def _date_fr(value: str | None) -> str:
+    if not value:
+        return ""
+    return date.fromisoformat(value).strftime("%d/%m/%Y")
+
+
+def _money_fr(value) -> str:
+    return format(value, ".2f").replace(".", ",")
 
 
 class UiBridge(QObject):
@@ -242,6 +266,10 @@ class UiBridge(QObject):
                 version.validation.blocks_for(regime_code, conditions.conclusion_mode)
             )
         )
+        catalogs = version.catalogs if selected_compatible else None
+        resolved_end_date = conditions.resolved_end_date
+        vat_amount = conditions.vat_amount
+        annual_ttc = conditions.annual_ttc
         regime = {
             "CONSUMER": "Consommateur", "NON_PROFESSIONAL": "Non-professionnel",
             "PROFESSIONAL": "Professionnel",
@@ -251,11 +279,6 @@ class UiBridge(QObject):
             "DISTANCE_EMAIL": "À distance — e-mail", "ONLINE_INTERFACE": "Interface en ligne",
             "OTHER_DISTANCE": "Autre vente à distance",
         }.get(conditions.conclusion_mode, "Non configuré")
-        period = "Non configurée"
-        if conditions.start_date:
-            period = conditions.start_date
-            if conditions.resolved_end_date:
-                period += f" → {conditions.resolved_end_date}"
         renewal = {
             "NONE": "Sans renouvellement", "MANUAL": "Renouvellement manuel", "TACIT": "Tacite reconduction",
         }.get(conditions.renewal_mode, "Non configuré")
@@ -323,13 +346,58 @@ class UiBridge(QObject):
                 "priority_breakdown": conditions.priority_breakdown,
                 "priority_breakdown_delay": conditions.priority_breakdown_delay or "",
             },
+            "conditions_b2": {
+                "issue_date": conditions.issue_date,
+                "start_date": conditions.start_date,
+                "initial_duration_mode": conditions.initial_duration_mode,
+                "initial_duration_months": conditions.initial_duration_months,
+                "initial_end_date": conditions.initial_end_date,
+                "resolved_end_date": resolved_end_date,
+                "signature_city": conditions.signature_city,
+                "included_area": conditions.included_area,
+                "business_hours": conditions.business_hours,
+                "travel_included": conditions.travel_included,
+                "missed_appointment_fee": (
+                    _money_fr(Decimal(conditions.missed_appointment_fee))
+                    if conditions.missed_appointment_fee is not None else None
+                ),
+                "additional_exclusions": conditions.additional_exclusions,
+                "annual_ht": (
+                    _money_fr(Decimal(conditions.annual_ht))
+                    if conditions.annual_ht is not None else None
+                ),
+                "vat_rate": conditions.vat_rate,
+                "vat_amount": _money_fr(vat_amount) if vat_amount is not None else "",
+                "annual_ttc": _money_fr(annual_ttc) if annual_ttc is not None else "",
+                "vat_rates": list(catalogs.vat_rates) if catalogs else [],
+                "payment_terms_code": conditions.payment_terms_code,
+                "payment_due_days": conditions.payment_due_days,
+                "payment_terms_custom_text": conditions.payment_terms_custom_text,
+                "payment_terms": [{
+                    "id": item.code, "label": item.label,
+                    "requires_day_count": item.requires_day_count,
+                    "allows_custom_text": item.allows_custom_text,
+                } for item in (catalogs.payment_terms if catalogs else ())],
+                "payment_methods": list(conditions.payment_methods),
+                "payment_method_options": [
+                    {"id": item.code, "label": item.label}
+                    for item in (catalogs.payment_methods if catalogs else ())
+                ],
+                "pricing_catalog_available": catalogs is not None,
+            },
             "summary": {
                 "client": contract.client_snapshot.display_name if contract.client_snapshot else "Non sélectionné",
                 "signatory": " · ".join(part for part in (contract.signatory_name, contract.signatory_role) if part) or "Non renseigné",
                 "site": contract.site_snapshot.label if contract.site_snapshot else "Non sélectionné",
                 "equipment": [item.snapshot.display_name or item.snapshot.equipment_type for item in contract.equipment_items],
-                "regime": regime, "conclusion": conclusion, "period": period,
-                "price": f"{conditions.annual_ht} € HT / an" if conditions.annual_ht else "Non configuré",
+                "regime": regime, "conclusion": conclusion,
+                "period": (
+                    f"Du {_date_fr(conditions.start_date)} au {_date_fr(resolved_end_date)}"
+                    if conditions.start_date and resolved_end_date else "Non configurée"
+                ),
+                "price": (
+                    f"{_money_fr(annual_ttc)} € TTC / an" if annual_ttc is not None else "Non configuré"
+                ),
                 "renewal": renewal,
                 "template": version.display_name if version else "Non configuré",
                 "completion": (
@@ -611,6 +679,99 @@ class UiBridge(QObject):
         self.contract_id = contract_id
         self.refresh()
         return {"ok": True, "id": contract_id, "visits_per_year": saved.visits_per_year}
+
+    @Slot(str, "QVariant", result="QVariant")
+    def updateContractPeriod(self, contract_id: str, payload: object) -> dict:
+        try:
+            values = _closed_contract_dto(payload, CONTRACT_PERIOD_DTO_FIELDS)
+            if set(values) != CONTRACT_PERIOD_DTO_FIELDS:
+                raise ContractConditionsValidationError({"payload": "Complétez les informations de période transmises."})
+            for field in ("issue_date", "start_date", "initial_duration_mode", "initial_end_date"):
+                if values[field] is not None and not isinstance(values[field], str):
+                    raise ContractConditionsValidationError({field: "Cette valeur est invalide."})
+            if not isinstance(values["signature_city"], str):
+                raise ContractConditionsValidationError({"signature_city": "La ville de signature est invalide."})
+            months = values["initial_duration_months"]
+            if months is not None and (isinstance(months, bool) or not isinstance(months, (int, float)) or int(months) != months):
+                raise ContractConditionsValidationError({"initial_duration_months": "Saisissez un nombre entier valide."})
+            if (
+                values["initial_duration_mode"] == "CUSTOM"
+                and values["start_date"] and values["initial_end_date"]
+            ):
+                try:
+                    incoherent = date.fromisoformat(values["initial_end_date"]) < date.fromisoformat(values["start_date"])
+                except ValueError:
+                    incoherent = False  # The authoritative service reports malformed dates below.
+                if incoherent:
+                    raise ContractConditionsValidationError({
+                        "initial_end_date": "La date de fin doit être postérieure à la date de prise d’effet."
+                    })
+            current = asdict(self.context.contracts.get_conditions(contract_id))
+            current.update(values)
+            current["initial_duration_months"] = int(months) if months is not None else None
+            saved = self.context.contracts.save_conditions(contract_id, ContractConditions(**current))
+        except ApplicationError as error:
+            return _master_error(error)
+        self.contract_id = contract_id
+        self.refresh()
+        return {"ok": True, "id": contract_id, "resolved_end_date": saved.resolved_end_date}
+
+    @Slot(str, "QVariant", result="QVariant")
+    def updateContractInterventionConditions(self, contract_id: str, payload: object) -> dict:
+        try:
+            values = _closed_contract_dto(payload, CONTRACT_INTERVENTION_DTO_FIELDS)
+            if set(values) != CONTRACT_INTERVENTION_DTO_FIELDS:
+                raise ContractConditionsValidationError({"payload": "Complétez les conditions d’intervention transmises."})
+            for field in ("included_area", "business_hours", "additional_exclusions"):
+                if not isinstance(values[field], str):
+                    raise ContractConditionsValidationError({field: "Cette valeur doit être du texte."})
+            if values["travel_included"] is not None and not isinstance(values["travel_included"], bool):
+                raise ContractConditionsValidationError({"travel_included": "Choisissez les conditions de déplacement."})
+            fee = values["missed_appointment_fee"]
+            if fee is not None and not isinstance(fee, str):
+                raise ContractConditionsValidationError({"missed_appointment_fee": "Le montant est invalide."})
+            current = asdict(self.context.contracts.get_conditions(contract_id))
+            current.update(values)
+            saved = self.context.contracts.save_conditions(contract_id, ContractConditions(**current))
+        except ApplicationError as error:
+            return _master_error(error)
+        self.contract_id = contract_id
+        self.refresh()
+        return {"ok": True, "id": contract_id, "travel_included": saved.travel_included}
+
+    @Slot(str, "QVariant", result="QVariant")
+    def updateContractPricing(self, contract_id: str, payload: object) -> dict:
+        try:
+            values = _closed_contract_dto(payload, CONTRACT_PRICING_DTO_FIELDS)
+            if set(values) != CONTRACT_PRICING_DTO_FIELDS:
+                raise ContractConditionsValidationError({"payload": "Complétez les informations de prix transmises."})
+            for field in ("annual_ht", "vat_rate", "payment_terms_code"):
+                if values[field] is not None and not isinstance(values[field], str):
+                    raise ContractConditionsValidationError({field: "Cette valeur est invalide."})
+            if not isinstance(values["payment_terms_custom_text"], str):
+                raise ContractConditionsValidationError({"payment_terms_custom_text": "Cette précision doit être du texte."})
+            due_days = values["payment_due_days"]
+            if due_days is not None and (
+                isinstance(due_days, bool) or not isinstance(due_days, (int, float)) or int(due_days) != due_days
+            ):
+                raise ContractConditionsValidationError({"payment_due_days": "Saisissez un nombre entier valide."})
+            methods = values["payment_methods"]
+            if not isinstance(methods, list) or any(not isinstance(item, str) for item in methods):
+                raise ContractConditionsValidationError({"payment_methods": "Les moyens de paiement sont invalides."})
+            current = asdict(self.context.contracts.get_conditions(contract_id))
+            current.update(values)
+            current["payment_due_days"] = int(due_days) if due_days is not None else None
+            current["payment_methods"] = tuple(methods)
+            saved = self.context.contracts.save_conditions(contract_id, ContractConditions(**current))
+        except ApplicationError as error:
+            return _master_error(error)
+        self.contract_id = contract_id
+        self.refresh()
+        return {
+            "ok": True, "id": contract_id,
+            "vat_amount": _money_fr(saved.vat_amount) if saved.vat_amount is not None else "",
+            "annual_ttc": _money_fr(saved.annual_ttc) if saved.annual_ttc is not None else "",
+        }
 
     @Slot()
     def openContractModels(self) -> None:

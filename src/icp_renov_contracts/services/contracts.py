@@ -174,6 +174,8 @@ class ContractService:
             data["initial_end_date"] = None
         elif data["initial_duration_mode"] == DurationMode.CUSTOM.value:
             data["initial_duration_months"] = None
+        if data["travel_included"] is not None and not isinstance(data["travel_included"], bool):
+            errors["travel_included"] = "Les conditions de déplacement sont invalides."
         if data["refrigerant_handling_mode"] not in {None, *(item.value for item in RefrigerantHandlingMode)}:
             errors["refrigerant_handling_mode"] = "La gestion des fluides est invalide."
         if any(option not in INCLUDED_OPTIONS for option in data["included_options"]):
