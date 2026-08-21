@@ -29,6 +29,7 @@
 .lifecycle-zone{border-color:#bed4dc;background:#f0f7f9}.lifecycle-zone p{color:#315e6b}.abandonment-zone{border-color:#dfc4c4;background:#fcf5f5}.abandonment-zone p{color:#7d5151}
 .lifecycle-information{margin-top:13px;padding:11px 13px;border:1px solid #bed4dc;border-radius:7px;background:#f0f7f9;color:#315e6b;display:grid;gap:3px}.lifecycle-information strong{font-size:12px}.lifecycle-information small{font-size:9px;color:#496f7a}
 .other-documents{background:#f8fafb}.other-documents p{margin:8px 0 0;color:var(--muted);font-size:10px}
+.intervention-document-list{margin-top:11px;display:grid;gap:8px}.intervention-document-card{padding:11px;border:1px solid #dce3e6;border-radius:7px;background:#fbfcfc}.intervention-document-card>header{display:flex;align-items:center;justify-content:space-between;gap:10px}.intervention-document-title{font-size:14px;font-weight:750;color:#20333b}
 .contract-timeline{margin:12px 0 0;padding:0;list-style:none;display:grid;gap:0}
 .contract-timeline li{position:relative;min-height:48px;padding:0 0 12px 25px;border-left:1px solid #d5dfe2;margin-left:6px}
 .contract-timeline li:last-child{border-left-color:transparent;padding-bottom:0}

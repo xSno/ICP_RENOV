@@ -229,7 +229,9 @@ class WebContractRenewalW3D3Tests(GenerationCase):
             self.assertIn(text, js)
         host = (Path(__file__).parents[1] / "src" / "icp_renov_contracts" / "ui" / "web_host.py").read_text(encoding="utf-8")
         self.assertIn("Reconduction confirmée", host)
-        for forbidden in ("Créer une fiche d’intervention", "INDEXED"):
+        # D5 adds a separate intervention-document action; D3 must still not
+        # expose the unsupported indexed renewal mode.
+        for forbidden in ("INDEXED",):
             self.assertNotIn(forbidden, d3)
         engine = QJSEngine(); engine.evaluate("function esc(value){return String(value ?? '');} var contractDocumentsError='';")
         evaluated = engine.evaluate(d3); self.assertFalse(evaluated.isError(), evaluated.toString())

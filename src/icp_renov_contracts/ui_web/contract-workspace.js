@@ -163,6 +163,52 @@ function openContractFile(revision, kind) {
   });
 }
 
+function openInterventionFile(documentId, kind) {
+  contractDocumentsError = '';
+  bridge.openInterventionDocument(contractWorkspaceState.contract.id, documentId, kind, result => {
+    if (!result?.ok) {
+      contractDocumentsError = result?.message || 'Le fichier est introuvable dans le dossier de travail.';
+      renderContractWorkspace(contractWorkspaceState);
+    }
+  });
+}
+
+function openInterventionSheetModal() {
+  const d5 = contractWorkspaceState?.documents_d5;
+  if (!d5?.action_available) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'drawer-overlay documents-modal-overlay';
+  const templates = d5.templates || [];
+  if (!templates.length) {
+    overlay.innerHTML = `<div class="drawer-backdrop" onclick="closeContractDocumentsModal()"></div><section class="documents-modal" role="dialog" aria-modal="true" aria-labelledby="intervention-sheet-title"><header><span class="eyebrow">Autres documents</span><h2 id="intervention-sheet-title">Créer une fiche d’intervention</h2><p>Aucun modèle de fiche d’intervention disponible.</p></header><div class="documents-modal-body"><div class="documents-info-notice"><strong>Le contrat reste utilisable</strong><span>Ajoutez ou rendez disponible un modèle de fiche d’intervention dans les paramètres.</span></div></div><footer><button class="button button-secondary" onclick="closeContractDocumentsModal()">Fermer</button><button class="primary intervention-models-action">Ouvrir Paramètres &gt; Modèles</button></footer></section>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('.intervention-models-action').addEventListener('click', () => bridge.openContractModels());
+    return;
+  }
+  const options = templates.map(item => `<option value="${esc(item.id)}">${esc(item.name)} · ${esc(item.version)}</option>`).join('');
+  overlay.innerHTML = `<div class="drawer-backdrop" onclick="closeContractDocumentsModal()"></div><section class="documents-modal" role="dialog" aria-modal="true" aria-labelledby="intervention-sheet-title"><header><span class="eyebrow">Autres documents</span><h2 id="intervention-sheet-title">Créer une fiche d’intervention</h2><p>La fiche est un document distinct : elle ne crée ni révision contractuelle ni numéro.</p></header><div class="documents-modal-body"><label><span>Modèle de fiche d’intervention</span><select id="intervention-template">${options}</select></label><label><span>Date de l’intervention</span>${frenchDateField('intervention-date', d5.today, true)}</label><label><span>Technicien <small>Facultatif selon le modèle</small></span><input id="intervention-technician" type="text"></label><label><span>Autre information <small>Facultatif</small></span><input id="intervention-other" type="text"></label><label><span>Notes <small>Facultatif</small></span><textarea id="intervention-notes" rows="3"></textarea></label><label><span>Anomalies / points signalés <small>Facultatif</small></span><textarea id="intervention-issues" rows="3"></textarea></label><label><span>Devis recommandé <small>Facultatif</small></span><select id="intervention-quote"><option value="">Non renseigné</option><option value="true">Oui</option><option value="false">Non</option></select></label><div class="documents-modal-error" hidden></div></div><footer><button class="button button-secondary" onclick="closeContractDocumentsModal()">Annuler</button><button class="primary intervention-generate-action">Générer le DOCX et le PDF</button></footer></section>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('.intervention-generate-action').addEventListener('click', () => {
+    const date = parseFrenchDate(overlay.querySelector('#intervention-date').value);
+    const error = overlay.querySelector('.documents-modal-error');
+    if (!date) { error.hidden = false; error.textContent = 'Saisissez une date au format JJ/MM/AAAA.'; return; }
+    const quoteValue = overlay.querySelector('#intervention-quote').value;
+    const payload = {
+      date,
+      technician: overlay.querySelector('#intervention-technician').value,
+      other: overlay.querySelector('#intervention-other').value,
+      notes: overlay.querySelector('#intervention-notes').value,
+      issues: overlay.querySelector('#intervention-issues').value,
+      quote_recommended: quoteValue === '' ? null : quoteValue === 'true',
+    };
+    bridge.generateInterventionSheet(contractWorkspaceState.contract.id, overlay.querySelector('#intervention-template').value, payload, result => {
+      if (result?.ok) closeContractDocumentsModal();
+      else { error.hidden = false; error.textContent = result?.message || 'La fiche d’intervention n’a pas pu être générée.'; }
+    });
+  });
+  requestAnimationFrame(() => overlay.querySelector('#intervention-date')?.focus());
+}
+
 function openCorrectionConfirmation() {
   if (!contractWorkspaceState?.documents_d1?.correction_allowed) return;
   const overlay = document.createElement('div');
@@ -689,6 +735,7 @@ function openGenerationConfirmation() {
 function renderContractDocuments(state) {
   const data = state.documents_d1;
   const signature = state.documents_d2 || {};
+  const intervention = state.documents_d5 || { action_available: false, documents: [] };
   const feedback = data.feedback ? `<div class="documents-feedback ${esc(data.feedback.kind)}">${esc(data.feedback.message)}</div>` : '';
   const error = contractDocumentsError ? `<div class="documents-feedback error">${esc(contractDocumentsError)}</div>` : '';
   const revisions = data.revisions.map(item => {
@@ -723,7 +770,16 @@ function renderContractDocuments(state) {
   const abandonAction = lifecycle.abandon_allowed ? `<section class="correction-zone lifecycle-zone abandonment-zone"><div><span class="eyebrow">Contrat non conclu</span><h3>Abandonner ce projet</h3><p>Les éventuels documents et l’historique restent préservés.</p></div><button class="button button-secondary" onclick="openAbandonConfirmation()">Abandonner le contrat</button></section>` : '';
   const sendAction = data.send_allowed ? '<button class="primary" onclick="openRecordSentModal()">Enregistrer un envoi</button>' : '';
   const signatureAction = signature.signature_allowed ? '<button class="primary" onclick="openSignatureRecordingModal()">Enregistrer la signature</button>' : '';
-  return `<section class="contract-step-panel contract-documents-panel"><header><span class="eyebrow">Étape 4 sur 4</span><h2>Documents & suivi</h2><p>Consultez les révisions officielles et enregistrez les actions réalisées hors du logiciel.</p></header>${feedback}${error}<section class="documents-section"><div class="documents-section-head"><div><span class="eyebrow">Révisions contractuelles</span><h3>Documents officiels</h3></div><div class="documents-primary-actions">${sendAction}${signatureAction}</div></div><div class="revision-list">${revisions || '<div class="contract-empty">Aucune révision contractuelle disponible.</div>'}</div></section>${correction}${linkedRenewal}${tacitRenewal}${nonrenewalAction}${nonrenewalRecorded}${terminationAction}${terminationScheduled}${abandonAction}<section class="documents-section other-documents"><div><span class="eyebrow">Autres documents</span><h3>Documents distincts du contrat</h3></div><p>Aucun autre document disponible.</p></section><section class="documents-section history-section"><div><span class="eyebrow">Historique</span><h3>Événements du contrat</h3></div><ol class="contract-timeline">${timeline || '<li class="timeline-empty">Aucun événement disponible.</li>'}</ol></section></section>`;
+  const interventionCards = intervention.documents.map(item => {
+    const docx = item.docx_available ? `<button class="button button-secondary" onclick="openInterventionFile('${esc(item.id)}','docx')">Ouvrir le DOCX</button>` : '<span class="revision-file-missing">DOCX introuvable</span>';
+    const pdf = item.pdf_available ? `<button class="button button-secondary" onclick="openInterventionFile('${esc(item.id)}','pdf')">Ouvrir le PDF</button>` : '<span class="revision-file-missing">PDF introuvable</span>';
+    const technician = item.technician ? `<span>Technicien <strong>${esc(item.technician)}</strong></span>` : '';
+    const anomaly = item.docx_available && item.pdf_available ? '' : '<p class="revision-anomaly">La fiche reste conservée dans les documents. Le fichier manquant n’a pas été recréé.</p>';
+    return `<article class="intervention-document-card"><header><div><span class="intervention-document-title">Fiche d’intervention</span></div></header><div class="revision-metadata"><span>Date d’intervention <strong>${esc(item.intervention_date_display)}</strong></span>${technician}<span>Générée le <strong>${esc(item.generated_display)}</strong></span><span>Modèle <strong>${esc(item.template_name)}${item.template_version ? ` · ${esc(item.template_version)}` : ''}</strong></span></div><div class="revision-actions">${docx}${pdf}</div>${anomaly}</article>`;
+  }).join('');
+  const interventionAction = intervention.action_available ? '<button class="button button-secondary" onclick="openInterventionSheetModal()">Créer une fiche d’intervention</button>' : '';
+  const otherDocuments = `<section class="documents-section other-documents"><div class="documents-section-head"><div><span class="eyebrow">Autres documents</span><h3>Documents distincts du contrat</h3></div>${interventionAction}</div><div class="intervention-document-list">${interventionCards || '<p>Aucun autre document disponible.</p>'}</div></section>`;
+  return `<section class="contract-step-panel contract-documents-panel"><header><span class="eyebrow">Étape 4 sur 4</span><h2>Documents & suivi</h2><p>Consultez les révisions officielles et enregistrez les actions réalisées hors du logiciel.</p></header>${feedback}${error}<section class="documents-section"><div class="documents-section-head"><div><span class="eyebrow">Révisions contractuelles</span><h3>Documents officiels</h3></div><div class="documents-primary-actions">${sendAction}${signatureAction}</div></div><div class="revision-list">${revisions || '<div class="contract-empty">Aucune révision contractuelle disponible.</div>'}</div></section>${correction}${linkedRenewal}${tacitRenewal}${nonrenewalAction}${nonrenewalRecorded}${terminationAction}${terminationScheduled}${abandonAction}${otherDocuments}<section class="documents-section history-section"><div><span class="eyebrow">Historique</span><h3>Événements du contrat</h3></div><ol class="contract-timeline">${timeline || '<li class="timeline-empty">Aucun événement disponible.</li>'}</ol></section></section>`;
 }
 
 function renderContractReview(state) {
@@ -798,7 +854,7 @@ function renderContractWorkspace(state) {
   const failure = contractSaveFailure ? `<div class="contract-persistence-error">Les dernières modifications ne sont pas encore enregistrées. ${esc(contractSaveFailure)}</div>` : '';
   document.querySelector('#app').innerHTML = `<div class="app"><aside class="side"><div class="brand"><span class="brand-icon">${icon('air')}</span><span>ICP Renov<br><small>Contrats d’entretien</small></span></div><div class="nav active" onclick="bridge.returnToContracts()">${icon('file')}Contrats</div><div class="nav" onclick="bridge.navigate('CLIENTS')">${icon('users')}Clients & installations</div><div class="nav" onclick="bridge.navigate('SETTINGS')">${icon('settings')}Paramètres</div><div class="side-bottom"><div class="local-state">${icon('laptop')}<b>Mode local</b><small>Données conservées uniquement sur ce poste.</small></div><div class="backup-state">${icon('backup')}<small>Sauvegarde</small><b>${esc(backup)}</b></div></div></aside><main class="main contract-main"><header class="contract-header"><button class="ghost contract-back" onclick="bridge.returnToContracts()">← Retour Contrats</button><div class="contract-heading"><span class="pill ${esc(c.status)}">${esc(c.status_label)}</span><h1>${esc(c.number)}</h1><p>${esc(c.client || 'Client à sélectionner')} · ${esc(c.site || 'Site à sélectionner')}</p></div><div class="contract-header-state"><span class="contract-save-state">${esc(c.saved_label)}</span></div></header><div class="contract-shell"><nav class="contract-step-rail" aria-label="Étapes du contrat">${steps.map((label,index) => `<button class="contract-step ${index === (state.active_step || 1) - 1 ? 'active' : ''}" ${index > 2 ? 'disabled' : `onclick="setContractStep(${index + 1})"`}><span>${index + 1}</span><span><strong>${label}</strong>${index === (state.active_step || 1) - 1 ? '<small>Étape en cours</small>' : ''}</span></button>`).join('')}</nav><div class="contract-workspace-body">${failure}<section class="contract-step-panel"><header><span class="eyebrow">Étape 1 sur 4</span><h2>Client, site & équipements</h2><p>Définissez le contexte exact repris dans ce contrat.</p></header><article class="contract-section" data-review-target="client-signatory"><div class="contract-section-head"><div><span class="eyebrow">Client du contrat</span><h3>${esc(c.client || 'Aucun client sélectionné')}</h3></div>${c.editable ? `<div><button class="button button-secondary" onclick="openContractSelector('client',this)">${editClient}</button><button class="ghost" onclick="openClientDrawer('contract-create',this)">Créer un nouveau client</button></div>` : ''}</div>${c.client_id ? `<div class="contract-signatory"><div><span class="eyebrow">Signataire pour ce contrat</span><p>Ces informations ne modifient pas la fiche maître.</p></div><label><span>Nom</span><input id="contract-signatory-name" value="${esc(c.signatory_name)}" ${c.editable ? '' : 'disabled'}></label><label><span>Fonction ou qualité</span><input id="contract-signatory-role" value="${esc(c.signatory_role)}" ${c.editable ? '' : 'disabled'}></label>${c.editable ? '<button class="button button-secondary" onclick="saveContractSignatory()">Enregistrer</button>' : ''}</div>` : '<div class="contract-empty">Choisissez ou créez un client pour continuer.</div>'}</article><article class="contract-section ${!c.client_id ? 'disabled-section' : ''}" data-review-target="site-equipment"><div class="contract-section-head"><div><span class="eyebrow">Site unique du contrat</span><h3>${esc(c.site || 'Aucun site sélectionné')}</h3></div>${c.editable && c.client_id ? `<div><button class="button button-secondary" onclick="openContractSelector('site',this)">${editSite}</button><button class="ghost" onclick="openContractSiteCreator(this)">Ajouter un site</button></div>` : ''}</div>${!c.client_id ? '<div class="contract-empty">Sélectionnez d’abord un client.</div>' : !c.site_id ? '<div class="contract-empty">Choisissez ou ajoutez un site.</div>' : ''}</article><article class="contract-section equipment-contract-section ${!c.site_id ? 'disabled-section' : ''}"><div class="contract-section-head"><div><span class="eyebrow">Équipements du site</span><h3>${selected.length} équipement(s) sélectionné(s)</h3></div>${c.editable && c.site_id ? `<button class="button button-secondary" onclick="openContractEquipmentCreator(this)">${icon('plus')}Ajouter un équipement</button>` : ''}</div>${c.site_id ? `<p class="order-copy">Ordre repris dans l’annexe du contrat</p>${equipmentRows || '<div class="contract-empty">Aucun équipement actif sur ce site.</div>'}${selected.length ? '' : '<div class="step-anomaly">Aucun équipement sélectionné. Le brouillon reste enregistré, mais la génération future sera bloquée.</div>'}` : '<div class="contract-empty">Sélectionnez d’abord un site.</div>'}</article></section></div><aside class="contract-summary"><span class="eyebrow">Résumé du contrat</span><h2>État actuel</h2><dl>${workspaceSummaryRow('Client',state.summary.client)}${workspaceSummaryRow('Signataire',state.summary.signatory)}${workspaceSummaryRow('Site',state.summary.site)}${workspaceSummaryRow('Équipements',summaryEquipment)}${workspaceSummaryRow('Régime',state.summary.regime)}${workspaceSummaryRow('Mode de conclusion',state.summary.conclusion)}${workspaceSummaryRow('Période',state.summary.period)}${workspaceSummaryRow('Prix',state.summary.price)}${workspaceSummaryRow('Renouvellement',state.summary.renewal)}${workspaceSummaryRow('Modèle / version',state.summary.template)}${workspaceSummaryRow('Complétude',state.summary.completion,state.summary.completion.includes('complète') ? 'complete' : 'warning')}</dl></aside></div></main></div>`;
   const documentsStep = document.querySelectorAll('.contract-step')[3];
-  if (documentsStep && (state.documents_d1.available || state.documents_d4?.abandon_allowed)) {
+  if (documentsStep && (state.documents_d1.available || state.documents_d4?.abandon_allowed || state.documents_d5?.action_available)) {
     documentsStep.disabled = false;
     documentsStep.onclick = () => setContractStep(4);
   }

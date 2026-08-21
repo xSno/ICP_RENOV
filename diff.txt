@@ -1,39 +1,32 @@
-C2.W3-D4 final uncommitted delta against accepted D3 HEAD 0fdb18f
+C2.W3-D5 uncommitted delta against accepted D4 HEAD 2a07e0761e0c148afac722025a9c2a26de3e599a
 
 Created
-- tests/test_web_contract_end_w3d4.py
+- tests/test_web_intervention_w3d5.py
 
 Modified
 - recap.txt
 - diff.txt
-- src/icp_renov_contracts/services/contract_events.py
 - src/icp_renov_contracts/ui/web_host.py
-- src/icp_renov_contracts/ui_web/app.js
 - src/icp_renov_contracts/ui_web/contract-documents.css
 - src/icp_renov_contracts/ui_web/contract-workspace.js
-- tests/test_lifecycle_s8.py
-- tests/test_web_contract_documents_w3d1.py
 - tests/test_web_contract_renewal_w3d3.py
-- tests/test_web_contract_review_w3c1.py
 - tests/test_web_contract_signature_w3d2.py
 
 Removed
 - None.
 
-D4 final additions
-- French D4 text-date formatter/parser with exact JJ/MM/AAAA validation before the existing ISO bridge route; no locale-dependent native date presentation on D4 lifecycle modals.
-- French singular/plural day count and Contracts action-count copy.
-- Authoritative pending-termination effective-date projection in Step 4; scheduled termination remains a register INFORMATION signal and not an action.
-- ContractEvent occurred_at is the actual recording clock with no synthetic monotonic increment; History sorts occurred_at DESC, then persisted id DESC only as a tie-break, without altering existing immutable events.
-- Regression coverage for French date/day copy, terminal-history order, expiry preservation, register Tous/Actions separation, pending effective date, action-count grammar, and honest same-clock/future-event ordering.
+D5 scope
+- WebChannel projection and closed DTO route for the existing InterventionSheetGenerationService.
+- Strict kind-based AVAILABLE INTERVENTION_SHEET selection, French date modal, distinct Autres documents cards, and bounded exact DOCX/PDF opening.
+- DOCUMENT_GENERATED History presentation now resolves event.document_id to the persisted ContractDocument: CONTRACT retains Révision contractuelle générée · Rxx; INTERVENTION_SHEET projects Fiche d’intervention générée without a revision.
+- No new ContractEvent type, number allocation, CONTRACT revision mutation, lifecycle transition, signature, or signed-copy behavior.
 
 Accepted / intentionally unchanged
-- D1/D2 revision, send, correction, signature and signed-copy authority.
-- D3 renewal and linked-draft authority; Steps 1–3; official generation/numbering; WebEngine shell and sandbox policy.
-- docs/, templates/, spike/, automated communication, e-signature, intervention sheets and later lifecycle slices.
+- Official CONTRACT generation, numbering, revision, signature, signed-copy, renewal, D4 end-of-contract lifecycle, and History ordering authority.
+- templates/, docs/, and spike/.
 
-Final validation
-- D4 targeted 8/8 PASS; D3 12/12 PASS; S8 13/13 PASS.
-- Full suite 379/379 PASS in 358.705 s using QT_QPA_PLATFORM=offscreen and -W error::ResourceWarning.
-- git diff --check: PASS.
-- Persistent manual-review fixture is external to the repository at C:\Users\xSn\AppData\Local\Temp\icp-renov-d4-final-authority-review-20260821-1600.
+Validation
+- D5 Web targeted 5/5 PASS; S9 intervention authority 12/12 PASS.
+- Full suite 384/384 PASS in 270.090 s using QT_QPA_PLATFORM=offscreen and -W error::ResourceWarning.
+- git diff --check: PASS (only CRLF advisory warnings).
+- Manual fixture remains external to the repository at C:\Users\xSn\AppData\Local\Temp\icp-renov-d5-manual-review-20260821.

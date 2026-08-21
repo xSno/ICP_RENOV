@@ -1,36 +1,35 @@
-C2.W3-D4 — Step 4 End-of-Contract Lifecycle — final validation
+C2.W3-D5 — Step 4 Intervention Sheet
 
 Baseline
-- Accepted D3 commit: 0fdb18f.
-- D4 remains uncommitted for review.
+- Accepted D4 commit: 2a07e0761e0c148afac722025a9c2a26de3e599a.
+- Incoming full suite: 383/383 PASS.
+- D5 remains uncommitted for review.
 
-Final authority
-- event.occurred_at uses the real recording clock; History ordering uses occurred_at DESC with persisted-id DESC only as tie-break.
-- Existing immutable event timestamps are never rewritten. Business/effective dates remain display semantics only.
+Scope
+- Step 4 projects only AVAILABLE INTERVENTION_SHEET versions, a French JJ/MM/AAAA intervention modal, a closed Web bridge DTO, and exact-document DOCX/PDF opening under Autres documents.
+- Intervention sheets remain immutable documents distinct from CONTRACT revisions: no number allocation, Rxx, lifecycle, renewal, signature, or signed-copy mutation.
+- DOCUMENT_GENERATED remains the sole existing event authority for both document kinds; no event enum or generation transaction changed.
 
-Accepted D4 scope
-- The D4 Web modal presents and accepts strict French explicit dates (JJ/MM/AAAA), converts only validated values to the existing ISO persistence format, and leaves canonical storage unchanged.
-- D4 day-count copy is grammatically bounded: 1 jour / N jours. The Contracts attention copy is likewise bounded: 1 action à traiter / N actions à traiter.
-- Scheduled termination projects its authoritative effective date as Fin prévue le JJ/MM/AAAA. The register shows it as INFORMATION under Tous and excludes it from Actions à traiter.
-- TERMINATED, EXPIRED, and ABANDONED remain terminal/read-only while preserving their Documents and History projections.
+History projection correction
+- Every DOCUMENT_GENERATED history entry resolves its exact persisted ContractDocument by event.document_id.
+- CONTRACT remains Révision contractuelle générée · Rxx.
+- INTERVENTION_SHEET now projects Fiche d’intervention générée with no Rxx, id, UUID, filename, or inferred document kind.
+- An unresolved document retains the existing bounded generic projection; History order remains occurred_at DESC, persisted id DESC.
 
-Preserved boundaries
-- RENEWAL_NOTICE_RECORDED semantics, TACIT conflict protection, controlled termination reasons, future scheduled status, D1/D2 documents and signatures, D3 renewal behavior, WebEngine sandbox, and all terminal read-only boundaries remain unchanged.
-- The abandonment confirmation remains Abandonner le contrat and retains its preservation/no-deletion wording.
-- No intervention work, termination correction, automatic communication, e-signature, official-generation change, docs/, templates/ or spike/ change.
+Preserved D5 behavior
+- Kind-only available-template filtering, contract-template rejection, technician requiredness, French date input, contractual equipment snapshot, document paths, multiple-sheet preservation, missing-file behavior, and exact opening are unchanged.
+- D1/D2/D3/D4 authority is unchanged.
 
-Regression evidence
-- D4 targeted: 8/8 PASS.
-- D3 Renewal: 12/12 PASS.
-- S8 lifecycle: 13/13 PASS.
-- D1 Documents and D2 Signature remain covered by the normal full regression.
-- Full application suite: 379/379 PASS in 358.705 s with QT_QPA_PLATFORM=offscreen and ResourceWarning promoted to errors.
-- The total increases by one for the recording-clock/tie-order authority regression.
+Validation
+- D5 Web targeted: 5/5 PASS (one new document-kind History projection regression).
+- Existing S9 intervention authority: 12/12 PASS.
+- Full suite: 384/384 PASS in 270.090 s with QT_QPA_PLATFORM=offscreen and ResourceWarning promoted to errors.
+- The total increases by one from the accepted D5 baseline, for the deterministic CONTRACT R01 plus two INTERVENTION_SHEET DOCUMENT_GENERATED projection test.
+- git diff --check: PASS (only CRLF advisory warnings).
 
-Manual Windows review fixture
-- Persistent synthetic fixture root: C:\Users\xSn\AppData\Local\Temp\icp-renov-d4-final-authority-review-20260821-1600
-- The isolated LOCALAPPDATA profile is launched with the normal production command; no sandbox/GPU workaround or automated screenshot is used.
+Manual Windows fixture
+- Persistent fixture root: C:\Users\xSn\AppData\Local\Temp\icp-renov-d5-manual-review-20260821
+- Contract SYNTH-S5-0001 retains CONTRACT R01 and two intervention sheets dated 14/08/2026 and 21/08/2026.
 
-Final review state
-- git diff --check: PASS.
-- No D4 commit yet.
+Review state
+- No D5 commit yet.

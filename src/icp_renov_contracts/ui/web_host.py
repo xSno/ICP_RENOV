@@ -15,13 +15,14 @@ from PySide6.QtWebEngineWidgets import QWebEngineView
 from ..documents.validation import DocumentGenerationError
 from ..domain import (
     ClientDraft, ClientMaster, ContractConditions, ContractEventType, ContractStatus, EquipmentDraft, EquipmentMaster,
-    SignedCopyState, SiteDraft, SiteMaster, TemplateVersionStatus,
+    DocumentKind, SignedCopyState, SiteDraft, SiteMaster, TemplateVersionStatus,
 )
 from ..errors import ApplicationError, ContractConditionsValidationError, ContractLifecycleError, MasterDataValidationError
 from ..services import (
     ContractOperationalSignalKind,
     ContractRegisterFilter,
     ContractRegisterService,
+    InterventionInput,
     RealBackupSummaryProvider,
 )
 from ..services.contract_register import STATUS_LABELS
@@ -320,6 +321,9 @@ class UiBridge(QObject):
         next_revision = self.context.generation.next_revision(contract.id) if generation_allowed else None
         backup = self.register.backup_summary().label
         revisions = self.context.lifecycle.revisions(contract.id)
+        intervention_sheets = self.context.lifecycle.documents.list_for_contract_kind(
+            contract.id, DocumentKind.INTERVENTION_SHEET
+        )
         revision_by_document = {item.id: item.revision for item in revisions}
         signature = self.context.lifecycle.signature_authority(contract.id)
         lifecycle_projection = None
@@ -356,6 +360,25 @@ class UiBridge(QObject):
                 "docx_available": self.context.lifecycle.resolve_document_path(item.docx_relpath) is not None,
                 "pdf_available": self.context.lifecycle.resolve_document_path(item.pdf_relpath) is not None,
             })
+        intervention_rows = []
+        for item in intervention_sheets:
+            snapshot = item.snapshot
+            intervention = snapshot.get("intervention", {})
+            try:
+                template = self.context.template_catalog.get_version(item.template_version_id)
+                template_name, template_version = template.template_name, template.version
+            except Exception:
+                template_name, template_version = "Modèle historique", ""
+            intervention_rows.append({
+                "id": item.id,
+                "intervention_date_display": _date_fr(intervention.get("date")),
+                "technician": intervention.get("technician") or "",
+                "generated_display": _datetime_fr(item.generated_at_utc),
+                "template_name": template_name,
+                "template_version": template_version,
+                "docx_available": self.context.lifecycle.resolve_document_path(item.docx_relpath) is not None,
+                "pdf_available": self.context.lifecycle.resolve_document_path(item.pdf_relpath) is not None,
+            })
         event_labels = {
             ContractEventType.CREATED: "Contrat créé",
             ContractEventType.DOCUMENT_GENERATED: "Révision contractuelle générée",
@@ -375,6 +398,12 @@ class UiBridge(QObject):
         for event in history:
             if event.type not in event_labels:continue
             revision = revision_by_document.get(event.document_id or "", "")
+            label = event_labels[event.type]
+            if event.type is ContractEventType.DOCUMENT_GENERATED and event.document_id:
+                document = self.context.lifecycle.documents.get(event.document_id)
+                if document is not None and document.document_kind is DocumentKind.INTERVENTION_SHEET:
+                    label = "Fiche d’intervention générée"
+                    revision = ""
             if event.type is ContractEventType.RENEWAL_CONFIRMED:
                 period = f"Du {_date_fr(event.period_start)} au {_date_fr(event.period_end)}"
                 price = " · ".join(value for value in (
@@ -391,7 +420,7 @@ class UiBridge(QObject):
             if event.type is ContractEventType.TERMINATION_SCHEDULED and event.reason_text:
                 detail = " · ".join(value for value in (f"Motif : {event.reason_text}", detail) if value)
             timeline_entries.append((event.occurred_at, event.id, {
-                "label": event_labels[event.type],
+                "label": label,
                 "occurred_display": _date_fr(event.occurred_at[:10]),
                 "effective_display": _date_fr(event.effective_date) if event.effective_date else "",
                 "revision": revision,
@@ -663,6 +692,19 @@ class UiBridge(QObject):
             },
             "documents_d3": renewal_d3,
             "documents_d4": lifecycle_d4,
+            "documents_d5": {
+                "action_available": self.context.intervention_generation is not None,
+                "templates": [{
+                    "id": item.id, "name": item.template_name, "version": item.version,
+                    "display": item.display_name,
+                    "technician_required": "intervention.technician" in item.required_intervention_fields,
+                } for item in (
+                    self.context.intervention_generation.available_templates()
+                    if self.context.intervention_generation is not None else []
+                )],
+                "documents": intervention_rows,
+                "today": self.context.lifecycle.date_provider.today().isoformat(),
+            },
             "summary": {
                 "client": contract.client_snapshot.display_name if contract.client_snapshot else "Non sélectionné",
                 "signatory": " · ".join(part for part in (contract.signatory_name, contract.signatory_role) if part) or "Non renseigné",
@@ -865,7 +907,7 @@ class UiBridge(QObject):
         if contract_id != self.contract_id or step not in {1, 2, 3, 4}:
             return {"ok": False, "message": "Cette étape n’est pas disponible."}
         contract = self.context.contracts.get(contract_id)
-        if step == 4 and not self.context.lifecycle.revisions(contract_id) and contract.status not in {ContractStatus.DRAFT, ContractStatus.TO_SIGN}:
+        if step == 4 and not self.context.lifecycle.revisions(contract_id) and contract.status not in {ContractStatus.DRAFT, ContractStatus.TO_SIGN} and self.context.intervention_generation is None:
             return {"ok": False, "message": "Aucune révision contractuelle n’est encore disponible."}
         self.contract_step = step
         self.contract_focus_target = None
@@ -884,6 +926,54 @@ class UiBridge(QObject):
         try:self.context.lifecycle.open_document(document.id,kind)
         except (ContractLifecycleError,OSError):return {"ok":False,"message":"Le fichier est introuvable dans le dossier de travail."}
         return {"ok":True,"revision":revision,"kind":kind}
+
+    def _intervention_document(self, contract_id: str, document_id: str):
+        if contract_id != self.contract_id:
+            return None
+        document = self.context.lifecycle.documents.get(document_id)
+        if document is None or document.contract_id != contract_id or document.document_kind is not DocumentKind.INTERVENTION_SHEET:
+            return None
+        return document
+
+    @Slot(str, str, str, result="QVariant")
+    def openInterventionDocument(self, contract_id: str, document_id: str, kind: str) -> dict:
+        if self._intervention_document(contract_id, document_id) is None or kind not in {"docx", "pdf"}:
+            return {"ok": False, "message": "Ce document n’est pas disponible."}
+        try:
+            self.context.lifecycle.open_document(document_id, kind)
+        except (ContractLifecycleError, OSError):
+            return {"ok": False, "message": "Le fichier est introuvable dans le dossier de travail."}
+        return {"ok": True, "document_id": document_id, "kind": kind}
+
+    @Slot(str, str, "QVariant", result="QVariant")
+    def generateInterventionSheet(self, contract_id: str, template_version_id: str, payload: object) -> dict:
+        if contract_id != self.contract_id or self.context.intervention_generation is None:
+            return {"ok": False, "message": "La fiche d’intervention n’est pas disponible pour ce contrat."}
+        if not isinstance(payload, dict) or set(payload) - {"date", "technician", "other", "notes", "issues", "quote_recommended"}:
+            return {"ok": False, "message": "Les informations de la fiche d’intervention sont invalides."}
+        text_fields = ("date", "technician", "other", "notes", "issues")
+        if any(not isinstance(payload.get(field, ""), str) for field in text_fields):
+            return {"ok": False, "message": "Les informations de la fiche d’intervention sont invalides."}
+        quote = payload.get("quote_recommended")
+        if quote is not None and not isinstance(quote, bool):
+            return {"ok": False, "message": "Les informations de la fiche d’intervention sont invalides."}
+        try:
+            result = self.context.intervention_generation.generate(
+                contract_id,
+                template_version_id,
+                InterventionInput(
+                    payload.get("date", ""), payload.get("technician", ""), payload.get("other", ""),
+                    payload.get("notes", ""), payload.get("issues", ""), quote,
+                ),
+            )
+        except DocumentGenerationError as error:
+            self.contract_documents_feedback = {"kind": "error", "message": error.user_message}
+            self.refresh()
+            return {"ok": False, "message": error.user_message}
+        self.contract_step = 4
+        self.contract_documents_feedback = {"kind": "success", "message": "La fiche d’intervention a été générée."}
+        self.refresh()
+        return {"ok": True, "document_id": result.document.id}
 
     def _signed_pdf_source(self, contract_id: str, intent: str) -> Path | None:
         selection = self.contract_signed_pdf_selection
