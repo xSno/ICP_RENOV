@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import sys
 
 from PySide6.QtWidgets import QApplication, QMessageBox
@@ -21,19 +22,45 @@ def create_application(argv: list[str] | None = None) -> QApplication:
 
 
 def main(argv: list[str] | None = None) -> int:
-    application = create_application(argv)
-    logger = configure_logging()
-    logger.info("Application startup")
+    application = None
+    logger = None
     try:
+        application = create_application(argv)
+        logger = configure_logging()
+        logger.info("Application startup")
         context = build_application_context(logger=logger)
     except ApplicationError as exc:
-        logger.exception("Application bootstrap failed")
+        if logger is not None:
+            logger.exception("Application bootstrap failed")
         QMessageBox.critical(None, "ICP Renov", exc.user_message)
         return 1
+    except Exception:
+        if logger is not None:
+            logger.exception("Unexpected application startup failure")
+        else:
+            logging.getLogger("icp_renov_contracts").exception("Unexpected application startup failure before local logging")
+        if application is not None:
+            QMessageBox.critical(
+                None,
+                "ICP Renov",
+                "ICP Renov n’a pas pu démarrer. Réessayez après avoir vérifié le dossier de travail. "
+                "Les détails techniques ont été enregistrés dans le journal local lorsque disponible.",
+            )
+        return 1
 
-    window = MainWindow(context)
-    window.show()
-    exit_code = application.exec()
-    logger.info("Application shutdown with code %s", exit_code)
-    return exit_code
+    try:
+        window = MainWindow(context)
+        window.show()
+        exit_code = application.exec()
+        logger.info("Application shutdown with code %s", exit_code)
+        return exit_code
+    except Exception:
+        logger.exception("Unexpected application startup failure")
+        QMessageBox.critical(
+            None,
+            "ICP Renov",
+            "ICP Renov n’a pas pu démarrer. Réessayez après avoir vérifié le dossier de travail. "
+            "Les détails techniques ont été enregistrés dans le journal local.",
+        )
+        return 1
 

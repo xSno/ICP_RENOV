@@ -13,6 +13,7 @@ from PySide6.QtWebEngineCore import QWebEnginePage
 from PySide6.QtWebEngineWidgets import QWebEngineView
 
 from ..documents.validation import DocumentGenerationError
+from ..runtime_resources import web_ui_root
 from ..domain import (
     ClientDraft, ClientMaster, ContractConditions, ContractEventType, ContractStatus, EquipmentDraft, EquipmentMaster,
     DocumentKind, SignedCopyState, SiteDraft, SiteMaster, TemplateVersionStatus,
@@ -1790,7 +1791,7 @@ class TrustedLocalPage(QWebEnginePage):
 class WebUiHost(QWebEngineView):
     def __init__(self, context, navigate: Callable[[str], None]) -> None:
         super().__init__()
-        self.assets_root = Path(__file__).parent.parent / "ui_web"
+        self.assets_root = web_ui_root()
         self._showing_load_error = False
         self.bridge = UiBridge(context, navigate)
         page = TrustedLocalPage(self.assets_root, self)

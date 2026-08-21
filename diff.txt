@@ -1,24 +1,35 @@
-C3-A Windows packaging readiness audit against accepted C2/W4 HEAD 67982c0
+C3-B1 packaging foundation against accepted C3-A HEAD 5f65040
 
 Created
-- None.
+- packaging/build_windows_bundle.ps1
+- packaging/icp_renov_contracts.spec
+- packaging/launch_icp_renov.py
+- src/icp_renov_contracts/resources/FIELD_TEMPLATE_CONTRACT_V1_1.txt
+- src/icp_renov_contracts/runtime_resources.py
+- tests/test_packaging_foundation_c3b1.py
 
 Modified
+- .gitignore
 - recap.txt
 - diff.txt
+- pyproject.toml
+- src/icp_renov_contracts/app.py
+- src/icp_renov_contracts/documents/registry.py
+- src/icp_renov_contracts/ui/web_host.py
 
 Removed
-- None.
+- docs/FIELD_TEMPLATE_CONTRACT_V1_1.txt (relocated unchanged into the installed package resources).
 
-Audit scope intentionally unchanged
-- All production Python, WebEngine JavaScript/CSS/HTML, tests, documents, templates, spike content, sandbox configuration, and GPU/Chromium settings.
-- No packaging dependency, build, distributable, installer, or temporary fixture was created in the repository.
+B1 intentional scope
+- Frozen launcher, package-resource resolver, canonical runtime-field relocation, explicit PyInstaller data manifest, build-only PyInstaller pin, one Windows build script, ignore rules, and minimum startup diagnostic boundary.
+- No installer, distributable, PyInstaller installation, LibreOffice bundle, user data, schema/business change, Web UI redesign, sandbox/GPU/debug flag, templates fixture, tests/spike package data, or release QA.
 
-Audit evidence
-- Entrypoint, runtime paths, PySide6/QtWebEngine wheel resources, local data authority, LibreOffice discovery, migrations, and current build configuration were inspected read-only.
-- Exact build plan: PyInstaller x64 --onedir primary; Inno Setup 7 installer after the one-dir smoke; pyside6-deploy/Nuitka standalone only as a justified fallback.
-- Required C3-B adaptations are bounded: frozen launcher, package-resource resolver for the field registry, explicit ui_web data manifest, QtWebEngine distribution-tree verification, and clean-machine prerequisite/diagnostic checks.
+Validation
+- Packaging/resource/startup tests: 6/6 PASS.
+- Full suite: 390/390 PASS in 302.952 s using QT_QPA_PLATFORM=offscreen and -W error::ResourceWarning.
+- PowerShell script and PyInstaller spec syntax: PASS; no bundle built.
+- git diff --check: PASS (CRLF advisory warnings only).
 
 Verdict
-- C3_PACKAGING_READY: no unresolved prerequisite prevents the first controlled build; no product or runtime behavior was changed by C3-A.
+- C3_B1_READY_FOR_FIRST_BUILD.
 - git diff --check: PASS (CRLF advisory warnings only).

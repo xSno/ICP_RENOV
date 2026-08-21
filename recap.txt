@@ -1,56 +1,32 @@
-C3-A — Windows packaging readiness audit
+C3-B1 — Windows packaging foundation
 
 Baseline
-- C2/W4 accepted audit commit: 67982c0 (C2.W4 transverse closure audit), following accepted D5 commit c246410.
-- C2 verdict: C2_TRANSVERSE_READY; full suite: 384/384 PASS; two clean sequential real LibreOffice official CONTRACT conversions: PASS.
-- C3-A changed no production code, test, dependency, WebEngine, LibreOffice, or sandbox setting.
+- Accepted C3-A HEAD: 5f65040 (C3-A Windows packaging readiness audit).
+- Incoming full suite: 384/384 PASS. No PyInstaller build, installer, LibreOffice bundle, user data, or release QA was created in B1.
 
-Current production runtime
-- Entrypoint: src/icp_renov_contracts/__main__.py → app.main(); current development launch is .\.venv\Scripts\python.exe -m icp_renov_contracts.
-- app.main() creates QApplication, sets application/organization names, configures a local rotating log, builds the application context, shows MainWindow, runs QApplication.exec(), and logs shutdown. WebEngine is created by WebUiHost only on a normal desktop platform; QWebChannel uses the local file surface and TrustedLocalPage rejects non-local navigation and popups.
-- PACKAGING_SAFE: relative Python imports, local HTML/CSS/JS loaded through WebUiHost, SQLite through the Python standard library, %LOCALAPPDATA% machine configuration/logs, and workspace-relative generated files/templates.
-- NEEDS_PACKAGING_ADAPTATION: a frozen launcher outside editable-install/PYTHONPATH; explicit inclusion of ui_web; and replacement of documents/registry.py's repository-root docs path with a package-resource locator. The current parent traversal reaches docs/FIELD_TEMPLATE_CONTRACT_V1_1.txt only in the source tree.
-- DEVELOPMENT_ONLY: .venv, editable installation, src on import path, tests/, templates/ fixture DOCX files, spike/, and root prototype/docs other than the field registry resource.
+Tracked build foundation
+- packaging/launch_icp_renov.py is a frozen launcher only: it imports and calls the existing icp_renov_contracts.app.main() authority, with no sys.path mutation, CWD dependence, or alternate application implementation.
+- runtime_resources.py is the common package-resource authority. It uses importlib.resources for the canonical field registry and the local ui_web directory in both source and frozen layouts.
+- The unchanged FIELD_TEMPLATE_CONTRACT_V1_1 canonical content moved from root docs/ into src/icp_renov_contracts/resources/ (SHA-256 039C2F19A91017B84C78EBB571C8491F8571356E26BF1224269ED739552413C4). documents/registry.py no longer traverses repository parents.
+- WebUiHost now receives its local index.html and every companion CSS/JS asset from runtime_resources.web_ui_root(); local-file loading, QWebChannel, and TrustedLocalPage restrictions are unchanged.
+- pyproject.toml keeps PySide6 as the sole application runtime dependency and adds the build-only optional extra packaging = PyInstaller==6.22.2. Package data explicitly includes the field resource and ui_web HTML/JS/CSS.
+- packaging/icp_renov_contracts.spec is Windows x64, one-dir, and windowed. It lists the exact production Web assets and field resource; retains PyInstaller PySide6 hooks plus explicit QtWebEngineProcess, platform plugin, ICU, WebEngine .pak and locale data collection. It excludes tests and spike, and does not add LibreOffice, root templates, prototype, fixtures, user workspace data, or sandbox/GPU/debug flags.
+- packaging/build_windows_bundle.ps1 is the single tracked Windows build command. It invokes the pinned PyInstaller spec only; it has no installer or prerequisite logic.
+- .gitignore now excludes build/, dist/, and installer-output/. No tracked packaging input is ignored.
 
-Dependency and resource inventory
-- Build interpreter: Python 3.14.3 x64. Declared runtime dependency: PySide6 >=6.8,<7; installed PySide6/Qt/QtWebEngine: 6.11.1.
-- Production document rendering/postflight uses standard-library ZIP/XML/hash/SQLite plus external LibreOffice 26.2.5.2. pypdf 6.16.0 and PyMuPDF 1.28.2 are installed in the development environment but are not imported by production source and should not be bundled as runtime requirements.
-- Production Web UI consists of index.html, app.js, contract-workspace.js, app.css, clients.css, contract-workspace.css, contract-conditions.css, contract-conditions-b2.css, contract-conditions-b3.css, contract-review.css, and contract-documents.css. Icons are inline SVG paths: no external web icon directory exists.
-- Production template versions are imported into <workspace>/templates/sources and hash-governed there. Root templates/ are test/fixture sources and must not be shipped as preconfigured production templates. Generated DOCX/PDF live under <workspace>/documents.
-
-QtWebEngine packaging doctrine
-- The bundle must contain QtWebEngineProcess.exe, Qt6WebEngineCore/Widgets, QtWebChannel, Qt plugins (at minimum platforms/qwindows), resources/icudtl.dat, qtwebengine_resources*.pak, resources/locales, translations/qtwebengine_locales, and dependent Qt/VC++ binaries. These are present in the current PySide6 wheel.
-- C3-B must verify the produced distribution tree, not assume automatic collection. Preserve sandbox-active WebEngine: no --no-sandbox, QTWEBENGINE_DISABLE_SANDBOX, GPU-disable, remote-debugging, HTTP server, or workaround flag.
-
-Writable data and diagnostics
-- Machine bootstrap/configuration and existing rotating application.log belong in %LOCALAPPDATA%\ICP Renov\Contrats; this stores workspace and backup selection only.
-- SQLite, CompanySettings, template metadata, imported template sources, documents, and backups remain in the selected user workspace, whose established default concept is Documents\ICP Renov\Contrats. The executable/install directory is read-only application content and must never become the workspace.
-- Qt user cache is independently resolved by Qt under its per-user local data location. Existing logs rotate locally at 512 KiB × 3. C3-B should add only a local uncaught-startup/crash diagnostic boundary; no telemetry/cloud logging.
-- Schema migrations are persisted in schema_migrations; current latest schema version is 12. Existing initialization/migration is the update boundary. No updater or data migration is to be invented in packaging.
-
-LibreOffice and prerequisites
-- V1 recommendation: require a supported installed LibreOffice 26.2.5.2, do not ship a portable LibreOffice runtime. It retains the accepted standard-install/PATH discovery and per-conversion isolated profile; avoids a large third-party payload, its licensing/security updates, duplicate discovery authority, and higher support burden.
-- Current discovery is standard ProgramFiles/ProgramFiles(x86) and PATH only; no explicit configured path exists. C3-B should retain it, surface the existing diagnostic/version result, and make LibreOffice a documented installer prerequisite rather than hardcoding a developer path.
-- Microsoft VC++ 14.28+ must be treated as a clean-machine prerequisite for QtWebEngine. Although the PySide6 wheel contains VC runtime DLLs, C3-B must verify a clean machine and, if needed, install the Microsoft VC++ x64 redistributable as an installer prerequisite.
-
-Recommended C3-B architecture
-- Primary tool: current PyInstaller, pinned as a build-only dependency, using a Windows x64 --onedir, --windowed build. Python 3.14 is supported by current PyInstaller releases. Its readable distribution tree, direct debugging, explicit data manifest, and installer compatibility best fit this QtWidgets/QtWebEngine application.
-- Fallback only: Qt pyside6-deploy/Nuitka standalone after a PyInstaller-specific collection failure. It is Qt-supported but requires the MSVC/dumpbin build toolchain and adds compiler complexity; it is not the V1 first choice.
-- Installer: Inno Setup 7 over the reviewed one-dir application folder. It owns application files, stable AppId/version metadata, Start Menu shortcut, optional desktop shortcut, uninstaller, and explicit prerequisites. It must not remove workspace data, database, backups, imported templates, or %LOCALAPPDATA% configuration without an explicit user choice.
-- Identity available now: display name ICP Renov — Contrats and project version 0.1.0. C3-B still needs a stable executable/file-description/AppUserModel ID decision and an approved .ico before release; no icon asset exists and none is invented by this audit.
-
-C3-B slices and gates
-- B1: add only tracked packaging inputs (frozen launcher, package-resource resolver, PyInstaller spec/hook/data manifest, build command) and ignore build/, dist/, installer outputs, and temporary Qt artifacts.
-- B2: make the first x64 one-dir build and inspect its QtWebEngine resource/helper tree.
-- B3: run it outside the repository with a clean %LOCALAPPDATA% profile; verify first use, local writable paths, navigation, local Web UI/QWebChannel, and sandbox active.
-- B4: correct only proven resource/path collection defects; repeat clean-profile smoke and a real imported-template DOCX/PDF generation with supported LibreOffice.
-- B5: add the Inno Setup installer and prerequisite checks; preserve user data on uninstall.
-- B6: install to a clean Windows environment and repeat start, restart, file-open, backup/restore, generated DOCX/PDF, and no-repository-path smoke.
-- First-build acceptance: start outside repository/VS Code; WebEngine sidebar/local assets and bridge load; no console-only unhandled failure; settings/database/log workspace remain writable; first-run works; Contracts/Clients/Settings work; real DOCX/PDF generation and restart work; generated file opening works; no repository/PYTHONPATH dependency; sandbox remains active.
+Diagnostics and user data
+- app.main() preserves its existing application startup sequence and local rotating log. Unexpected startup construction failures now log locally and show a concise French startup dialog instead of disappearing in a windowed build; no traceback is exposed as the primary UX, no crash reporter or telemetry was added.
+- %LOCALAPPDATA%\ICP Renov\Contrats remains the machine/bootstrap/log location; the selected Documents\ICP Renov\Contrats workspace remains the only writable location for SQLite, CompanySettings, template registry/imported sources, generated documents, and backups. The bundle directory remains read-only runtime content.
 
 Validation
-- Current packaging configuration: none. No build or dependency installation was performed.
-- git diff --check: PASS before artifact refresh.
+- B1 packaging/resource/startup targeted tests: 6/6 PASS.
+- Full application suite: 390/390 PASS in 302.952 s with QT_QPA_PLATFORM=offscreen and ResourceWarning promoted to errors. The total increases by six for bounded resource, manifest, sandbox-flag and startup-diagnostic regression coverage.
+- PowerShell build script syntax: PASS. PyInstaller spec AST syntax: PASS. No PyInstaller dependency was installed and no distribution was built.
+- git diff --check: PASS (CRLF advisory warnings only).
+
+Release notes
+- No .ico was created. An approved icon and final installer identity remain later installer/release gates, not B1 blockers.
+- B2 must build and inspect the actual one-dir QtWebEngine tree before claiming packaged runtime success.
 
 Verdict
-C3_PACKAGING_READY
+C3_B1_READY_FOR_FIRST_BUILD

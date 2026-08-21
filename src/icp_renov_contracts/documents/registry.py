@@ -4,7 +4,10 @@ from dataclasses import dataclass
 from pathlib import Path
 import re
 
-FIELD_FILE=Path(__file__).resolve().parents[3]/"docs"/"FIELD_TEMPLATE_CONTRACT_V1_1.txt"
+from ..runtime_resources import field_template_path
+
+
+FIELD_FILE=field_template_path()
 KEY=re.compile(r"^([a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*(?:\[\])?)+)\s*$")
 BLOCK=re.compile(r"^(BLOCK_[A-Z0-9_]+)\s*$")
 @dataclass(frozen=True)

@@ -5,3 +5,6 @@ recap.txt
 spike/tmp/
 *.egg-info/
 tests/tmp/
+/build/
+/dist/
+/installer-output/
