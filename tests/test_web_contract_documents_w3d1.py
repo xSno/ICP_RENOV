@@ -173,7 +173,9 @@ class WebContractDocumentsW3D1Tests(GenerationCase):
         d1 = js[start:end]
         for copy in ("Révisions contractuelles", "Historique", "Autres documents", "Corriger le contrat", "Enregistrer un envoi"):
             self.assertIn(copy, js)
-        for forbidden in ("SIGNATURE_RECORDED", "Activer", "Programmer une résiliation"):
+        # D4 adds its separately gated end-of-contract controls to this shared
+        # Step 4 renderer; D1 itself still owns no signature state machine or activation.
+        for forbidden in ("SIGNATURE_RECORDED", "Activer"):
             self.assertNotIn(forbidden, d1)
         correction = js[js.index("function openCorrectionConfirmation"):js.index("function openRecordSentModal")]
         self.assertNotIn("bridge.reopenContractForCorrection", correction.split("addEventListener", 1)[0])

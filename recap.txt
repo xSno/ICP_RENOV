@@ -1,51 +1,36 @@
-C2.W3-D3 — Step 4 Renewal lifecycle
+C2.W3-D4 — Step 4 End-of-Contract Lifecycle — final validation
 
 Baseline
-- Accepted D2 commit: 784893b.
-- Incoming application suite: 359/359 PASS.
-- D3 remains uncommitted for manual review.
+- Accepted D3 commit: 0fdb18f.
+- D4 remains uncommitted for review.
 
-Scope and authority
-- D3 adds only NONE, MANUAL linked-DRAFT, and explicit TACIT renewal behavior to Documents & suivi.
-- ContractLifecycleService remains authoritative for signed-contract snapshot reuse, period calculation, attention eligibility, controlled VAT, price calculations, RENEWAL_CONFIRMED persistence, and duplicate-period protection.
-- JavaScript only renders the Python snapshot and invokes bounded bridge slots; it performs no lifecycle or month arithmetic.
+Final authority
+- event.occurred_at uses the real recording clock; History ordering uses occurred_at DESC with persisted-id DESC only as tie-break.
+- Existing immutable event timestamps are never rewritten. Business/effective dates remain display semantics only.
 
-NONE and MANUAL
-- NONE has no primary renewal/confirmation action. Its permitted secondary action is “Créer un nouveau contrat lié”.
-- MANUAL presents “Préparer le renouvellement” with a side-effect-free confirmation modal.
-- The accepted action creates a new DRAFT with predecessor_contract_id set to the source. It reuses the exact signed contractual snapshot, not live master data; source Contract, documents, signature, events, number and Rxx remain unchanged.
-- The new DRAFT has no official number, document, Rxx, signature or send state and remains reviewable for its next period.
-- A request token is handled by ContractLifecycleService, so a duplicate bridge invocation in the same user action returns the same linked draft rather than creating a duplicate.
+Accepted D4 scope
+- The D4 Web modal presents and accepts strict French explicit dates (JJ/MM/AAAA), converts only validated values to the existing ISO persistence format, and leaves canonical storage unchanged.
+- D4 day-count copy is grammatically bounded: 1 jour / N jours. The Contracts attention copy is likewise bounded: 1 action à traiter / N actions à traiter.
+- Scheduled termination projects its authoritative effective date as Fin prévue le JJ/MM/AAAA. The register shows it as INFORMATION under Tous and excludes it from Actions à traiter.
+- TERMINATED, EXPIRED, and ABANDONED remain terminal/read-only while preserving their Documents and History projections.
 
-TACIT
-- TACIT never confirms automatically. The action/signal appears only when the lifecycle service reports its authoritative attention date as due.
-- The modal projects current and contiguous next periods from Python. FIXED reuses the signed-period HT and VAT. NEW_PRICE_ON_RENEWAL requires a new HT and an existing controlled VAT rate; Python returns the calculated VAT/TTC preview.
-- INDEXED remains rejected by the existing controlled condition validation and is absent from the D3 surface.
-- Confirmation persists exactly one RENEWAL_CONFIRMED for the new period, with period_start/end, annual HT, VAT rate, VAT amount and TTC. The existing database unique period constraint blocks a duplicate same-period event; later distinct periods remain possible.
-- Initial Contract pricing and historical start/initial end dates are not rewritten. The workspace summary explicitly shows “En cours” from the lifecycle projection after confirmation; History shows “Reconduction confirmée” with the effective period and price summary.
-- No ContractDocument, official number, Rxx, DOCX or PDF is created by renewal confirmation. Existing D1/D2 revision, send, signature and signed-copy behavior remains intact.
+Preserved boundaries
+- RENEWAL_NOTICE_RECORDED semantics, TACIT conflict protection, controlled termination reasons, future scheduled status, D1/D2 documents and signatures, D3 renewal behavior, WebEngine sandbox, and all terminal read-only boundaries remain unchanged.
+- The abandonment confirmation remains Abandonner le contrat and retains its preservation/no-deletion wording.
+- No intervention work, termination correction, automatic communication, e-signature, official-generation change, docs/, templates/ or spike/ change.
 
-Closing History chronology
-- The merged visual History is ordered reverse-chronologically by persisted occurrence timestamp only: ContractEvent.occurred_at for events and ContractDocument.signed_pdf_attached_at for the D2 documentary signed-copy entry.
-- Business-effective dates and renewal period dates remain display content only; they never determine ordering. Equal occurrence timestamps use the existing persisted identifier as the stable descending tie-break.
-- The deterministic regression uses real controlled recording times without rewriting immutable events. It proves: Reconduction confirmée, Copie signée archivée, Contrat activé, Signature enregistrée, while retaining the future renewal period and the prior effective dates.
+Regression evidence
+- D4 targeted: 8/8 PASS.
+- D3 Renewal: 12/12 PASS.
+- S8 lifecycle: 13/13 PASS.
+- D1 Documents and D2 Signature remain covered by the normal full regression.
+- Full application suite: 379/379 PASS in 358.705 s with QT_QPA_PLATFORM=offscreen and ResourceWarning promoted to errors.
+- The total increases by one for the recording-clock/tie-order authority regression.
 
-Validation
-- D3 targeted: 12/12 PASS. The closing regression adds occurrence-timestamp merge ordering for ContractEvents and signed-copy documentary history.
-- D2 Web signature regression: 10/10 PASS.
-- Existing lifecycle authority S8: 13/13 PASS.
-- Full application suite: 371/371 PASS in 295.436 s. The total rises by 12 from the incoming 359 baseline: the D3 targeted tests.
+Manual Windows review fixture
+- Persistent synthetic fixture root: C:\Users\xSn\AppData\Local\Temp\icp-renov-d4-final-authority-review-20260821-1600
+- The isolated LOCALAPPDATA profile is launched with the normal production command; no sandbox/GPU workaround or automated screenshot is used.
 
-Real sandbox-active WebEngine smoke
-- Disposable evidence root: C:\Users\xSn\AppData\Local\Temp\icp-renov-d3-webengine-ulir_uax
-- Local production WebEngine/QWebChannel: PASS; QTWEBENGINE_DISABLE_SANDBOX and QTWEBENGINE_CHROMIUM_FLAGS are unset.
-- Actual 1600x900 captures: A-none-no-primary-renewal.png; B-manual-prepare.png; C-manual-linked-draft.png; D-tacit-fixed-modal.png; E-tacit-new-price-modal.png; F-tacit-confirmed-current-period-history.png; G-tacit-attention-signal.png.
-- Smoke result: one linked DRAFT with no number/revision; one TACIT renewal event; R01 remains the sole revision; current summary is “En cours · Du 01/01/2027 au 31/12/2027”. No bridge/JavaScript errors observed.
-- Horizontal overflow: false at 1366 and 1280. No responsive code was added.
-- Closing capture: C:\Users\xSn\AppData\Local\Temp\icp-renov-d3-history-dchkzcia\tacit-confirmed-history-ordered-1600x900.png (actual 1600x900; Reconduction confirmée is the newest visible history fact, with the copy, activation and signature below it).
-
-Frozen / intentionally unchanged
-- D1/D2 documents, revision, send, signature and signed-copy authority.
-- Step 1 through Step 3, official generation, WebEngine sandbox policy, shared shell, docs/, templates/ and spike/.
-- No termination, non-renewal notice, expiration, abandonment, intervention-sheet, automatic communication or e-signature behavior.
-- No D3 commit yet.
+Final review state
+- git diff --check: PASS.
+- No D4 commit yet.

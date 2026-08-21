@@ -149,7 +149,10 @@ class WebContractReviewW3C1Tests(ReviewCase):
                 result = self.bridge.openContractReviewBlock(self.contract.id, block_id)
                 self.assertEqual((result["step"], result["target"]), (step, target))
         self.assertFalse(self.bridge.openContractReviewBlock(self.contract.id, "UNKNOWN")["ok"])
-        self.assertFalse(self.bridge.setContractStep(self.contract.id, 4)["ok"])
+        # D4 intentionally opens Step 4 for an ungenerated DRAFT so it can be
+        # abandoned without inventing a revision.
+        self.assertTrue(self.bridge.setContractStep(self.contract.id, 4)["ok"])
+        self.assertTrue(self.bridge.contract_workspace_snapshot()["documents_d4"]["abandon_allowed"])
 
     def test_opening_review_is_read_only_and_frontend_action_is_disabled(self):
         self.complete()

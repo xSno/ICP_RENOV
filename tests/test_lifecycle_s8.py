@@ -150,8 +150,8 @@ class LifecycleS8Tests(GenerationCase):
 
     def test_activation_then_later_termination_reconciles_in_factual_order(self):
         self.contracts.save_conditions(self.contract.id,self._conditions("TACIT","2026-09-01"));result=self.service().generate(self.contract.id);self.lifecycle.record_signature(self.contract.id,result.document.id,"2026-08-01")
-        self.lifecycle.schedule_termination(self.contract.id,"2026-10-15","Après prise d’effet");self.lifecycle.reconcile_lifecycle(date(2026,10,20));events=list(reversed(self.lifecycle.history(self.contract.id)));types=[e.type for e in events]
-        self.assertLess(types.index(ContractEventType.ACTIVATED),types.index(ContractEventType.TERMINATED));self.assertIs(self.contracts.get(self.contract.id).status,ContractStatus.TERMINATED)
+        self.lifecycle.schedule_termination(self.contract.id,"2026-10-15","Après prise d’effet");self.lifecycle.reconcile_lifecycle(date(2026,10,20));events=list(self.lifecycle.history(self.contract.id))
+        self.assertEqual(events,sorted(events,key=lambda event:(event.occurred_at,event.id),reverse=True));self.assertIs(self.contracts.get(self.contract.id).status,ContractStatus.TERMINATED)
         self.assertEqual(next(e for e in events if e.type is ContractEventType.ACTIVATED).effective_date,"2026-09-01");self.assertEqual(next(e for e in events if e.type is ContractEventType.TERMINATED).effective_date,"2026-10-15")
 
     def test_immediate_termination_failure_and_abandon_preserve_atomic_truth(self):

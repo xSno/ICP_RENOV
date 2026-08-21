@@ -229,7 +229,7 @@ class WebContractRenewalW3D3Tests(GenerationCase):
             self.assertIn(text, js)
         host = (Path(__file__).parents[1] / "src" / "icp_renov_contracts" / "ui" / "web_host.py").read_text(encoding="utf-8")
         self.assertIn("Reconduction confirmée", host)
-        for forbidden in ("Programmer une résiliation", "Enregistrer une fin de contrat", "Créer une fiche d’intervention", "INDEXED"):
+        for forbidden in ("Créer une fiche d’intervention", "INDEXED"):
             self.assertNotIn(forbidden, d3)
         engine = QJSEngine(); engine.evaluate("function esc(value){return String(value ?? '');} var contractDocumentsError='';")
         evaluated = engine.evaluate(d3); self.assertFalse(evaluated.isError(), evaluated.toString())

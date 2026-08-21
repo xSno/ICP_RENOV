@@ -279,7 +279,32 @@ class ContractLifecycleService:
         except sqlite3.Error as exc:raise ContractLifecycleError("nonrenewal persistence","Le non-renouvellement n’a pas pu être enregistré.") from exc
         return event
 
+    def _governed_catalog_options(self,contract_id:str,catalog_name:str)->tuple[tuple[str,str],...]:
+        authority=self.signature_authority(contract_id)
+        if authority is None:return ()
+        try:
+            with self.database.connection() as connection:
+                row=connection.execute("SELECT option_catalogs_json FROM contract_template_versions WHERE id=?",(authority.document.template_version_id,)).fetchone()
+            raw=json.loads(row[0]) if row else {}
+            return tuple((str(item["code"]),str(item["label"])) for item in raw.get(catalog_name,()) if item.get("code") and item.get("label"))
+        except (KeyError,TypeError,ValueError,json.JSONDecodeError,sqlite3.Error):
+            return ()
+
+    def termination_reason_options(self,contract_id:str)->tuple[tuple[str,str],...]:
+        return self._governed_catalog_options(contract_id,"early_termination_reasons")
+
+    def non_renewal_channel_options(self,contract_id:str)->tuple[tuple[str,str],...]:
+        return self._governed_catalog_options(contract_id,"non_renewal_channels")
+
+    def schedule_controlled_termination(self,contract_id:str,effective_date:str,reason_code:str,notification_date:str|None=None,note:str="")->ContractEvent:
+        choices=dict(self.termination_reason_options(contract_id));code=reason_code.strip()
+        if code not in choices:raise ContractLifecycleError("termination reason","Choisissez un motif de résiliation configuré.")
+        return self._schedule_termination(contract_id,effective_date,choices[code],notification_date,note,code)
+
     def schedule_termination(self,contract_id:str,effective_date:str,reason_text:str,notification_date:str|None=None,note:str="")->ContractEvent:
+        return self._schedule_termination(contract_id,effective_date,reason_text,notification_date,note,None)
+
+    def _schedule_termination(self,contract_id:str,effective_date:str,reason_text:str,notification_date:str|None,note:str,reason_code:str|None)->ContractEvent:
         try:effective=date.fromisoformat(effective_date);notification=date.fromisoformat(notification_date) if notification_date else None
         except (TypeError,ValueError) as exc:raise ContractLifecycleError("invalid termination date","Renseignez des dates valides.") from exc
         reason=reason_text.strip()
@@ -287,8 +312,8 @@ class ContractLifecycleService:
         contract=self.contracts.get(contract_id);projection=self.lifecycle_projection(contract_id)
         if contract.status not in {ContractStatus.SIGNED,ContractStatus.ACTIVE} or projection.pending_termination or effective>projection.period.end:
             raise ContractLifecycleError("termination unavailable","La résiliation ne peut pas être programmée pour cette date.")
-        now=self.now_provider();scheduled=ContractEvent(str(uuid.uuid4()),contract_id,ContractEventType.TERMINATION_SCHEDULED,now,effective.isoformat(),notification_date=notification.isoformat() if notification else None,reason_text=reason,note=note.strip() or None)
-        terminated=ContractEvent(str(uuid.uuid4()),contract_id,ContractEventType.TERMINATED,_after(now),effective.isoformat()) if effective<=self.date_provider.today() else None
+        now=self.now_provider();scheduled=ContractEvent(str(uuid.uuid4()),contract_id,ContractEventType.TERMINATION_SCHEDULED,now,effective.isoformat(),notification_date=notification.isoformat() if notification else None,reason_code=reason_code,reason_text=reason,note=note.strip() or None)
+        terminated=ContractEvent(str(uuid.uuid4()),contract_id,ContractEventType.TERMINATED,now,effective.isoformat()) if effective<=self.date_provider.today() else None
         try:
             with self.database.transaction() as connection:
                 row=connection.execute("SELECT COALESCE(terminal_status,lifecycle_status,generation_status,status) FROM contracts WHERE id=?",(contract_id,)).fetchone()
@@ -296,7 +321,7 @@ class ContractLifecycleService:
                 if connection.execute("SELECT 1 FROM contract_events WHERE contract_id=? AND type='TERMINATION_SCHEDULED'",(contract_id,)).fetchone():raise ContractLifecycleError("termination pending")
                 ContractEventRepository.insert(connection,scheduled)
                 if terminated:
-                    ContractEventRepository.insert(connection,terminated);connection.execute("UPDATE contracts SET terminal_status='TERMINATED',updated_at_utc=? WHERE id=?",(_after(now),contract_id))
+                    ContractEventRepository.insert(connection,terminated);connection.execute("UPDATE contracts SET terminal_status='TERMINATED',updated_at_utc=? WHERE id=?",(now,contract_id))
         except ContractLifecycleError:raise
         except sqlite3.Error as exc:raise ContractLifecycleError("termination persistence","La résiliation n’a pas pu être enregistrée. Les données existantes sont conservées.") from exc
         return scheduled
@@ -441,7 +466,7 @@ class ContractLifecycleService:
                 self._expire_due(contract_id,projection.period.end)
 
     def _terminate_due(self,contract_id:str,effective:date)->bool:
-        now=self._ordered_now(contract_id);event=ContractEvent(str(uuid.uuid4()),contract_id,ContractEventType.TERMINATED,now,effective.isoformat())
+        now=self.now_provider();event=ContractEvent(str(uuid.uuid4()),contract_id,ContractEventType.TERMINATED,now,effective.isoformat())
         try:
             with self.database.transaction() as connection:
                 row=connection.execute("SELECT terminal_status FROM contracts WHERE id=?",(contract_id,)).fetchone()
@@ -454,7 +479,7 @@ class ContractLifecycleService:
         except sqlite3.Error as exc:raise ContractLifecycleError("termination reconciliation") from exc
 
     def _expire_due(self,contract_id:str,effective:date)->bool:
-        now=self._ordered_now(contract_id);event=ContractEvent(str(uuid.uuid4()),contract_id,ContractEventType.EXPIRED,now,effective.isoformat())
+        now=self.now_provider();event=ContractEvent(str(uuid.uuid4()),contract_id,ContractEventType.EXPIRED,now,effective.isoformat())
         try:
             with self.database.transaction() as connection:
                 row=connection.execute("SELECT terminal_status,lifecycle_status FROM contracts WHERE id=?",(contract_id,)).fetchone()
@@ -616,8 +641,3 @@ class ContractLifecycleService:
     @staticmethod
     def _event_exists(connection:sqlite3.Connection,contract_id:str,event_type:ContractEventType)->bool:
         return connection.execute("SELECT 1 FROM contract_events WHERE contract_id=? AND type=?",(contract_id,event_type.value)).fetchone() is not None
-
-    def _ordered_now(self,contract_id:str)->str:
-        proposed=self.now_provider();events=self.events.list_for_contract(contract_id)
-        latest=max((event.occurred_at for event in events),default="")
-        return _after(latest) if latest>=proposed else proposed

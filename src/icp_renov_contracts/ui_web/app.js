@@ -37,6 +37,11 @@ function backupValue(summary) {
   return !value || value.toLocaleLowerCase('fr-FR') === 'non configurée' ? 'Non configurée' : value;
 }
 
+function actionCountLabel(value) {
+  const count = Number(value);
+  return `${count} ${count === 1 ? 'action' : 'actions'} à traiter`;
+}
+
 const emptyClientPayload = () => ({
   party_type: 'PERSON', first_name: '', last_name: '', organization_name: '', legal_form: '',
   siret: '', address_line1: '', address_line2: '', postal_code: '', city: '', country: 'France',
@@ -428,6 +433,7 @@ function render(state) {
     <td class="docs">${icon('file')} ${esc(row.document)}</td><td>${icon('chevron')}</td>
   </tr>`).join('');
   const backup = backupValue(state.backup);
+  const actionLabel = actionCountLabel(state.action_count);
   document.querySelector('#app').innerHTML = `<div class="app"><aside class="side">
     <div class="brand"><span class="brand-icon">${icon('air')}</span><span>ICP Renov<br><small>Contrats d’entretien</small></span></div>
     <div class="nav active">${icon('file')}Contrats</div>
@@ -437,7 +443,7 @@ function render(state) {
     <div class="backup-state">${icon('backup')}<small>Sauvegarde</small><b>${esc(backup)}</b></div></div>
   </aside><main class="main"><header class="head"><div><div class="eyebrow">ACCUEIL OPÉRATIONNEL</div><h1>Contrats</h1><p>Retrouvez vos contrats et les actions à traiter.</p></div>
     <button class="primary" onclick="bridge.createContract()">${icon('plus')}Nouveau contrat</button></header>
-    <section class="attention">${icon('bell')}<span><b>${state.action_count} actions à traiter</b><br><small>maintenant ou prochainement</small></span><button class="ghost" onclick="bridge.setFilter('ACTIONS')">Afficher les actions ${icon('chevron')}</button><span class="divider"></span><span>${icon('backup')} ${esc(backup)}</span><button class="ghost" onclick="bridge.saveBackup()">Sauvegarder maintenant</button></section>
+    <section class="attention">${icon('bell')}<span><b>${actionLabel}</b><br><small>maintenant ou prochainement</small></span><button class="ghost" onclick="bridge.setFilter('ACTIONS')">Afficher les actions ${icon('chevron')}</button><span class="divider"></span><span>${icon('backup')} ${esc(backup)}</span><button class="ghost" onclick="bridge.saveBackup()">Sauvegarder maintenant</button></section>
     <section class="toolbar"><label class="search">${icon('search')}<input value="${esc(state.search)}" placeholder="Rechercher par numéro, client ou site" oninput="bridge.setSearch(this.value)"></label><span class="tabs">${state.filters.map(filter => `<button class="${filter.active ? 'active' : ''}" onclick="bridge.setFilter('${filter.id}')">${filter.label}</button>`).join('')}</span></section>
     <div class="shell"><table><thead><tr><th>Contrat</th><th>Client & site</th><th>Statut</th><th>Échéance</th><th>Action / information</th><th class="docs">Documents</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
   </main></div>`;

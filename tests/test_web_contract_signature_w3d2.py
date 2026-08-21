@@ -204,10 +204,10 @@ class WebContractSignatureW3D2Tests(GenerationCase):
         d2 = js[start:end]
         for copy in ("Enregistrer la signature", "Révision réellement signée", "Ajouter le PDF signé", "Localiser le fichier", "Ajouter une nouvelle copie"):
             self.assertIn(copy, js)
-        # D3 may add its bounded, explicit renewal confirmation here.  The D2
-        # signed-copy surface must still not expose later termination or
-        # intervention controls, nor a manual activation action.
-        for forbidden in ("Programmer une résiliation", "Créer une fiche d’intervention", "Activer"):
+        # D3/D4 may add their bounded renewal and end-of-contract controls;
+        # the signed-copy surface still exposes neither interventions nor a
+        # manual activation action.
+        for forbidden in ("Créer une fiche d’intervention", "Activer"):
             self.assertNotIn(forbidden, d2)
         engine = QJSEngine(); engine.evaluate("function esc(value){return String(value ?? '');} var contractDocumentsError='';")
         evaluated = engine.evaluate(d2); self.assertFalse(evaluated.isError(), evaluated.toString())

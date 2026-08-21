@@ -1,36 +1,39 @@
-C2.W3-D3 current uncommitted delta against accepted D2 HEAD 784893b
+C2.W3-D4 final uncommitted delta against accepted D3 HEAD 0fdb18f
 
 Created
-- tests/test_web_contract_renewal_w3d3.py
+- tests/test_web_contract_end_w3d4.py
 
 Modified
 - recap.txt
 - diff.txt
 - src/icp_renov_contracts/services/contract_events.py
-- src/icp_renov_contracts/services/contract_register.py
 - src/icp_renov_contracts/ui/web_host.py
+- src/icp_renov_contracts/ui_web/app.js
 - src/icp_renov_contracts/ui_web/contract-documents.css
 - src/icp_renov_contracts/ui_web/contract-workspace.js
+- tests/test_lifecycle_s8.py
+- tests/test_web_contract_documents_w3d1.py
+- tests/test_web_contract_renewal_w3d3.py
+- tests/test_web_contract_review_w3c1.py
 - tests/test_web_contract_signature_w3d2.py
 
 Removed
 - None.
 
-D3 delta
-- Lifecycle authority now supplies renewal previews, attention eligibility and controlled-price previews; RENEWAL_CONFIRMED remains the existing single event/persistence model.
-- Linked-DRAFT preparation receives a bounded Python request token for duplicate-submit safety while preserving the existing flexible successor model.
-- The Web bridge and Step 4 surface add only NONE/MANUAL linked-DRAFT and eligible TACIT confirmation controls, current-period summary and localized renewal History projection. The closing micro-pass merges ContractEvent and documentary history by their persisted occurrence timestamps, descending, with persisted IDs as the stable tie-break.
-- Responsive modal CSS is limited to the controlled new-price fields at the existing 1280 breakpoint.
-- The prior D2 signature-surface test now explicitly permits the bounded D3 renewal control while still excluding unsupported termination, intervention and manual activation controls.
+D4 final additions
+- French D4 text-date formatter/parser with exact JJ/MM/AAAA validation before the existing ISO bridge route; no locale-dependent native date presentation on D4 lifecycle modals.
+- French singular/plural day count and Contracts action-count copy.
+- Authoritative pending-termination effective-date projection in Step 4; scheduled termination remains a register INFORMATION signal and not an action.
+- ContractEvent occurred_at is the actual recording clock with no synthetic monotonic increment; History sorts occurred_at DESC, then persisted id DESC only as a tie-break, without altering existing immutable events.
+- Regression coverage for French date/day copy, terminal-history order, expiry preservation, register Tous/Actions separation, pending effective date, action-count grammar, and honest same-clock/future-event ordering.
 
-Accepted / frozen and intentionally unchanged
-- D1/D2 revision, send, correction, signature, signed-copy and status authority.
-- Step 1 through Step 3, official document generation/numbering, shared WebEngine shell and sandbox policy.
-- Termination, non-renewal, expiration, abandonment, intervention sheets, automatic document generation and all other later lifecycle work.
-- docs/, templates/ and spike/.
+Accepted / intentionally unchanged
+- D1/D2 revision, send, correction, signature and signed-copy authority.
+- D3 renewal and linked-draft authority; Steps 1–3; official generation/numbering; WebEngine shell and sandbox policy.
+- docs/, templates/, spike/, automated communication, e-signature, intervention sheets and later lifecycle slices.
 
 Final validation
-- D3 targeted: 12/12 PASS; D2 signature regression: 10/10 PASS.
-- Full suite: 371/371 PASS in 295.436 s (12 new D3 tests over the 359-test baseline).
-- Closing sandbox-active WebEngine capture: PASS; the actual 1600x900 History proof is in C:\Users\xSn\AppData\Local\Temp\icp-renov-d3-history-dchkzcia. Reconduction confirmée is newest, with signed-copy, activation and signature facts correctly merged below it.
+- D4 targeted 8/8 PASS; D3 12/12 PASS; S8 13/13 PASS.
+- Full suite 379/379 PASS in 358.705 s using QT_QPA_PLATFORM=offscreen and -W error::ResourceWarning.
 - git diff --check: PASS.
+- Persistent manual-review fixture is external to the repository at C:\Users\xSn\AppData\Local\Temp\icp-renov-d4-final-authority-review-20260821-1600.

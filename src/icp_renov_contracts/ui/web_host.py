@@ -364,6 +364,11 @@ class UiBridge(QObject):
             ContractEventType.SIGNATURE_RECORDED: "Signature enregistrée",
             ContractEventType.ACTIVATED: "Contrat activé",
             ContractEventType.RENEWAL_CONFIRMED: "Reconduction confirmée",
+            ContractEventType.RENEWAL_NOTICE_RECORDED: "Non-renouvellement enregistré",
+            ContractEventType.TERMINATION_SCHEDULED: "Résiliation programmée",
+            ContractEventType.TERMINATED: "Contrat résilié",
+            ContractEventType.EXPIRED: "Contrat expiré",
+            ContractEventType.ABANDONED: "Contrat abandonné",
         }
         timeline_entries = []
         history = self.context.lifecycle.history(contract.id)
@@ -382,12 +387,15 @@ class UiBridge(QObject):
                     "effective_display": period, "revision": "", "note": price,
                 }))
                 continue
+            detail = event.note or ""
+            if event.type is ContractEventType.TERMINATION_SCHEDULED and event.reason_text:
+                detail = " · ".join(value for value in (f"Motif : {event.reason_text}", detail) if value)
             timeline_entries.append((event.occurred_at, event.id, {
                 "label": event_labels[event.type],
                 "occurred_display": _date_fr(event.occurred_at[:10]),
                 "effective_display": _date_fr(event.effective_date) if event.effective_date else "",
                 "revision": revision,
-                "note": event.note or "",
+                "note": detail,
             }))
         if signature and signature.document.signed_pdf_attached_at:
             timeline_entries.append((signature.document.signed_pdf_attached_at, signature.document.id, {
@@ -417,6 +425,32 @@ class UiBridge(QObject):
             ),
             "tacit": None,
         }
+        lifecycle_d4 = {"nonrenewal": None, "termination": None, "abandon_allowed": contract.status in {ContractStatus.DRAFT, ContractStatus.TO_SIGN}}
+        if lifecycle_projection:
+            notice_allowed = bool(contract.status is ContractStatus.ACTIVE and lifecycle_projection.renewal_mode == "TACIT" and not lifecycle_projection.non_renewal_event and not lifecycle_projection.pending_termination)
+            lifecycle_d4["nonrenewal"] = {
+                "allowed": notice_allowed,
+                "recorded": lifecycle_projection.non_renewal_event is not None,
+                "current_period_display": f"Du {_date_fr(lifecycle_projection.period.start.isoformat())} au {_date_fr(lifecycle_projection.period.end.isoformat())}",
+                "period_end_display": _date_fr(lifecycle_projection.period.end.isoformat()),
+                "notice_days": lifecycle_projection.non_renewal_deadline and (lifecycle_projection.period.end - lifecycle_projection.non_renewal_deadline).days,
+                "channels": [
+                    dict(self.context.lifecycle.non_renewal_channel_options(contract.id)).get(code, "Canal configuré")
+                    for code in lifecycle_projection.notice_channels
+                ],
+                "today": self.context.lifecycle.date_provider.today().isoformat(),
+            }
+            choices = self.context.lifecycle.termination_reason_options(contract.id)
+            lifecycle_d4["termination"] = {
+                "allowed": bool(contract.status in {ContractStatus.SIGNED, ContractStatus.ACTIVE} and not lifecycle_projection.pending_termination and choices),
+                "scheduled": lifecycle_projection.pending_termination is not None,
+                "scheduled_effective_display": (
+                    _date_fr(lifecycle_projection.pending_termination.effective_date)
+                    if lifecycle_projection.pending_termination and lifecycle_projection.pending_termination.effective_date else ""
+                ),
+                "today": self.context.lifecycle.date_provider.today().isoformat(),
+                "reasons": [{"id": code, "label": label} for code, label in choices],
+            }
         if lifecycle_projection and conditions.renewal_mode == "TACIT":
             try:
                 preview = self.context.lifecycle.renewal_preview(contract.id)
@@ -628,6 +662,7 @@ class UiBridge(QObject):
                 },
             },
             "documents_d3": renewal_d3,
+            "documents_d4": lifecycle_d4,
             "summary": {
                 "client": contract.client_snapshot.display_name if contract.client_snapshot else "Non sélectionné",
                 "signatory": " · ".join(part for part in (contract.signatory_name, contract.signatory_role) if part) or "Non renseigné",
@@ -829,7 +864,8 @@ class UiBridge(QObject):
     def setContractStep(self, contract_id: str, step: int) -> dict:
         if contract_id != self.contract_id or step not in {1, 2, 3, 4}:
             return {"ok": False, "message": "Cette étape n’est pas disponible."}
-        if step == 4 and not self.context.lifecycle.revisions(contract_id):
+        contract = self.context.contracts.get(contract_id)
+        if step == 4 and not self.context.lifecycle.revisions(contract_id) and contract.status not in {ContractStatus.DRAFT, ContractStatus.TO_SIGN}:
             return {"ok": False, "message": "Aucune révision contractuelle n’est encore disponible."}
         self.contract_step = step
         self.contract_focus_target = None
@@ -979,6 +1015,30 @@ class UiBridge(QObject):
         self.contract_documents_feedback = {"kind": "success", "message": "La reconduction a été confirmée. La nouvelle période est maintenant affichée."}
         self.refresh()
         return {"ok": True, "period_start": event.period_start, "period_end": event.period_end}
+
+    @Slot(str, str, str, result="QVariant")
+    def recordContractNonRenewal(self, contract_id: str, notification_date: str, note: str) -> dict:
+        if contract_id != self.contract_id:return {"ok": False, "message": "Ce contrat n’est plus ouvert."}
+        try:event=self.context.lifecycle.record_non_renewal(contract_id,notification_date,note)
+        except ContractLifecycleError as error:return {"ok": False, "message": f"La fin de contrat n’a pas été enregistrée. {error.user_message} Les données existantes sont conservées."}
+        self.contract_documents_feedback={"kind":"success","message":"Le non-renouvellement a été enregistré. Aucune communication n’a été envoyée par l’application."};self.refresh()
+        return {"ok":True,"effective_date":event.effective_date}
+
+    @Slot(str, str, str, str, str, result="QVariant")
+    def scheduleContractTermination(self, contract_id: str, effective_date: str, reason_code: str, notification_date: str, note: str) -> dict:
+        if contract_id != self.contract_id:return {"ok": False, "message": "Ce contrat n’est plus ouvert."}
+        try:event=self.context.lifecycle.schedule_controlled_termination(contract_id,effective_date,reason_code,notification_date or None,note)
+        except ContractLifecycleError as error:return {"ok": False, "message": f"La résiliation n’a pas été programmée. {error.user_message} Les données existantes sont conservées."}
+        self.contract_documents_feedback={"kind":"success","message":"La résiliation a été enregistrée. Aucun message n’a été envoyé par l’application."};self.refresh()
+        return {"ok":True,"effective_date":event.effective_date,"immediate":self.context.contracts.get(contract_id).status is ContractStatus.TERMINATED}
+
+    @Slot(str, result="QVariant")
+    def abandonContract(self, contract_id: str) -> dict:
+        if contract_id != self.contract_id:return {"ok": False, "message": "Ce contrat n’est plus ouvert."}
+        try:self.context.lifecycle.abandon(contract_id)
+        except ContractLifecycleError as error:return {"ok": False, "message": f"Le contrat n’a pas été abandonné. {error.user_message} Les documents existants sont conservés."}
+        self.contract_documents_feedback={"kind":"success","message":"Le contrat a été abandonné. Les documents et l’historique sont conservés."};self.refresh()
+        return {"ok":True}
 
     @Slot(str, result="QVariant")
     def reopenContractForCorrection(self,contract_id:str)->dict:

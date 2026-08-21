@@ -128,6 +128,31 @@ function closeContractDocumentsModal() {
   document.querySelector('.documents-modal-overlay')?.remove();
 }
 
+function formatFrenchDate(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''));
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : '';
+}
+
+function parseFrenchDate(value) {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(value || '').trim());
+  if (!match) return '';
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+  const candidate = new Date(Date.UTC(year, month - 1, day));
+  if (candidate.getUTCFullYear() !== year || candidate.getUTCMonth() !== month - 1 || candidate.getUTCDate() !== day) return '';
+  return `${match[3]}-${match[2]}-${match[1]}`;
+}
+
+function formatDayCount(value) {
+  const days = Number(value);
+  return Number.isInteger(days) && days > 0 ? `${days} ${days === 1 ? 'jour' : 'jours'}` : '';
+}
+
+function frenchDateField(id, value, required = false) {
+  return `<input id="${id}" type="text" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="JJ/MM/AAAA" value="${esc(formatFrenchDate(value))}"${required ? ' required' : ''}>`;
+}
+
 function openContractFile(revision, kind) {
   contractDocumentsError = '';
   bridge.openContractDocument(contractWorkspaceState.contract.id, revision, kind, result => {
@@ -282,6 +307,70 @@ function openTacitRenewalModal() {
     bridge.confirmTacitRenewal(state.contract.id, annualHt, vatRate, result => {
       if (result?.ok) closeContractDocumentsModal();
       else { error.hidden = false; error.textContent = result?.message || 'La reconduction n’a pas été enregistrée. Les données existantes sont conservées.'; }
+    });
+  });
+  overlay.querySelector('.button-secondary')?.focus();
+}
+
+function openNonRenewalModal() {
+  const state = contractWorkspaceState;
+  const data = state?.documents_d4?.nonrenewal;
+  if (!data?.allowed) return;
+  const notice = data.notice_days === null || data.notice_days === undefined
+    ? '' : `<span>Préavis contractuel</span><strong>${esc(formatDayCount(data.notice_days))}</strong>`;
+  const channels = data.channels?.length ? `<span>Canaux prévus au contrat</span><strong>${esc(data.channels.join(' · '))}</strong>` : '';
+  const overlay = document.createElement('div');
+  overlay.className = 'drawer-overlay documents-modal-overlay';
+  overlay.innerHTML = `<div class="drawer-backdrop" onclick="closeContractDocumentsModal()"></div><section class="documents-modal" role="dialog" aria-modal="true" aria-labelledby="nonrenewal-modal-title"><header><span class="eyebrow">Fin de contrat</span><h2 id="nonrenewal-modal-title">Enregistrer une fin de contrat</h2><p>Enregistrez une action réalisée hors de l’application pour la période en cours.</p></header><div class="documents-modal-body"><div class="renewal-period-summary"><span>Période en cours</span><strong>${esc(data.current_period_display)}</strong><span>Échéance contractuelle</span><strong>${esc(data.period_end_display)}</strong>${notice}${channels}</div><label><span>Date réelle de notification</span>${frenchDateField('nonrenewal-date', data.today, true)}</label><label><span>Note <small>Facultatif</small></span><textarea id="nonrenewal-note" rows="3" placeholder="Ex. courrier remis au client"></textarea></label><div class="documents-info-notice"><strong>Aucun message ne sera envoyé</strong><span>L’application enregistre une action extérieure. Le contrat reste en cours jusqu’à son échéance.</span></div><div class="documents-modal-error" hidden></div></div><footer><button class="button button-secondary" onclick="closeContractDocumentsModal()">Annuler</button><button class="primary nonrenewal-confirm-action">Enregistrer la fin de contrat</button></footer></section>`;
+  document.body.appendChild(overlay);
+  const error = overlay.querySelector('.documents-modal-error');
+  overlay.querySelector('.nonrenewal-confirm-action').addEventListener('click', () => {
+    const notificationDate = parseFrenchDate(overlay.querySelector('#nonrenewal-date').value);
+    if (!notificationDate) { error.hidden = false; error.textContent = 'Renseignez une date de notification valide.'; return; }
+    bridge.recordContractNonRenewal(state.contract.id, notificationDate, overlay.querySelector('#nonrenewal-note').value, result => {
+      if (result?.ok) closeContractDocumentsModal();
+      else { error.hidden = false; error.textContent = result?.message || 'La fin de contrat n’a pas été enregistrée.'; }
+    });
+  });
+  overlay.querySelector('.button-secondary')?.focus();
+}
+
+function openTerminationModal() {
+  const state = contractWorkspaceState;
+  const data = state?.documents_d4?.termination;
+  if (!data?.allowed) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'drawer-overlay documents-modal-overlay';
+  overlay.innerHTML = `<div class="drawer-backdrop" onclick="closeContractDocumentsModal()"></div><section class="documents-modal" role="dialog" aria-modal="true" aria-labelledby="termination-modal-title"><header><span class="eyebrow">Fin anticipée</span><h2 id="termination-modal-title">Programmer une résiliation</h2><p>La résiliation est enregistrée après votre confirmation explicite.</p></header><div class="documents-modal-body"><label><span>Date effective de résiliation</span>${frenchDateField('termination-effective-date', data.today, true)}</label><label><span>Motif</span><select id="termination-reason" required><option value="">Choisir un motif</option>${data.reasons.map(item => `<option value="${esc(item.id)}">${esc(item.label)}</option>`).join('')}</select></label><label><span>Date de notification <small>Facultatif</small></span>${frenchDateField('termination-notification-date', '')}</label><label><span>Note <small>Facultatif</small></span><textarea id="termination-note" rows="3"></textarea></label><div class="documents-info-notice"><strong>Aucun message ne sera envoyé</strong><span>Les dates et le motif sont enregistrés à partir des éléments confirmés par vos soins.</span></div><div class="documents-modal-error" hidden></div></div><footer><button class="button button-secondary" onclick="closeContractDocumentsModal()">Annuler</button><button class="primary termination-confirm-action">Programmer la résiliation</button></footer></section>`;
+  document.body.appendChild(overlay);
+  const error = overlay.querySelector('.documents-modal-error');
+  overlay.querySelector('.termination-confirm-action').addEventListener('click', () => {
+    const effectiveDate = parseFrenchDate(overlay.querySelector('#termination-effective-date').value);
+    const reason = overlay.querySelector('#termination-reason').value;
+    if (!effectiveDate || !reason) { error.hidden = false; error.textContent = 'Renseignez une date effective et un motif configuré.'; return; }
+    const notificationDateValue = overlay.querySelector('#termination-notification-date').value;
+    const notificationDate = notificationDateValue.trim() ? parseFrenchDate(notificationDateValue) : '';
+    if (notificationDateValue.trim() && !notificationDate) { error.hidden = false; error.textContent = 'Renseignez une date de notification valide.'; return; }
+    bridge.scheduleContractTermination(state.contract.id, effectiveDate, reason, notificationDate, overlay.querySelector('#termination-note').value, result => {
+      if (result?.ok) closeContractDocumentsModal();
+      else { error.hidden = false; error.textContent = result?.message || 'La résiliation n’a pas été programmée.'; }
+    });
+  });
+  overlay.querySelector('.button-secondary')?.focus();
+}
+
+function openAbandonConfirmation() {
+  const state = contractWorkspaceState;
+  if (!state?.documents_d4?.abandon_allowed) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'drawer-overlay documents-modal-overlay';
+  overlay.innerHTML = `<div class="drawer-backdrop" onclick="closeContractDocumentsModal()"></div><section class="documents-modal" role="dialog" aria-modal="true" aria-labelledby="abandon-modal-title"><header><span class="eyebrow">Contrat non conclu</span><h2 id="abandon-modal-title">Abandonner le contrat</h2><p>Confirmez l’abandon définitif de ce projet de contrat.</p></header><div class="documents-modal-body"><ul><li>Le contrat sera marqué <strong>Abandonné</strong>.</li><li>Les documents et les éventuelles révisions resteront préservés.</li><li>L’historique restera consultable.</li><li>Le contrat ne poursuivra plus le parcours de génération ou de signature.</li></ul><div class="documents-modal-error" hidden></div></div><footer><button class="button button-secondary" onclick="closeContractDocumentsModal()">Annuler</button><button class="primary abandon-confirm-action">Abandonner le contrat</button></footer></section>`;
+  document.body.appendChild(overlay);
+  const error = overlay.querySelector('.documents-modal-error');
+  overlay.querySelector('.abandon-confirm-action').addEventListener('click', () => {
+    bridge.abandonContract(state.contract.id, result => {
+      if (result?.ok) closeContractDocumentsModal();
+      else { error.hidden = false; error.textContent = result?.message || 'Le contrat ne peut pas être abandonné.'; }
     });
   });
   overlay.querySelector('.button-secondary')?.focus();
@@ -624,9 +713,17 @@ function renderContractDocuments(state) {
   const renewal = state.documents_d3 || {};
   const linkedRenewal = renewal.linked_draft_allowed ? `<section class="correction-zone renewal-zone"><div><span class="eyebrow">${renewal.mode === 'MANUAL' ? 'Renouvellement manuel' : 'Contrat lié'}</span><h3>${esc(renewal.linked_draft_label)}</h3><p>Le contrat actuel reste inchangé. Le nouveau brouillon devra être revu avant toute génération.</p></div><button class="button button-secondary" onclick="openLinkedRenewalModal()">${esc(renewal.linked_draft_label)}</button></section>` : '';
   const tacitRenewal = renewal.tacit?.confirmation_allowed ? `<section class="correction-zone renewal-zone"><div><span class="eyebrow">Reconduction tacite</span><h3>Reconduction à confirmer</h3><p>${esc(renewal.tacit.current_period_display)} · prochaine période ${esc(renewal.tacit.next_period_display)}</p></div><button class="primary" onclick="openTacitRenewalModal()">Confirmer la reconduction</button></section>` : '';
+  const lifecycle = state.documents_d4 || {};
+  const nonrenewal = lifecycle.nonrenewal;
+  const termination = lifecycle.termination;
+  const nonrenewalAction = nonrenewal?.allowed ? `<section class="correction-zone lifecycle-zone"><div><span class="eyebrow">Reconduction tacite</span><h3>Fin de contrat à l’échéance</h3><p>${esc(nonrenewal.current_period_display)} · enregistrez seulement une action extérieure réellement réalisée.</p></div><button class="button button-secondary" onclick="openNonRenewalModal()">Enregistrer une fin de contrat</button></section>` : '';
+  const nonrenewalRecorded = nonrenewal?.recorded ? `<section class="lifecycle-information"><span class="eyebrow">Reconduction tacite</span><strong>Fin enregistrée à l’échéance</strong><small>Le contrat reste en cours jusqu’au ${esc(nonrenewal.period_end_display)}.</small></section>` : '';
+  const terminationAction = termination?.allowed ? `<section class="correction-zone lifecycle-zone"><div><span class="eyebrow">Fin anticipée</span><h3>Résiliation</h3><p>Enregistrez une date effective et un motif configuré. Aucun message n’est envoyé par l’application.</p></div><button class="button button-secondary" onclick="openTerminationModal()">Programmer une résiliation</button></section>` : '';
+  const terminationScheduled = termination?.scheduled ? `<section class="lifecycle-information"><span class="eyebrow">Fin anticipée</span><strong>Résiliation programmée</strong><small>${termination.scheduled_effective_display ? `Fin prévue le ${esc(termination.scheduled_effective_display)}. ` : ''}Le contrat reste consultable jusqu’à la date effective enregistrée.</small></section>` : '';
+  const abandonAction = lifecycle.abandon_allowed ? `<section class="correction-zone lifecycle-zone abandonment-zone"><div><span class="eyebrow">Contrat non conclu</span><h3>Abandonner ce projet</h3><p>Les éventuels documents et l’historique restent préservés.</p></div><button class="button button-secondary" onclick="openAbandonConfirmation()">Abandonner le contrat</button></section>` : '';
   const sendAction = data.send_allowed ? '<button class="primary" onclick="openRecordSentModal()">Enregistrer un envoi</button>' : '';
   const signatureAction = signature.signature_allowed ? '<button class="primary" onclick="openSignatureRecordingModal()">Enregistrer la signature</button>' : '';
-  return `<section class="contract-step-panel contract-documents-panel"><header><span class="eyebrow">Étape 4 sur 4</span><h2>Documents & suivi</h2><p>Consultez les révisions officielles et enregistrez les actions réalisées hors du logiciel.</p></header>${feedback}${error}<section class="documents-section"><div class="documents-section-head"><div><span class="eyebrow">Révisions contractuelles</span><h3>Documents officiels</h3></div><div class="documents-primary-actions">${sendAction}${signatureAction}</div></div><div class="revision-list">${revisions || '<div class="contract-empty">Aucune révision contractuelle disponible.</div>'}</div></section>${correction}${linkedRenewal}${tacitRenewal}<section class="documents-section other-documents"><div><span class="eyebrow">Autres documents</span><h3>Documents distincts du contrat</h3></div><p>Aucun autre document disponible.</p></section><section class="documents-section history-section"><div><span class="eyebrow">Historique</span><h3>Événements du contrat</h3></div><ol class="contract-timeline">${timeline || '<li class="timeline-empty">Aucun événement disponible.</li>'}</ol></section></section>`;
+  return `<section class="contract-step-panel contract-documents-panel"><header><span class="eyebrow">Étape 4 sur 4</span><h2>Documents & suivi</h2><p>Consultez les révisions officielles et enregistrez les actions réalisées hors du logiciel.</p></header>${feedback}${error}<section class="documents-section"><div class="documents-section-head"><div><span class="eyebrow">Révisions contractuelles</span><h3>Documents officiels</h3></div><div class="documents-primary-actions">${sendAction}${signatureAction}</div></div><div class="revision-list">${revisions || '<div class="contract-empty">Aucune révision contractuelle disponible.</div>'}</div></section>${correction}${linkedRenewal}${tacitRenewal}${nonrenewalAction}${nonrenewalRecorded}${terminationAction}${terminationScheduled}${abandonAction}<section class="documents-section other-documents"><div><span class="eyebrow">Autres documents</span><h3>Documents distincts du contrat</h3></div><p>Aucun autre document disponible.</p></section><section class="documents-section history-section"><div><span class="eyebrow">Historique</span><h3>Événements du contrat</h3></div><ol class="contract-timeline">${timeline || '<li class="timeline-empty">Aucun événement disponible.</li>'}</ol></section></section>`;
 }
 
 function renderContractReview(state) {
@@ -701,7 +798,7 @@ function renderContractWorkspace(state) {
   const failure = contractSaveFailure ? `<div class="contract-persistence-error">Les dernières modifications ne sont pas encore enregistrées. ${esc(contractSaveFailure)}</div>` : '';
   document.querySelector('#app').innerHTML = `<div class="app"><aside class="side"><div class="brand"><span class="brand-icon">${icon('air')}</span><span>ICP Renov<br><small>Contrats d’entretien</small></span></div><div class="nav active" onclick="bridge.returnToContracts()">${icon('file')}Contrats</div><div class="nav" onclick="bridge.navigate('CLIENTS')">${icon('users')}Clients & installations</div><div class="nav" onclick="bridge.navigate('SETTINGS')">${icon('settings')}Paramètres</div><div class="side-bottom"><div class="local-state">${icon('laptop')}<b>Mode local</b><small>Données conservées uniquement sur ce poste.</small></div><div class="backup-state">${icon('backup')}<small>Sauvegarde</small><b>${esc(backup)}</b></div></div></aside><main class="main contract-main"><header class="contract-header"><button class="ghost contract-back" onclick="bridge.returnToContracts()">← Retour Contrats</button><div class="contract-heading"><span class="pill ${esc(c.status)}">${esc(c.status_label)}</span><h1>${esc(c.number)}</h1><p>${esc(c.client || 'Client à sélectionner')} · ${esc(c.site || 'Site à sélectionner')}</p></div><div class="contract-header-state"><span class="contract-save-state">${esc(c.saved_label)}</span></div></header><div class="contract-shell"><nav class="contract-step-rail" aria-label="Étapes du contrat">${steps.map((label,index) => `<button class="contract-step ${index === (state.active_step || 1) - 1 ? 'active' : ''}" ${index > 2 ? 'disabled' : `onclick="setContractStep(${index + 1})"`}><span>${index + 1}</span><span><strong>${label}</strong>${index === (state.active_step || 1) - 1 ? '<small>Étape en cours</small>' : ''}</span></button>`).join('')}</nav><div class="contract-workspace-body">${failure}<section class="contract-step-panel"><header><span class="eyebrow">Étape 1 sur 4</span><h2>Client, site & équipements</h2><p>Définissez le contexte exact repris dans ce contrat.</p></header><article class="contract-section" data-review-target="client-signatory"><div class="contract-section-head"><div><span class="eyebrow">Client du contrat</span><h3>${esc(c.client || 'Aucun client sélectionné')}</h3></div>${c.editable ? `<div><button class="button button-secondary" onclick="openContractSelector('client',this)">${editClient}</button><button class="ghost" onclick="openClientDrawer('contract-create',this)">Créer un nouveau client</button></div>` : ''}</div>${c.client_id ? `<div class="contract-signatory"><div><span class="eyebrow">Signataire pour ce contrat</span><p>Ces informations ne modifient pas la fiche maître.</p></div><label><span>Nom</span><input id="contract-signatory-name" value="${esc(c.signatory_name)}" ${c.editable ? '' : 'disabled'}></label><label><span>Fonction ou qualité</span><input id="contract-signatory-role" value="${esc(c.signatory_role)}" ${c.editable ? '' : 'disabled'}></label>${c.editable ? '<button class="button button-secondary" onclick="saveContractSignatory()">Enregistrer</button>' : ''}</div>` : '<div class="contract-empty">Choisissez ou créez un client pour continuer.</div>'}</article><article class="contract-section ${!c.client_id ? 'disabled-section' : ''}" data-review-target="site-equipment"><div class="contract-section-head"><div><span class="eyebrow">Site unique du contrat</span><h3>${esc(c.site || 'Aucun site sélectionné')}</h3></div>${c.editable && c.client_id ? `<div><button class="button button-secondary" onclick="openContractSelector('site',this)">${editSite}</button><button class="ghost" onclick="openContractSiteCreator(this)">Ajouter un site</button></div>` : ''}</div>${!c.client_id ? '<div class="contract-empty">Sélectionnez d’abord un client.</div>' : !c.site_id ? '<div class="contract-empty">Choisissez ou ajoutez un site.</div>' : ''}</article><article class="contract-section equipment-contract-section ${!c.site_id ? 'disabled-section' : ''}"><div class="contract-section-head"><div><span class="eyebrow">Équipements du site</span><h3>${selected.length} équipement(s) sélectionné(s)</h3></div>${c.editable && c.site_id ? `<button class="button button-secondary" onclick="openContractEquipmentCreator(this)">${icon('plus')}Ajouter un équipement</button>` : ''}</div>${c.site_id ? `<p class="order-copy">Ordre repris dans l’annexe du contrat</p>${equipmentRows || '<div class="contract-empty">Aucun équipement actif sur ce site.</div>'}${selected.length ? '' : '<div class="step-anomaly">Aucun équipement sélectionné. Le brouillon reste enregistré, mais la génération future sera bloquée.</div>'}` : '<div class="contract-empty">Sélectionnez d’abord un site.</div>'}</article></section></div><aside class="contract-summary"><span class="eyebrow">Résumé du contrat</span><h2>État actuel</h2><dl>${workspaceSummaryRow('Client',state.summary.client)}${workspaceSummaryRow('Signataire',state.summary.signatory)}${workspaceSummaryRow('Site',state.summary.site)}${workspaceSummaryRow('Équipements',summaryEquipment)}${workspaceSummaryRow('Régime',state.summary.regime)}${workspaceSummaryRow('Mode de conclusion',state.summary.conclusion)}${workspaceSummaryRow('Période',state.summary.period)}${workspaceSummaryRow('Prix',state.summary.price)}${workspaceSummaryRow('Renouvellement',state.summary.renewal)}${workspaceSummaryRow('Modèle / version',state.summary.template)}${workspaceSummaryRow('Complétude',state.summary.completion,state.summary.completion.includes('complète') ? 'complete' : 'warning')}</dl></aside></div></main></div>`;
   const documentsStep = document.querySelectorAll('.contract-step')[3];
-  if (documentsStep && state.documents_d1.available) {
+  if (documentsStep && (state.documents_d1.available || state.documents_d4?.abandon_allowed)) {
     documentsStep.disabled = false;
     documentsStep.onclick = () => setContractStep(4);
   }
