@@ -173,7 +173,7 @@ class WebContractDocumentsW3D1Tests(GenerationCase):
         d1 = js[start:end]
         for copy in ("Révisions contractuelles", "Historique", "Autres documents", "Corriger le contrat", "Enregistrer un envoi"):
             self.assertIn(copy, js)
-        for forbidden in ("SIGNATURE_RECORDED", "Enregistrer la signature", "Activer", "Programmer une résiliation"):
+        for forbidden in ("SIGNATURE_RECORDED", "Activer", "Programmer une résiliation"):
             self.assertNotIn(forbidden, d1)
         correction = js[js.index("function openCorrectionConfirmation"):js.index("function openRecordSentModal")]
         self.assertNotIn("bridge.reopenContractForCorrection", correction.split("addEventListener", 1)[0])

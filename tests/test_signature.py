@@ -103,24 +103,30 @@ class SignatureLifecycleTests(GenerationCase):
         archived=self.context.workspace.root/updated.signed_pdf_path;self.assertTrue(archived.is_file());self.assertEqual(updated.signed_pdf_hash,hashlib.sha256(original).hexdigest());self.assertIsNotNone(updated.signed_pdf_attached_at)
         self.assertEqual(self.lifecycle.history(self.contract.id),before)
 
-    def test_invalid_pdf_and_database_failure_leave_no_signature_or_artifact(self):
+    def test_invalid_pdf_is_rejected_but_optional_copy_persistence_failure_preserves_signature(self):
         self._set_start("2026-08-14");r01=self.service().generate(self.contract.id);invalid=self.context.workspace.root.parent/"invalid.pdf";invalid.write_bytes(b"not pdf")
         with self.assertRaises(ContractLifecycleError):self.lifecycle.record_signature(self.contract.id,r01.document.id,"2026-08-13",invalid)
         self.assertIs(self.contracts.get(self.contract.id).status,ContractStatus.TO_SIGN);self.assertNotIn(ContractEventType.SIGNATURE_RECORDED,self._types())
-        source=self._pdf()
+        source=self._pdf();unsigned_pdf=r01.pdf_path.read_bytes()
         with patch.object(ContractDocumentRepository,"set_signed_copy",side_effect=sqlite3.OperationalError("db")):
-            with self.assertRaises(ContractLifecycleError):self.lifecycle.record_signature(self.contract.id,r01.document.id,"2026-08-13",source)
-        self.assertIs(self.contracts.get(self.contract.id).status,ContractStatus.TO_SIGN);self.assertNotIn(ContractEventType.SIGNATURE_RECORDED,self._types())
+            authority=self.lifecycle.record_signature(self.contract.id,r01.document.id,"2026-08-13",source)
+        document=self.documents.get(r01.document.id)
+        self.assertEqual(authority.event.document_id,r01.document.id);self.assertEqual(authority.event.effective_date,"2026-08-13")
+        self.assertIs(self.contracts.get(self.contract.id).status,ContractStatus.SIGNED);self.assertEqual(self.contracts.get(self.contract.id).signature_date,"2026-08-13")
+        self.assertEqual(self._types().count(ContractEventType.SIGNATURE_RECORDED),1);self.assertIsNone(document.signed_pdf_path);self.assertIsNone(document.signed_pdf_hash)
+        self.assertEqual(r01.pdf_path.read_bytes(),unsigned_pdf);self.assertEqual(len(self.lifecycle.revisions(self.contract.id)),1)
         signed_dir=r01.docx_path.parent/"signed";self.assertFalse(any(signed_dir.glob("*.pdf")) if signed_dir.exists() else False)
+        updated=self.lifecycle.add_signed_copy(self.contract.id,source)
+        self.assertIs(self.lifecycle.signed_copy_state(updated),SignedCopyState.VALID);self.assertEqual(self._types().count(ContractEventType.SIGNATURE_RECORDED),1)
 
     def test_collision_cross_contract_and_post_signature_sending_are_bounded(self):
         self._set_start("2026-08-14");r01=self.service().generate(self.contract.id);source=self._pdf();existing=r01.docx_path.parent/"signed"/"occupied.pdf";existing.parent.mkdir(parents=True);existing.write_bytes(b"preserve")
         with patch.object(self.lifecycle,"_new_signed_destination",return_value=existing):
-            with self.assertRaises(ContractLifecycleError):self.lifecycle.record_signature(self.contract.id,r01.document.id,"2026-08-13",source)
-        self.assertEqual(existing.read_bytes(),b"preserve");self.assertIs(self.contracts.get(self.contract.id).status,ContractStatus.TO_SIGN)
+            self.lifecycle.record_signature(self.contract.id,r01.document.id,"2026-08-13",source)
+        self.assertEqual(existing.read_bytes(),b"preserve");self.assertIs(self.contracts.get(self.contract.id).status,ContractStatus.SIGNED)
+        self.assertIsNone(self.documents.get(r01.document.id).signed_pdf_path)
         other=self.contracts.create_draft()
         with self.assertRaises(ContractLifecycleError):self.lifecycle.record_signature(other.id,r01.document.id,"2026-08-13")
-        self.lifecycle.record_signature(self.contract.id,r01.document.id,"2026-08-13")
         event=self.lifecycle.record_send(self.contract.id,r01.document.id,"2026-08-13")
         self.assertIs(event.type,ContractEventType.CONTRACT_SENT);self.assertIs(self.contracts.get(self.contract.id).status,ContractStatus.SIGNED)
         with self.assertRaises(Exception):self.contracts.update_signatory(self.contract.id,"Changed","Changed")

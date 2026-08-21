@@ -1,36 +1,38 @@
-C2.W3-D1 current uncommitted delta against accepted C2 HEAD 6641289
+C2.W3-D2 closing micro-pass current uncommitted delta against accepted D1 HEAD 3f00aef
 
 Created
-- src/icp_renov_contracts/ui_web/contract-documents.css
-- tests/test_web_contract_documents_w3d1.py
+- tests/test_web_contract_signature_w3d2.py
 
 Modified
 - recap.txt
 - diff.txt
+- src/icp_renov_contracts/services/contract_events.py
 - src/icp_renov_contracts/ui/web_host.py
+- src/icp_renov_contracts/ui_web/contract-documents.css
 - src/icp_renov_contracts/ui_web/contract-workspace.js
-- src/icp_renov_contracts/ui_web/index.html
-- tests/test_web_contract_generation_w3c2.py
-- tests/test_web_contract_workspace_w3a.py
+- tests/test_signature.py
+- tests/test_web_contract_conditions_w3b2.py
+- tests/test_web_contract_documents_w3d1.py
 
 Removed
 - None.
 
+Closing micro-pass delta
+- Signature business persistence and existing lifecycle status transition now complete before optional signed-copy archival is attempted.
+- Step 4 history derives the signed-copy archival fact from ContractDocument.signed_pdf_attached_at without adding a ContractEvent.
+- Current MISSING/HASH_MISMATCH integrity state clears stale signed-copy success feedback without erasing persisted documentary metadata.
+- Tests force a post-signature copy persistence failure, prove later attachment and no duplicate SIGNATURE_RECORDED, and prove history survives physical-copy loss.
+
 Accepted / frozen and intentionally unchanged
-- C2 official-generation transaction, number/revision atomicity, rendering, conversion, publication, and recovery.
-- Step 1 and Step 2 behavior; Step 3 nine-block review structure and summaries.
-- Contract domain/schema and existing ContractLifecycleService/repository semantics.
-- WebEngine architecture and sandbox policy.
-- Signature, signed PDF, activation, renewal, termination, abandonment, and intervention-sheet generation.
+- D1 document/revision, send-recording, correction, and event timeline authority except for the bounded documentary metadata projection.
+- C2 official-generation transaction, numbering/revision atomicity, rendering, conversion, publication, and recovery.
+- Step 1 through Step 3 behavior, WebEngine architecture, and sandbox policy.
+- Renewal, termination, abandonment, intervention sheets, e-signature, signature requests, and unrelated Step 4 workflows.
 - docs/, templates/, and spike/.
 
 Final validation
-- D1 targeted: 9/9 PASS, covering all 23 requested behaviors through bounded compound regressions.
-- B1/B2/B3/C1/C2 targeted regressions: 8/8, 10/10, 13/13, 8/8, 12/12 PASS.
-- Full suite: 349/349 PASS; exact increase of 9 from the accepted 340-test C2 baseline.
-- Real sandbox-active production WebEngine smoke: PASS; bridge errors none.
-- Exact DOCX/PDF open, sent recording, correction, preserved R01, and supported-event timeline: PASS.
-- Closing micro-pass: TO_SIGN send CTA visible; reopened DRAFT send CTA absent; historical R01 sent marker/event retained; Complétude sourced from ReviewService.
-- Closing 1600x900 screenshots A/B: visually verified on disposable fixture C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_C2W3_D1_CLOSING_hb2j_xvc.
-- 1366 and 1280 horizontal overflow: none.
+- D2 targeted: 10/10 PASS; signature authority: 10/10 PASS; D1: 9/9 PASS.
+- Full suite: 359/359 PASS in 255.922 s; one new deterministic D2 regression over the incoming 358 total.
+- Sandbox-active production WebEngine smoke: PASS; all A-E captures are actual 1600x900.
+- D valid-copy history and E stale-feedback suppression/missing-copy recovery: visually verified.
 - git diff --check: PASS.

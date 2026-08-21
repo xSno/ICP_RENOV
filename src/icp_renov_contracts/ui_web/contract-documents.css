@@ -4,6 +4,7 @@
 .documents-section{margin-top:13px;padding:13px;border:1px solid var(--line);border-radius:7px;background:#fff}
 .documents-section h3{margin:4px 0 0;font-size:15px}
 .documents-section-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.documents-primary-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}
 .revision-list{margin-top:11px;display:grid;gap:8px}
 .revision-card{padding:11px;border:1px solid #dce3e6;border-radius:7px;background:#fbfcfc}
 .revision-card>header{display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -11,13 +12,18 @@
 .revision-number{font-size:15px;font-weight:750;color:#20333b}
 .revision-pill,.revision-sent,.revision-unsent{display:inline-flex;padding:3px 7px;border-radius:999px;font-size:8px;font-weight:750}
 .revision-pill.latest{background:#e7f1f2;color:#1e6670}.revision-pill.replaced{background:#edf0f1;color:#68777e}
+.revision-pill.signed{background:#e8f3ea;color:#2d6b4b}
 .revision-sent{background:#edf7f1;color:#2e6d52}.revision-unsent{background:#f2f4f5;color:#68777e}
+.revision-signed-date{color:#2d6b4b;font-weight:700}
 .revision-metadata{margin-top:8px;display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:9px}
 .revision-metadata strong{color:#384b54}
 .revision-actions{margin-top:9px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
 .revision-actions .button{min-height:30px;padding:0 9px;font-size:9px}
 .revision-file-missing{padding:6px 8px;border-radius:5px;background:#faeded;color:#913b3b;font-size:9px;font-weight:700}
 .revision-anomaly{margin:8px 0 0;color:#8a3e35;font-size:9px;line-height:1.4}
+.signed-copy-notice,.signed-copy-valid,.signed-copy-missing{margin-top:9px;padding:9px 10px;border-radius:6px;font-size:9px;display:flex;align-items:center;justify-content:space-between;gap:9px;flex-wrap:wrap}
+.signed-copy-notice{border:1px solid #e0c99b;background:#fff7e8;color:#75511d}.signed-copy-valid{border:1px solid #b8d8c8;background:#edf7f1;color:#2e6d52}.signed-copy-missing{border:1px solid #e4bcbc;background:#faeded;color:#913b3b}
+.signed-copy-missing>div{display:flex;gap:7px;flex-wrap:wrap}.signed-copy-notice .button,.signed-copy-valid .button,.signed-copy-missing .button{min-height:29px;padding:0 8px;font-size:9px}
 .correction-zone{margin-top:13px;padding:13px;border:1px solid #e1c89f;border-radius:7px;background:#fff7e8;display:flex;align-items:center;justify-content:space-between;gap:14px}
 .correction-zone h3{margin:4px 0;font-size:14px}.correction-zone p{margin:0;color:#76511d;font-size:9px;line-height:1.4}
 .other-documents{background:#f8fafb}.other-documents p{margin:8px 0 0;color:var(--muted);font-size:10px}
@@ -33,10 +39,11 @@
 .documents-modal h2{margin:4px 0;font-size:20px}.documents-modal header p{margin:0;color:var(--muted);font-size:10px}
 .documents-modal-body{padding:17px 21px;display:grid;gap:12px}.documents-modal-body>label{display:grid;gap:5px;color:#465760;font-size:9px;font-weight:700}
 .documents-modal-body input,.documents-modal-body select,.documents-modal-body textarea{width:100%;padding:8px 9px;border:1px solid #c9d2d8;border-radius:6px;background:#fff;font:11px "Segoe UI",Arial}
+.signature-start-date{padding:8px 10px;border-radius:6px;background:#f0f7f9;color:#315e6b;font-size:10px}.signed-pdf-picker{display:grid;gap:6px;color:#465760;font-size:9px;font-weight:700}.signed-pdf-picker>div{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.signed-pdf-selection{color:var(--muted);font-weight:400}
 .documents-modal-body ul{margin:0;padding-left:19px;color:#3f5059;font-size:10px;line-height:1.65}
 .documents-info-notice{padding:10px 12px;border:1px solid #bed4dc;border-radius:7px;background:#f0f7f9;color:#315e6b;display:grid;gap:3px;font-size:10px}
 .documents-modal-error{padding:9px 11px;border-radius:6px;background:#faeded;color:#913b3b;font-size:10px}
 .documents-modal>footer{padding:13px 21px;border-top:1px solid var(--line);background:#f7f9fa;display:flex;justify-content:flex-end;gap:8px}
 .review-consultation{grid-template-columns:minmax(0,1fr) auto;align-items:center}
 @media(max-width:1366px){.documents-section{padding:11px}.revision-card{padding:9px}.correction-zone{align-items:flex-start}.review-consultation{grid-template-columns:1fr}.review-consultation .button{justify-self:start}}
-@media(max-width:1280px){.contract-documents-panel{padding:12px}.documents-section-head,.correction-zone{align-items:flex-start;flex-direction:column}.revision-card>header{align-items:flex-start}.revision-metadata{display:grid;gap:4px}}
+@media(max-width:1280px){.contract-documents-panel{padding:12px}.documents-section-head,.correction-zone{align-items:flex-start;flex-direction:column}.documents-primary-actions{justify-content:flex-start}.revision-card>header{align-items:flex-start}.revision-metadata{display:grid;gap:4px}}

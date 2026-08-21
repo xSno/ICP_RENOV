@@ -172,6 +172,72 @@ function openRecordSentModal() {
   overlay.querySelector('.button-secondary')?.focus();
 }
 
+function selectSignedPdf(intent, host) {
+  const state = contractWorkspaceState;
+  if (!state) return;
+  bridge.selectContractSignedPdf(state.contract.id, intent, result => {
+    if (!result?.ok) {
+      contractDocumentsError = result?.message || 'Le PDF signé ne peut pas être sélectionné.';
+      renderContractWorkspace(contractWorkspaceState);
+      return;
+    }
+    if (result.selected && host) {
+      const target = host.querySelector?.('.signed-pdf-selection') || host.closest?.('.documents-modal')?.querySelector('.signed-pdf-selection');
+      if (target) target.textContent = result.name || 'PDF sélectionné';
+    }
+  });
+}
+
+function openSignatureRecordingModal() {
+  const state = contractWorkspaceState;
+  const data = state?.documents_d2;
+  const revisions = state?.documents_d1?.revisions || [];
+  if (!data?.signature_allowed || !revisions.length) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'drawer-overlay documents-modal-overlay';
+  overlay.innerHTML = `<div class="drawer-backdrop" onclick="closeContractDocumentsModal()"></div><section class="documents-modal signature-modal" role="dialog" aria-modal="true" aria-labelledby="signature-modal-title"><header><span class="eyebrow">Signature hors application</span><h2 id="signature-modal-title">Enregistrer la signature</h2><p>Confirmez la révision réellement signée et la date effective. ICP Renov ne réalise pas de signature électronique.</p></header><div class="documents-modal-body"><label><span>Révision réellement signée</span><select id="signature-revision">${revisions.map(item => `<option value="${esc(item.revision)}">${esc(item.revision)} · ${esc(item.template_name)} · ${esc(item.template_version)}</option>`).join('')}</select></label><label><span>Date de signature</span><input id="signature-date" type="date" value="${esc(state.documents_d1.today)}" required></label><div class="signature-start-date"></div><div class="signed-pdf-picker"><span>PDF signé <small>Facultatif</small></span><div><button class="button button-secondary signature-pdf-select">Choisir le PDF signé</button><small class="signed-pdf-selection">Aucun PDF sélectionné</small></div></div><div class="documents-info-notice"><strong>Signature réalisée hors de l’application</strong><span>L’enregistrement verrouille les données structurées. La copie PDF signée reste facultative.</span></div><div class="documents-modal-error" hidden></div></div><footer><button class="button button-secondary" onclick="closeContractDocumentsModal()">Annuler</button><button class="primary signature-confirm-action">Enregistrer la signature</button></footer></section>`;
+  document.body.appendChild(overlay);
+  const refreshStart = () => {
+    const revision = overlay.querySelector('#signature-revision').value;
+    const selected = revisions.find(item => item.revision === revision);
+    const target = overlay.querySelector('.signature-start-date');
+    target.textContent = selected?.start_display ? `Prise d’effet prévue le ${selected.start_display}` : '';
+  };
+  overlay.querySelector('#signature-revision').addEventListener('change', refreshStart);
+  overlay.querySelector('.signature-pdf-select').addEventListener('click', () => selectSignedPdf('SIGNATURE', overlay));
+  overlay.querySelector('.signature-confirm-action').addEventListener('click', () => {
+    const revision = overlay.querySelector('#signature-revision').value;
+    const effectiveDate = overlay.querySelector('#signature-date').value;
+    if (!effectiveDate) {
+      const error = overlay.querySelector('.documents-modal-error'); error.hidden = false; error.textContent = 'Renseignez une date de signature valide.'; return;
+    }
+    bridge.recordContractSignature(state.contract.id, revision, effectiveDate, result => {
+      if (result?.ok) closeContractDocumentsModal();
+      else { const error = overlay.querySelector('.documents-modal-error'); error.hidden = false; error.textContent = result?.message || 'La signature ne peut pas être enregistrée.'; }
+    });
+  });
+  refreshStart();
+  overlay.querySelector('.button-secondary')?.focus();
+}
+
+function publishSignedPdf(intent) {
+  const state = contractWorkspaceState;
+  if (!state) return;
+  if (!['ADD', 'LOCATE', 'REPLACE'].includes(intent)) return;
+  bridge.selectContractSignedPdf(state.contract.id, intent, result => {
+    if (!result?.ok || !result.selected) {
+      if (!result?.ok) { contractDocumentsError = result?.message || 'Le PDF signé ne peut pas être sélectionné.'; renderContractWorkspace(contractWorkspaceState); }
+      return;
+    }
+    const savedHandler = saved => {
+      if (!saved?.ok) { contractDocumentsError = saved?.message || 'Le PDF signé ne peut pas être archivé.'; renderContractWorkspace(contractWorkspaceState); }
+    };
+    if (intent === 'ADD') bridge.addContractSignedPdf(state.contract.id, savedHandler);
+    else if (intent === 'LOCATE') bridge.locateContractSignedPdf(state.contract.id, savedHandler);
+    else bridge.replaceContractSignedPdf(state.contract.id, savedHandler);
+  });
+}
+
 function updateContractRegime(regime) {
   contractMutation(callback => bridge.updateContractFramework(
     contractWorkspaceState.contract.id, { regime }, callback
@@ -466,6 +532,7 @@ function openGenerationConfirmation() {
 
 function renderContractDocuments(state) {
   const data = state.documents_d1;
+  const signature = state.documents_d2 || {};
   const feedback = data.feedback ? `<div class="documents-feedback ${esc(data.feedback.kind)}">${esc(data.feedback.message)}</div>` : '';
   const error = contractDocumentsError ? `<div class="documents-feedback error">${esc(contractDocumentsError)}</div>` : '';
   const revisions = data.revisions.map(item => {
@@ -473,13 +540,23 @@ function renderContractDocuments(state) {
     const sent = item.sent_display ? `<span class="revision-sent">Envoyée le ${esc(item.sent_display)}</span>` : '<span class="revision-unsent">Non envoyée</span>';
     const docx = item.docx_available ? `<button class="button button-secondary" onclick="openContractFile('${esc(item.revision)}','docx')">Ouvrir le DOCX</button>` : '<span class="revision-file-missing">DOCX introuvable</span>';
     const pdf = item.pdf_available ? `<button class="button button-secondary" onclick="openContractFile('${esc(item.revision)}','pdf')">Ouvrir le PDF</button>` : '<span class="revision-file-missing">PDF introuvable</span>';
+    const signedMarker = item.signed ? '<span class="revision-pill signed">Révision signée</span>' : '';
+    const signedDate = item.signed_display ? `<span class="revision-signed-date">Signée le ${esc(item.signed_display)}</span>` : '';
+    let signedCopy = '';
+    if (item.signed_copy_state === 'NONE') signedCopy = '<div class="signed-copy-notice"><strong>Signature enregistrée — copie signée non archivée</strong><button class="button button-secondary" onclick="publishSignedPdf(\'ADD\')">Ajouter le PDF signé</button></div>';
+    else if (item.signed_copy_state === 'VALID') signedCopy = `<div class="signed-copy-valid"><span>Copie signée archivée${item.signed_copy_attached_display ? ` le ${esc(item.signed_copy_attached_display)}` : ''}</span><button class="button button-secondary" onclick="openContractFile('${esc(item.revision)}','signed')">Ouvrir le PDF signé</button></div>`;
+    else if (item.signed_copy_state === 'MISSING' || item.signed_copy_state === 'HASH_MISMATCH') {
+      const message = item.signed_copy_state === 'MISSING' ? 'Copie signée introuvable dans le dossier de travail' : 'La copie signée ne correspond plus au fichier archivé.';
+      signedCopy = `<div class="signed-copy-missing"><strong>${message}</strong><div><button class="button button-secondary" onclick="publishSignedPdf('LOCATE')">Localiser le fichier</button><button class="button button-secondary" onclick="publishSignedPdf('REPLACE')">Ajouter une nouvelle copie</button></div></div>`;
+    }
     const anomaly = item.docx_available && item.pdf_available ? '' : '<p class="revision-anomaly">La révision reste conservée dans l’historique. Le fichier manquant n’a pas été recréé.</p>';
-    return `<article class="revision-card"><header><div><span class="revision-number">${esc(item.revision)}</span>${statePill}</div>${sent}</header><div class="revision-metadata"><span>Générée le <strong>${esc(item.generated_display)}</strong></span><span>Modèle <strong>${esc(item.template_name)} · ${esc(item.template_version)}</strong></span></div><div class="revision-actions">${docx}${pdf}</div>${anomaly}</article>`;
+    return `<article class="revision-card"><header><div><span class="revision-number">${esc(item.revision)}</span>${statePill}${signedMarker}</div>${sent}</header><div class="revision-metadata"><span>Générée le <strong>${esc(item.generated_display)}</strong></span><span>Modèle <strong>${esc(item.template_name)} · ${esc(item.template_version)}</strong></span>${signedDate}</div><div class="revision-actions">${docx}${pdf}</div>${signedCopy}${anomaly}</article>`;
   }).join('');
   const timeline = data.timeline.map(item => `<li><span class="timeline-dot"></span><div><strong>${esc(item.label)}${item.revision ? ` · ${esc(item.revision)}` : ''}</strong><small>${esc(item.effective_display || item.occurred_display)}</small>${item.note ? `<p>${esc(item.note)}</p>` : ''}</div></li>`).join('');
   const correction = data.correction_allowed ? `<section class="correction-zone"><div><span class="eyebrow">Contrat à signer</span><h3>Une correction est nécessaire ?</h3><p>Les données structurées restent verrouillées tant que le contrat n’est pas explicitement rouvert.</p></div><button class="button button-secondary" onclick="openCorrectionConfirmation()">Corriger le contrat</button></section>` : '';
   const sendAction = data.send_allowed ? '<button class="primary" onclick="openRecordSentModal()">Enregistrer un envoi</button>' : '';
-  return `<section class="contract-step-panel contract-documents-panel"><header><span class="eyebrow">Étape 4 sur 4</span><h2>Documents & suivi</h2><p>Consultez les révisions officielles et enregistrez les actions réalisées hors du logiciel.</p></header>${feedback}${error}<section class="documents-section"><div class="documents-section-head"><div><span class="eyebrow">Révisions contractuelles</span><h3>Documents officiels</h3></div>${sendAction}</div><div class="revision-list">${revisions || '<div class="contract-empty">Aucune révision contractuelle disponible.</div>'}</div></section>${correction}<section class="documents-section other-documents"><div><span class="eyebrow">Autres documents</span><h3>Documents distincts du contrat</h3></div><p>Aucun autre document disponible.</p></section><section class="documents-section history-section"><div><span class="eyebrow">Historique</span><h3>Événements du contrat</h3></div><ol class="contract-timeline">${timeline || '<li class="timeline-empty">Aucun événement disponible.</li>'}</ol></section></section>`;
+  const signatureAction = signature.signature_allowed ? '<button class="primary" onclick="openSignatureRecordingModal()">Enregistrer la signature</button>' : '';
+  return `<section class="contract-step-panel contract-documents-panel"><header><span class="eyebrow">Étape 4 sur 4</span><h2>Documents & suivi</h2><p>Consultez les révisions officielles et enregistrez les actions réalisées hors du logiciel.</p></header>${feedback}${error}<section class="documents-section"><div class="documents-section-head"><div><span class="eyebrow">Révisions contractuelles</span><h3>Documents officiels</h3></div><div class="documents-primary-actions">${sendAction}${signatureAction}</div></div><div class="revision-list">${revisions || '<div class="contract-empty">Aucune révision contractuelle disponible.</div>'}</div></section>${correction}<section class="documents-section other-documents"><div><span class="eyebrow">Autres documents</span><h3>Documents distincts du contrat</h3></div><p>Aucun autre document disponible.</p></section><section class="documents-section history-section"><div><span class="eyebrow">Historique</span><h3>Événements du contrat</h3></div><ol class="contract-timeline">${timeline || '<li class="timeline-empty">Aucun événement disponible.</li>'}</ol></section></section>`;
 }
 
 function renderContractReview(state) {

@@ -328,8 +328,9 @@ class WebContractConditionsW3B2Tests(unittest.TestCase):
             "Revue", "Documents & suivi",
         ):
             self.assertNotIn(forbidden, b2_render)
-        for forbidden in ("patchContract", "updateContractField", "signature_date", "vat_amount: document"):
+        for forbidden in ("patchContract", "updateContractField", "vat_amount: document"):
             self.assertNotIn(forbidden, bridge + js)
+        self.assertNotIn("signature_date", b2_render)
 
 
 if __name__ == "__main__":

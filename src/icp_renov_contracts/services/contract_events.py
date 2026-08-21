@@ -348,7 +348,7 @@ class ContractLifecycleService:
             raise ContractLifecycleError("invalid selected revision","La révision sélectionnée ne peut pas être enregistrée comme signée.")
         start_date=self._snapshot_start_date(selected)
         staged,digest=self._stage_pdf(signed_pdf) if signed_pdf is not None else (None,None)
-        final:Path|None=None;moved=False;now=self.now_provider();target=ContractStatus.ACTIVE if start_date<=self.date_provider.today() else ContractStatus.SIGNED
+        now=self.now_provider();target=ContractStatus.ACTIVE if start_date<=self.date_provider.today() else ContractStatus.SIGNED
         signature=ContractEvent(str(uuid.uuid4()),contract_id,ContractEventType.SIGNATURE_RECORDED,now,signature_date,document_id)
         activation=(ContractEvent(str(uuid.uuid4()),contract_id,ContractEventType.ACTIVATED,_after(now),start_date.isoformat())
                     if target is ContractStatus.ACTIVE else None)
@@ -362,28 +362,24 @@ class ContractLifecycleService:
                 scope=connection.execute("SELECT contract_id,document_kind FROM contract_documents WHERE id=?",(document_id,)).fetchone()
                 if scope is None or scope[0]!=contract_id or scope[1]!=DocumentKind.CONTRACT.value:
                     raise ContractLifecycleError("invalid selected revision","La révision sélectionnée ne peut pas être enregistrée comme signée.")
-                if staged is not None:
-                    final=self._new_signed_destination(selected)
-                    if final.exists():raise ContractLifecycleError("collision","La signature n’a pas pu être enregistrée. Les données existantes sont conservées.")
-                    final.parent.mkdir(parents=True,exist_ok=True);staged.replace(final);moved=True
                 ContractEventRepository.insert(connection,signature)
                 if activation is not None:ContractEventRepository.insert(connection,activation)
-                if final is not None:
-                    ContractDocumentRepository.set_signed_copy(connection,document_id,self._relative(final),digest,now)
                 cursor=connection.execute(
                     "UPDATE contracts SET lifecycle_status=?,updated_at_utc=? WHERE id=? AND lifecycle_status IS NULL AND terminal_status IS NULL AND generation_status='TO_SIGN'",
                     (target.value,now,contract_id),
                 )
                 if cursor.rowcount!=1:raise sqlite3.IntegrityError("signature state changed")
         except (ContractLifecycleError,ContractNotFoundError):
-            if moved and final is not None:self._unlink(final)
+            if staged is not None:self._unlink(staged)
             raise
         except (OSError,sqlite3.Error) as exc:
-            if moved and final is not None:self._unlink(final)
-            raise ContractLifecycleError("signature persistence","La signature n’a pas pu être enregistrée. Les données existantes sont conservées.") from exc
-        finally:
             if staged is not None:self._unlink(staged)
-        return SignedContractAuthority(signature,self.documents.get(document_id),start_date)  # type: ignore[arg-type]
+            raise ContractLifecycleError("signature persistence","La signature n’a pas pu être enregistrée. Les données existantes sont conservées.") from exc
+        authority=SignedContractAuthority(signature,self.documents.get(document_id),start_date)  # type: ignore[arg-type]
+        if staged is not None:
+            try:self._publish_staged(selected,staged,digest or "",False,None)
+            except ContractLifecycleError:pass
+        return authority
 
     def reconcile_due_activations(self, today: date | None = None) -> tuple[str, ...]:
         return self.reconcile_lifecycle(today)

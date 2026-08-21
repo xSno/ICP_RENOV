@@ -1,53 +1,38 @@
-C2.W3-D1 — Step 4 Foundation
+C2.W3-D2 — Step 4 Signature, closing micro-pass
 
 Baseline
-- Accepted C2 commit: 6641289.
-- Incoming full suite: 340/340 PASS.
-- D1 remains uncommitted for manual review.
+- Accepted D1 commit: 3f00aef.
+- Incoming D2 suite: 358/358 PASS.
+- D2 remains uncommitted for manual review.
 
-Scope and authorities
-- Step 4 now presents persisted CONTRACT revisions, exact DOCX/PDF access, correction from TO_SIGN, revision-specific sent recording, and the bounded supported-event timeline.
-- Python, repositories, and existing ContractLifecycleService remain authoritative. JavaScript only presents snapshots and invokes narrow exact-id intents.
-- Persisted ContractDocument rows are projected in descending Rxx order. INTERVENTION_SHEET documents are excluded; revision metadata comes from the repository, never filenames.
-- Each revision presents its generation date, functional template name/version, latest/replaced state, exact sent state, and DOCX/PDF availability. Missing managed files preserve the persisted revision and surface a document-level anomaly.
-- Opening DOCX/PDF resolves the selected contract and exact persisted CONTRACT revision server-side. It cannot dispatch arbitrary paths and creates no event, status change, or metadata mutation.
-- Corriger le contrat delegates to ContractLifecycleService.reopen_for_correction: TO_SIGN returns atomically to DRAFT, REOPENED_FOR_CORRECTION is persisted, the official number and all existing revisions remain, and no new revision is created. A later complete official generation alone creates R02.
-- Enregistrer l'envoi delegates to the existing CONTRACT_SENT authority with the exact CONTRACT document, actual effective date, and optional note. Sent state remains revision-specific and is never copied to a later revision.
-- The timeline projects only actual CREATED, DOCUMENT_GENERATED, REOPENED_FOR_CORRECTION, and CONTRACT_SENT events with French labels. Consultation, file opening, step changes, and opening/cancelling modals create no events.
-- TO_SIGN Step 1/2 editing remains locked. Step 3 remains read-only and directs correction to Step 4 rather than exposing normal Modifier or repeat-generation behavior.
-- No signature, signed PDF, SIGNED/ACTIVE transition, renewal, termination, abandonment, intervention-sheet generation, or generic lifecycle/document manager was introduced.
+Signature / optional-copy transaction boundary
+- Signature input and optional selected PDF are validated first. The exact CONTRACT revision is then durably recorded through SIGNATURE_RECORDED, with the exact document_id and effective_date, in the same business transaction as the existing SIGNED or ACTIVE lifecycle transition.
+- Only after that accepted business transaction is the optional signed PDF archived through the existing managed-copy authority. An archival failure is intentionally documentary-only: it neither rolls back the signature nor changes its exact revision, derived Contract.signature_date, lifecycle status, generated unsigned PDF, or revision sequence.
+- The resulting NONE state projects “Signature enregistrée — copie signée non archivée” and “Ajouter le PDF signé”. A later successful attachment does not add a second SIGNATURE_RECORDED.
+- PDF validation still precedes signature acceptance: an invalid selected PDF is rejected without a false signature.
+
+Signed-copy history and current integrity state
+- History now includes the documentary entry “Copie signée archivée · Rxx”, derived exclusively from ContractDocument.signed_pdf_attached_at. It is not a ContractEvent and does not mutate lifecycle state.
+- The documentary history remains when the physical managed file is later MISSING or HASH_MISMATCH. The actual signature event, signed revision marker, derived signature date, and SIGNED/ACTIVE status remain preserved.
+- Current MISSING/HASH_MISMATCH state suppresses stale “Le PDF signé a été archivé.” success feedback. The current anomaly and recovery actions remain visible while the historical attachment fact remains visible.
+- Existing replacement authority was inspected: a readable VALID signed copy cannot be overwritten. ADD applies only when no metadata exists; LOCATE restores the exact hash; REPLACE applies only when the current copy is missing or hash-invalid.
+
+Preserved D2 boundaries
+- Exact revision selection, R01/R02 distinction, future-start SIGNED / reached-start ACTIVE, post-signature locking, no correction, no new Rxx, no Activate action, and D1 revision-specific sent state remain unchanged.
+- No renewal, termination, abandonment, intervention-sheet, e-signature, signature-request, or D1/C2 behavior was introduced or reopened.
 
 Validation
-- Targeted D1: 9/9 PASS. These compound regressions cover the requested 23 behaviors: projection/order/exclusion/template, exact file opens and rejection, missing files, TO_SIGN locking, correction atomicity and R02 responsibility, exact CONTRACT_SENT semantics, supported-event timeline, and the excluded later lifecycle UI.
-- B1: 8/8 PASS; B2: 10/10 PASS; B3: 13/13 PASS; C1: 8/8 PASS; C2: 12/12 PASS.
-- Full application suite: 349/349 PASS in 327.424 s. The increase from 340 is exactly the 9 new D1 tests.
+- D2 targeted: 10/10 PASS. The count increases by one for the deterministic post-signature archival-failure / later-attachment / documentary-history / stale-feedback regression.
+- Existing signature authority: 10/10 PASS. D1 regression: 9/9 PASS.
+- Full application suite: 359/359 PASS in 255.922 s. The total increases by one from the incoming 358 suite.
 
 Real sandbox-active WebEngine smoke
-- Disposable fixture root: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_C2W3_D1_w1q9nb05
-- Production local index/QWebChannel/bridge: PASS; JavaScript and Python bridge errors: none; sandbox-disable flags absent.
-- Exact persisted R01 DOCX and PDF intents reached their managed paths without business events.
-- Sent recording persisted R01 with effective date 21/08/2026 and its note only on R01.
-- Correction confirmation was side-effect free until confirmation; confirmed correction produced DRAFT, retained C2-2026-0001 and R01, and added only the supported reopen event.
-- Final supported timeline: Contrat créé; Révision contractuelle générée; Envoi de la révision enregistré; Contrat rouvert pour correction.
-- 1366: scroll width 1351 = client width 1351. 1280: scroll width 1265 = client width 1265. No horizontal overflow.
-- Screenshots, all actual 1600x900:
-  - evidence\C2_W3_D1_A_step4_r01_to_sign_1600x900.png
-  - evidence\C2_W3_D1_B_record_sent_modal_1600x900.png
-  - evidence\C2_W3_D1_C_r01_sent_1600x900.png
-  - evidence\C2_W3_D1_D_correction_confirmation_1600x900.png
-  - evidence\C2_W3_D1_E_reopened_draft_r01_1600x900.png
-
-Authority alignment
-- No genuine authority mismatch or unresolved Product Question was found.
-- The accepted C2 official-generation transaction was not reopened or changed.
-
-Closing micro-pass
-- The current send action is projected as available only while the Contract status is TO_SIGN. After correction returns the Contract to DRAFT, the CTA is absent rather than visibly disabled; persisted sent markers and CONTRACT_SENT history remain intact.
-- ContractLifecycleService.record_send intentionally validates the exact CONTRACT document and date without restricting current Contract status. That retrospective administrative authority was preserved; only the ordinary Step 4 action surface is status-gated.
-- The right-side Complétude value is restored to ReviewService authority: Revue complète when review.data_complete is true, otherwise Revue à corriger. Revision count no longer replaces this semantic field.
-- Existing D1 tests were strengthened without increasing their count. D1: 9/9 PASS; C1: 8/8 PASS; C2: 12/12 PASS; Workspace A: 10/10 PASS; full suite: 349/349 PASS.
-- Closing smoke fixture: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_C2W3_D1_CLOSING_hb2j_xvc
-- Production WebEngine sandbox active: PASS; local page/bridge errors: none; both captures are actual 1600x900.
-- TO_SIGN capture: evidence\C2_W3_D1_CLOSING_A_to_sign_1600x900.png — send CTA visible, Revue complète.
-- Reopened DRAFT capture: evidence\C2_W3_D1_CLOSING_B_reopened_draft_1600x900.png — R02/R01 preserved, R01 sent marker and CONTRACT_SENT history preserved, send CTA absent, Revue complète.
-- No CSS/layout change was made; the accepted D1 1366/1280 no-overflow evidence remains applicable.
+- Disposable fixture root: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_C2W3_D2_CLOSING_5um7u9hl
+- Production WebEngine local page and QWebChannel: PASS; QTWEBENGINE_DISABLE_SANDBOX and QTWEBENGINE_CHROMIUM_FLAGS are both unset.
+- Fixture status after the actual signature: SIGNED. Final captures are all actual 1600x900:
+  - evidence\C2_W3_D2_A_to_sign_signature_action_1600x900.png
+  - evidence\C2_W3_D2_B_signature_modal_1600x900.png
+  - evidence\C2_W3_D2_C_signature_without_copy_1600x900.png
+  - evidence\C2_W3_D2_D_signed_copy_archived_history_1600x900.png
+  - evidence\C2_W3_D2_E_signed_copy_missing_1600x900.png
+- Visual review confirms D includes the documentary attachment history, while E has no stale archive-success feedback and retains the missing-copy recovery state plus the historical entry.

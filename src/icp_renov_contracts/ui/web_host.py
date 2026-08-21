@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import asdict
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Callable
 
 from PySide6.QtCore import QObject, QUrl, Signal, Slot
+from PySide6.QtWidgets import QFileDialog
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineCore import QWebEnginePage
 from PySide6.QtWebEngineWidgets import QWebEngineView
@@ -14,7 +15,7 @@ from PySide6.QtWebEngineWidgets import QWebEngineView
 from ..documents.validation import DocumentGenerationError
 from ..domain import (
     ClientDraft, ClientMaster, ContractConditions, ContractEventType, ContractStatus, EquipmentDraft, EquipmentMaster,
-    SiteDraft, SiteMaster, TemplateVersionStatus,
+    SignedCopyState, SiteDraft, SiteMaster, TemplateVersionStatus,
 )
 from ..errors import ApplicationError, ContractConditionsValidationError, ContractLifecycleError, MasterDataValidationError
 from ..services import (
@@ -151,6 +152,12 @@ def _date_fr(value: str | None) -> str:
     return date.fromisoformat(value).strftime("%d/%m/%Y")
 
 
+def _datetime_fr(value: str | None) -> str:
+    if not value:
+        return ""
+    return datetime.fromisoformat(value).strftime("%d/%m/%Y %H:%M")
+
+
 def _money_fr(value) -> str:
     return format(value, ".2f").replace(".", ",")
 
@@ -176,6 +183,7 @@ class UiBridge(QObject):
         self.contract_focus_target: str | None = None
         self.contract_generation_feedback: dict | None = None
         self.contract_documents_feedback: dict | None = None
+        self.contract_signed_pdf_selection: tuple[str, str, Path] | None = None
         self.register = ContractRegisterService(
             context.contracts, context.review, context.lifecycle, context.workspace_service,
             RealBackupSummaryProvider(context.backup, context.alerts), context.alerts,
@@ -313,18 +321,32 @@ class UiBridge(QObject):
         backup = self.register.backup_summary().label
         revisions = self.context.lifecycle.revisions(contract.id)
         revision_by_document = {item.id: item.revision for item in revisions}
+        signature = self.context.lifecycle.signature_authority(contract.id)
+        signed_document_id = signature.document.id if signature else None
         revision_rows = []
         for index,item in enumerate(revisions):
             template = self.context.template_catalog.get_version(item.template_version_id)
             sent = self.context.lifecycle.latest_send(item.id)
+            signed = item.id == signed_document_id
+            signed_copy_state = self.context.lifecycle.signed_copy_state(item) if signed else None
+            start_date = item.snapshot.get("contract", {}).get("start_date")
             revision_rows.append({
                 "revision": item.revision,
                 "generated_display": _date_fr(item.generated_at_utc[:10]),
+                "start_display": _date_fr(start_date) if isinstance(start_date, str) and start_date else "",
                 "template_name": template.template_name,
                 "template_version": template.version,
                 "latest": index == 0,
                 "replaced": index > 0,
                 "sent_display": _date_fr(sent.effective_date) if sent else "",
+                "signed": signed,
+                "signed_display": _date_fr(signature.event.effective_date) if signed else "",
+                "signed_copy_state": signed_copy_state.value if signed_copy_state else "",
+                "signed_copy_attached_display": (
+                    _date_fr(item.signed_pdf_attached_at[:10])
+                    if signed and item.signed_pdf_attached_at else ""
+                ),
+                "signed_pdf_available": signed_copy_state is SignedCopyState.VALID,
                 "docx_available": self.context.lifecycle.resolve_document_path(item.docx_relpath) is not None,
                 "pdf_available": self.context.lifecycle.resolve_document_path(item.pdf_relpath) is not None,
             })
@@ -333,6 +355,8 @@ class UiBridge(QObject):
             ContractEventType.DOCUMENT_GENERATED: "Révision contractuelle générée",
             ContractEventType.REOPENED_FOR_CORRECTION: "Contrat rouvert pour correction",
             ContractEventType.CONTRACT_SENT: "Envoi de la révision enregistré",
+            ContractEventType.SIGNATURE_RECORDED: "Signature enregistrée",
+            ContractEventType.ACTIVATED: "Contrat activé",
         }
         timeline = []
         for event in self.context.lifecycle.history(contract.id):
@@ -345,6 +369,22 @@ class UiBridge(QObject):
                 "revision": revision,
                 "note": event.note or "",
             })
+        if signature and signature.document.signed_pdf_attached_at:
+            timeline.append({
+                "label": "Copie signée archivée",
+                "occurred_display": _datetime_fr(signature.document.signed_pdf_attached_at),
+                "effective_display": "",
+                "revision": signature.document.revision,
+                "note": "",
+                "documentary": True,
+            })
+        feedback = self.contract_documents_feedback
+        if (
+            signature
+            and self.context.lifecycle.signed_copy_state(signature.document) in {SignedCopyState.MISSING, SignedCopyState.HASH_MISMATCH}
+            and feedback == {"kind": "success", "message": "Le PDF signé a été archivé."}
+        ):
+            feedback = None
         return {
             "page": "CONTRACT_WORKSPACE", "backup": backup, "active_step": self.contract_step,
             "contract_focus_target": self.contract_focus_target,
@@ -514,7 +554,16 @@ class UiBridge(QObject):
                 "send_allowed": contract.status is ContractStatus.TO_SIGN,
                 "correction_allowed": contract.status is ContractStatus.TO_SIGN,
                 "today": self.context.lifecycle.date_provider.today().isoformat(),
-                "feedback": self.contract_documents_feedback,
+                "feedback": feedback,
+            },
+            "documents_d2": {
+                "signature_allowed": contract.status is ContractStatus.TO_SIGN and signature is None,
+                "signature": None if signature is None else {
+                    "revision": signature.document.revision,
+                    "date_display": _date_fr(signature.event.effective_date),
+                    "start_display": _date_fr(signature.start_date.isoformat()),
+                    "copy_state": self.context.lifecycle.signed_copy_state(signature.document).value,
+                },
             },
             "summary": {
                 "client": contract.client_snapshot.display_name if contract.client_snapshot else "Non sélectionné",
@@ -654,6 +703,7 @@ class UiBridge(QObject):
         self.contract_focus_target = None
         self.contract_generation_feedback = None
         self.contract_documents_feedback = None
+        self.contract_signed_pdf_selection = None
         self.refresh()
         return {"ok": True, "id": contract_id}
 
@@ -712,6 +762,7 @@ class UiBridge(QObject):
         self.contract_id = None
         self.contract_step = 1
         self.contract_documents_feedback = None
+        self.contract_signed_pdf_selection = None
         self.refresh()
 
     @Slot(str, int, result="QVariant")
@@ -732,11 +783,83 @@ class UiBridge(QObject):
     @Slot(str, str, str, result="QVariant")
     def openContractDocument(self,contract_id:str,revision:str,kind:str)->dict:
         document=self._contract_revision(contract_id,revision)
-        if document is None or kind not in {"docx","pdf"}:
+        if document is None or kind not in {"docx","pdf","signed"}:
             return {"ok":False,"message":"Ce document n’est pas disponible."}
         try:self.context.lifecycle.open_document(document.id,kind)
         except (ContractLifecycleError,OSError):return {"ok":False,"message":"Le fichier est introuvable dans le dossier de travail."}
         return {"ok":True,"revision":revision,"kind":kind}
+
+    def _signed_pdf_source(self, contract_id: str, intent: str) -> Path | None:
+        selection = self.contract_signed_pdf_selection
+        if selection is None or selection[0] != contract_id or selection[1] != intent:
+            return None
+        self.contract_signed_pdf_selection = None
+        return selection[2]
+
+    @Slot(str, str, result="QVariant")
+    def selectContractSignedPdf(self, contract_id: str, intent: str) -> dict:
+        if contract_id != self.contract_id or intent not in {"SIGNATURE", "ADD", "LOCATE", "REPLACE"}:
+            return {"ok": False, "message": "Cette sélection de fichier n’est pas disponible."}
+        contract = self.context.contracts.get(contract_id)
+        authority = self.context.lifecycle.signature_authority(contract_id)
+        if intent == "SIGNATURE" and (contract.status is not ContractStatus.TO_SIGN or authority is not None):
+            return {"ok": False, "message": "La signature ne peut pas être enregistrée pour ce contrat."}
+        if intent != "SIGNATURE" and authority is None:
+            return {"ok": False, "message": "Aucune révision signée n’est disponible."}
+        if intent == "ADD" and authority is not None and authority.document.signed_pdf_path is not None:
+            return {"ok": False, "message": "Une copie signée est déjà archivée."}
+        if intent in {"LOCATE", "REPLACE"} and authority is not None and self.context.lifecycle.signed_copy_state(authority.document) is SignedCopyState.VALID:
+            return {"ok": False, "message": "La copie signée est déjà disponible."}
+        selected, _ = QFileDialog.getOpenFileName(None, "Choisir le PDF signé", "", "Documents PDF (*.pdf)")
+        if not selected:
+            return {"ok": True, "selected": False}
+        path = Path(selected)
+        self.contract_signed_pdf_selection = (contract_id, intent, path)
+        return {"ok": True, "selected": True, "name": path.name}
+
+    @Slot(str, str, str, result="QVariant")
+    def recordContractSignature(self, contract_id: str, revision: str, effective_date: str) -> dict:
+        document = self._contract_revision(contract_id, revision)
+        if document is None or not isinstance(effective_date, str):
+            return {"ok": False, "message": "Choisissez une révision contractuelle et une date de signature valides."}
+        source = self._signed_pdf_source(contract_id, "SIGNATURE")
+        try:
+            authority = self.context.lifecycle.record_signature(contract_id, document.id, effective_date, source)
+        except ContractLifecycleError as error:
+            return {"ok": False, "message": error.user_message}
+        contract = self.context.contracts.get(contract_id)
+        self.contract_step = 4
+        self.contract_documents_feedback = {"kind": "success", "message": "La signature réalisée hors de l’application a été enregistrée."}
+        self.refresh()
+        return {"ok": True, "revision": authority.document.revision, "status": contract.status.value, "signature_date": authority.event.effective_date}
+
+    def _publish_signed_copy(self, contract_id: str, intent: str) -> dict:
+        source = self._signed_pdf_source(contract_id, intent)
+        if source is None:
+            return {"ok": False, "message": "Choisissez un PDF signé avant de continuer."}
+        try:
+            document = {
+                "ADD": self.context.lifecycle.add_signed_copy,
+                "LOCATE": self.context.lifecycle.locate_signed_copy,
+                "REPLACE": self.context.lifecycle.replace_signed_copy,
+            }[intent](contract_id, source)
+        except ContractLifecycleError as error:
+            return {"ok": False, "message": error.user_message}
+        self.contract_documents_feedback = {"kind": "success", "message": "Le PDF signé a été archivé."}
+        self.refresh()
+        return {"ok": True, "revision": document.revision}
+
+    @Slot(str, result="QVariant")
+    def addContractSignedPdf(self, contract_id: str) -> dict:
+        return self._publish_signed_copy(contract_id, "ADD") if contract_id == self.contract_id else {"ok": False, "message": "Ce contrat n’est plus ouvert."}
+
+    @Slot(str, result="QVariant")
+    def locateContractSignedPdf(self, contract_id: str) -> dict:
+        return self._publish_signed_copy(contract_id, "LOCATE") if contract_id == self.contract_id else {"ok": False, "message": "Ce contrat n’est plus ouvert."}
+
+    @Slot(str, result="QVariant")
+    def replaceContractSignedPdf(self, contract_id: str) -> dict:
+        return self._publish_signed_copy(contract_id, "REPLACE") if contract_id == self.contract_id else {"ok": False, "message": "Ce contrat n’est plus ouvert."}
 
     @Slot(str, result="QVariant")
     def reopenContractForCorrection(self,contract_id:str)->dict:
