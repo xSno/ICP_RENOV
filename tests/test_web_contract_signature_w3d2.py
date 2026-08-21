@@ -194,7 +194,7 @@ class WebContractSignatureW3D2Tests(GenerationCase):
         self.assertIn("Signature enregistrée", labels); self.assertIn("Contrat activé", labels)
         self.assertNotIn("Activer", (Path(__file__).parents[1] / "src" / "icp_renov_contracts" / "ui_web" / "contract-workspace.js").read_text(encoding="utf-8"))
 
-    def test_web_surface_has_signature_modal_status_gating_and_no_later_lifecycle_controls(self):
+    def test_web_surface_has_signature_modal_status_gating_and_no_unsupported_lifecycle_controls(self):
         application = QCoreApplication.instance() or QCoreApplication([])
         self.assertIsNotNone(application)
         root = Path(__file__).parents[1] / "src" / "icp_renov_contracts" / "ui_web"
@@ -204,7 +204,10 @@ class WebContractSignatureW3D2Tests(GenerationCase):
         d2 = js[start:end]
         for copy in ("Enregistrer la signature", "Révision réellement signée", "Ajouter le PDF signé", "Localiser le fichier", "Ajouter une nouvelle copie"):
             self.assertIn(copy, js)
-        for forbidden in ("Programmer une résiliation", "Confirmer la reconduction", "Créer une fiche d’intervention", "Activer"):
+        # D3 may add its bounded, explicit renewal confirmation here.  The D2
+        # signed-copy surface must still not expose later termination or
+        # intervention controls, nor a manual activation action.
+        for forbidden in ("Programmer une résiliation", "Créer une fiche d’intervention", "Activer"):
             self.assertNotIn(forbidden, d2)
         engine = QJSEngine(); engine.evaluate("function esc(value){return String(value ?? '');} var contractDocumentsError='';")
         evaluated = engine.evaluate(d2); self.assertFalse(evaluated.isError(), evaluated.toString())

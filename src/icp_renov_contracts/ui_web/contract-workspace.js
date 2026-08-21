@@ -220,6 +220,73 @@ function openSignatureRecordingModal() {
   overlay.querySelector('.button-secondary')?.focus();
 }
 
+function renewalRequestId() {
+  return globalThis.crypto?.randomUUID?.() || `renewal-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function openLinkedRenewalModal() {
+  const state = contractWorkspaceState;
+  const data = state?.documents_d3;
+  if (!data?.linked_draft_allowed) return;
+  const manual = data.mode === 'MANUAL';
+  const title = manual ? 'Préparer un nouveau contrat lié' : 'Créer un nouveau contrat lié';
+  const action = manual ? 'Préparer le renouvellement' : 'Créer un nouveau contrat lié';
+  const requestId = renewalRequestId();
+  const overlay = document.createElement('div');
+  overlay.className = 'drawer-overlay documents-modal-overlay';
+  overlay.innerHTML = `<div class="drawer-backdrop" onclick="closeContractDocumentsModal()"></div><section class="documents-modal" role="dialog" aria-modal="true" aria-labelledby="linked-renewal-title"><header><span class="eyebrow">Contrat lié</span><h2 id="linked-renewal-title">${title}</h2><p>Un nouveau Brouillon sera ouvert pour préparer la prochaine période.</p></header><div class="documents-modal-body"><ul><li>Le contrat actuel reste inchangé, avec ses documents, signature et historique.</li><li>Le nouveau brouillon ne reçoit ni numéro officiel ni révision.</li><li>Les dates, équipements, régime et conditions doivent être revus avant toute génération.</li><li>Aucun document officiel n’est créé maintenant.</li></ul><div class="documents-modal-error" hidden></div></div><footer><button class="button button-secondary" onclick="closeContractDocumentsModal()">Annuler</button><button class="primary linked-renewal-confirm">${action}</button></footer></section>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('.linked-renewal-confirm').addEventListener('click', event => {
+    const button = event.currentTarget; button.disabled = true;
+    bridge.prepareLinkedRenewal(state.contract.id, requestId, result => {
+      if (result?.ok) closeContractDocumentsModal();
+      else { button.disabled = false; const error = overlay.querySelector('.documents-modal-error'); error.hidden = false; error.textContent = result?.message || 'Le nouveau brouillon lié n’a pas été créé. Le contrat actuel reste inchangé.'; }
+    });
+  });
+  overlay.querySelector('.button-secondary')?.focus();
+}
+
+function renewalPriceMarkup(price) {
+  if (!price) return '<div class="documents-info-notice"><strong>Prix de la prochaine période</strong><span>Renseignez le prix HT et le taux de TVA pour obtenir le calcul contrôlé.</span></div>';
+  return `<div class="documents-info-notice"><strong>Prix de la prochaine période</strong><span>${esc(price.annual_ht)} € HT · TVA ${esc(price.vat_rate)} % (${esc(price.vat_amount)} €) · ${esc(price.annual_ttc)} € TTC</span></div>`;
+}
+
+function openTacitRenewalModal() {
+  const state = contractWorkspaceState;
+  const data = state?.documents_d3?.tacit;
+  if (!data?.confirmation_allowed) return;
+  const isFixed = data.price_rule === 'FIXED';
+  const pricing = isFixed
+    ? renewalPriceMarkup({ annual_ht: data.current_annual_ht, vat_rate: data.current_vat_rate, vat_amount: data.current_vat_amount, annual_ttc: data.current_annual_ttc })
+    : `<div class="renewal-price-inputs"><label><span>Nouveau prix annuel HT</span><input id="renewal-annual-ht" inputmode="decimal" placeholder="Ex. 1200,00"></label><label><span>Taux de TVA</span><select id="renewal-vat-rate"><option value="">Choisir</option>${data.vat_rates.map(rate => `<option value="${esc(rate)}">${esc(rate)} %</option>`).join('')}</select></label></div><div class="renewal-price-preview"></div>`;
+  const overlay = document.createElement('div');
+  overlay.className = 'drawer-overlay documents-modal-overlay';
+  overlay.innerHTML = `<div class="drawer-backdrop" onclick="closeContractDocumentsModal()"></div><section class="documents-modal" role="dialog" aria-modal="true" aria-labelledby="tacit-renewal-title"><header><span class="eyebrow">Reconduction tacite</span><h2 id="tacit-renewal-title">Confirmer la reconduction</h2><p>La reconduction est enregistrée uniquement après votre confirmation explicite.</p></header><div class="documents-modal-body"><div class="renewal-period-summary"><span>Période en cours</span><strong>${esc(data.current_period_display)}</strong><span>Prochaine période · ${esc(String(data.renewal_months))} mois</span><strong>${esc(data.next_period_display)}</strong><span>Règle de prix</span><strong>${esc(data.price_rule_label)}</strong></div>${pricing}<div class="documents-info-notice"><strong>Aucun document n’est généré</strong><span>La confirmation enrichit uniquement l’historique du contrat existant.</span></div><div class="documents-modal-error" hidden></div></div><footer><button class="button button-secondary" onclick="closeContractDocumentsModal()">Annuler</button><button class="primary tacit-renewal-confirm">Confirmer la reconduction</button></footer></section>`;
+  document.body.appendChild(overlay);
+  const error = overlay.querySelector('.documents-modal-error');
+  const refreshPrice = () => {
+    if (isFixed) return;
+    const annualHt = overlay.querySelector('#renewal-annual-ht').value;
+    const vatRate = overlay.querySelector('#renewal-vat-rate').value;
+    bridge.previewTacitRenewal(state.contract.id, annualHt, vatRate, result => {
+      const target = overlay.querySelector('.renewal-price-preview');
+      if (!result?.ok) { target.innerHTML = ''; return; }
+      target.innerHTML = renewalPriceMarkup(result.price);
+    });
+  };
+  overlay.querySelector('#renewal-annual-ht')?.addEventListener('input', refreshPrice);
+  overlay.querySelector('#renewal-vat-rate')?.addEventListener('change', refreshPrice);
+  overlay.querySelector('.tacit-renewal-confirm').addEventListener('click', () => {
+    const annualHt = isFixed ? '' : overlay.querySelector('#renewal-annual-ht').value;
+    const vatRate = isFixed ? '' : overlay.querySelector('#renewal-vat-rate').value;
+    bridge.confirmTacitRenewal(state.contract.id, annualHt, vatRate, result => {
+      if (result?.ok) closeContractDocumentsModal();
+      else { error.hidden = false; error.textContent = result?.message || 'La reconduction n’a pas été enregistrée. Les données existantes sont conservées.'; }
+    });
+  });
+  overlay.querySelector('.button-secondary')?.focus();
+}
+
 function publishSignedPdf(intent) {
   const state = contractWorkspaceState;
   if (!state) return;
@@ -554,9 +621,12 @@ function renderContractDocuments(state) {
   }).join('');
   const timeline = data.timeline.map(item => `<li><span class="timeline-dot"></span><div><strong>${esc(item.label)}${item.revision ? ` · ${esc(item.revision)}` : ''}</strong><small>${esc(item.effective_display || item.occurred_display)}</small>${item.note ? `<p>${esc(item.note)}</p>` : ''}</div></li>`).join('');
   const correction = data.correction_allowed ? `<section class="correction-zone"><div><span class="eyebrow">Contrat à signer</span><h3>Une correction est nécessaire ?</h3><p>Les données structurées restent verrouillées tant que le contrat n’est pas explicitement rouvert.</p></div><button class="button button-secondary" onclick="openCorrectionConfirmation()">Corriger le contrat</button></section>` : '';
+  const renewal = state.documents_d3 || {};
+  const linkedRenewal = renewal.linked_draft_allowed ? `<section class="correction-zone renewal-zone"><div><span class="eyebrow">${renewal.mode === 'MANUAL' ? 'Renouvellement manuel' : 'Contrat lié'}</span><h3>${esc(renewal.linked_draft_label)}</h3><p>Le contrat actuel reste inchangé. Le nouveau brouillon devra être revu avant toute génération.</p></div><button class="button button-secondary" onclick="openLinkedRenewalModal()">${esc(renewal.linked_draft_label)}</button></section>` : '';
+  const tacitRenewal = renewal.tacit?.confirmation_allowed ? `<section class="correction-zone renewal-zone"><div><span class="eyebrow">Reconduction tacite</span><h3>Reconduction à confirmer</h3><p>${esc(renewal.tacit.current_period_display)} · prochaine période ${esc(renewal.tacit.next_period_display)}</p></div><button class="primary" onclick="openTacitRenewalModal()">Confirmer la reconduction</button></section>` : '';
   const sendAction = data.send_allowed ? '<button class="primary" onclick="openRecordSentModal()">Enregistrer un envoi</button>' : '';
   const signatureAction = signature.signature_allowed ? '<button class="primary" onclick="openSignatureRecordingModal()">Enregistrer la signature</button>' : '';
-  return `<section class="contract-step-panel contract-documents-panel"><header><span class="eyebrow">Étape 4 sur 4</span><h2>Documents & suivi</h2><p>Consultez les révisions officielles et enregistrez les actions réalisées hors du logiciel.</p></header>${feedback}${error}<section class="documents-section"><div class="documents-section-head"><div><span class="eyebrow">Révisions contractuelles</span><h3>Documents officiels</h3></div><div class="documents-primary-actions">${sendAction}${signatureAction}</div></div><div class="revision-list">${revisions || '<div class="contract-empty">Aucune révision contractuelle disponible.</div>'}</div></section>${correction}<section class="documents-section other-documents"><div><span class="eyebrow">Autres documents</span><h3>Documents distincts du contrat</h3></div><p>Aucun autre document disponible.</p></section><section class="documents-section history-section"><div><span class="eyebrow">Historique</span><h3>Événements du contrat</h3></div><ol class="contract-timeline">${timeline || '<li class="timeline-empty">Aucun événement disponible.</li>'}</ol></section></section>`;
+  return `<section class="contract-step-panel contract-documents-panel"><header><span class="eyebrow">Étape 4 sur 4</span><h2>Documents & suivi</h2><p>Consultez les révisions officielles et enregistrez les actions réalisées hors du logiciel.</p></header>${feedback}${error}<section class="documents-section"><div class="documents-section-head"><div><span class="eyebrow">Révisions contractuelles</span><h3>Documents officiels</h3></div><div class="documents-primary-actions">${sendAction}${signatureAction}</div></div><div class="revision-list">${revisions || '<div class="contract-empty">Aucune révision contractuelle disponible.</div>'}</div></section>${correction}${linkedRenewal}${tacitRenewal}<section class="documents-section other-documents"><div><span class="eyebrow">Autres documents</span><h3>Documents distincts du contrat</h3></div><p>Aucun autre document disponible.</p></section><section class="documents-section history-section"><div><span class="eyebrow">Historique</span><h3>Événements du contrat</h3></div><ol class="contract-timeline">${timeline || '<li class="timeline-empty">Aucun événement disponible.</li>'}</ol></section></section>`;
 }
 
 function renderContractReview(state) {

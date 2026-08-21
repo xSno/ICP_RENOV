@@ -1,38 +1,51 @@
-C2.W3-D2 — Step 4 Signature, closing micro-pass
+C2.W3-D3 — Step 4 Renewal lifecycle
 
 Baseline
-- Accepted D1 commit: 3f00aef.
-- Incoming D2 suite: 358/358 PASS.
-- D2 remains uncommitted for manual review.
+- Accepted D2 commit: 784893b.
+- Incoming application suite: 359/359 PASS.
+- D3 remains uncommitted for manual review.
 
-Signature / optional-copy transaction boundary
-- Signature input and optional selected PDF are validated first. The exact CONTRACT revision is then durably recorded through SIGNATURE_RECORDED, with the exact document_id and effective_date, in the same business transaction as the existing SIGNED or ACTIVE lifecycle transition.
-- Only after that accepted business transaction is the optional signed PDF archived through the existing managed-copy authority. An archival failure is intentionally documentary-only: it neither rolls back the signature nor changes its exact revision, derived Contract.signature_date, lifecycle status, generated unsigned PDF, or revision sequence.
-- The resulting NONE state projects “Signature enregistrée — copie signée non archivée” and “Ajouter le PDF signé”. A later successful attachment does not add a second SIGNATURE_RECORDED.
-- PDF validation still precedes signature acceptance: an invalid selected PDF is rejected without a false signature.
+Scope and authority
+- D3 adds only NONE, MANUAL linked-DRAFT, and explicit TACIT renewal behavior to Documents & suivi.
+- ContractLifecycleService remains authoritative for signed-contract snapshot reuse, period calculation, attention eligibility, controlled VAT, price calculations, RENEWAL_CONFIRMED persistence, and duplicate-period protection.
+- JavaScript only renders the Python snapshot and invokes bounded bridge slots; it performs no lifecycle or month arithmetic.
 
-Signed-copy history and current integrity state
-- History now includes the documentary entry “Copie signée archivée · Rxx”, derived exclusively from ContractDocument.signed_pdf_attached_at. It is not a ContractEvent and does not mutate lifecycle state.
-- The documentary history remains when the physical managed file is later MISSING or HASH_MISMATCH. The actual signature event, signed revision marker, derived signature date, and SIGNED/ACTIVE status remain preserved.
-- Current MISSING/HASH_MISMATCH state suppresses stale “Le PDF signé a été archivé.” success feedback. The current anomaly and recovery actions remain visible while the historical attachment fact remains visible.
-- Existing replacement authority was inspected: a readable VALID signed copy cannot be overwritten. ADD applies only when no metadata exists; LOCATE restores the exact hash; REPLACE applies only when the current copy is missing or hash-invalid.
+NONE and MANUAL
+- NONE has no primary renewal/confirmation action. Its permitted secondary action is “Créer un nouveau contrat lié”.
+- MANUAL presents “Préparer le renouvellement” with a side-effect-free confirmation modal.
+- The accepted action creates a new DRAFT with predecessor_contract_id set to the source. It reuses the exact signed contractual snapshot, not live master data; source Contract, documents, signature, events, number and Rxx remain unchanged.
+- The new DRAFT has no official number, document, Rxx, signature or send state and remains reviewable for its next period.
+- A request token is handled by ContractLifecycleService, so a duplicate bridge invocation in the same user action returns the same linked draft rather than creating a duplicate.
 
-Preserved D2 boundaries
-- Exact revision selection, R01/R02 distinction, future-start SIGNED / reached-start ACTIVE, post-signature locking, no correction, no new Rxx, no Activate action, and D1 revision-specific sent state remain unchanged.
-- No renewal, termination, abandonment, intervention-sheet, e-signature, signature-request, or D1/C2 behavior was introduced or reopened.
+TACIT
+- TACIT never confirms automatically. The action/signal appears only when the lifecycle service reports its authoritative attention date as due.
+- The modal projects current and contiguous next periods from Python. FIXED reuses the signed-period HT and VAT. NEW_PRICE_ON_RENEWAL requires a new HT and an existing controlled VAT rate; Python returns the calculated VAT/TTC preview.
+- INDEXED remains rejected by the existing controlled condition validation and is absent from the D3 surface.
+- Confirmation persists exactly one RENEWAL_CONFIRMED for the new period, with period_start/end, annual HT, VAT rate, VAT amount and TTC. The existing database unique period constraint blocks a duplicate same-period event; later distinct periods remain possible.
+- Initial Contract pricing and historical start/initial end dates are not rewritten. The workspace summary explicitly shows “En cours” from the lifecycle projection after confirmation; History shows “Reconduction confirmée” with the effective period and price summary.
+- No ContractDocument, official number, Rxx, DOCX or PDF is created by renewal confirmation. Existing D1/D2 revision, send, signature and signed-copy behavior remains intact.
+
+Closing History chronology
+- The merged visual History is ordered reverse-chronologically by persisted occurrence timestamp only: ContractEvent.occurred_at for events and ContractDocument.signed_pdf_attached_at for the D2 documentary signed-copy entry.
+- Business-effective dates and renewal period dates remain display content only; they never determine ordering. Equal occurrence timestamps use the existing persisted identifier as the stable descending tie-break.
+- The deterministic regression uses real controlled recording times without rewriting immutable events. It proves: Reconduction confirmée, Copie signée archivée, Contrat activé, Signature enregistrée, while retaining the future renewal period and the prior effective dates.
 
 Validation
-- D2 targeted: 10/10 PASS. The count increases by one for the deterministic post-signature archival-failure / later-attachment / documentary-history / stale-feedback regression.
-- Existing signature authority: 10/10 PASS. D1 regression: 9/9 PASS.
-- Full application suite: 359/359 PASS in 255.922 s. The total increases by one from the incoming 358 suite.
+- D3 targeted: 12/12 PASS. The closing regression adds occurrence-timestamp merge ordering for ContractEvents and signed-copy documentary history.
+- D2 Web signature regression: 10/10 PASS.
+- Existing lifecycle authority S8: 13/13 PASS.
+- Full application suite: 371/371 PASS in 295.436 s. The total rises by 12 from the incoming 359 baseline: the D3 targeted tests.
 
 Real sandbox-active WebEngine smoke
-- Disposable fixture root: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_C2W3_D2_CLOSING_5um7u9hl
-- Production WebEngine local page and QWebChannel: PASS; QTWEBENGINE_DISABLE_SANDBOX and QTWEBENGINE_CHROMIUM_FLAGS are both unset.
-- Fixture status after the actual signature: SIGNED. Final captures are all actual 1600x900:
-  - evidence\C2_W3_D2_A_to_sign_signature_action_1600x900.png
-  - evidence\C2_W3_D2_B_signature_modal_1600x900.png
-  - evidence\C2_W3_D2_C_signature_without_copy_1600x900.png
-  - evidence\C2_W3_D2_D_signed_copy_archived_history_1600x900.png
-  - evidence\C2_W3_D2_E_signed_copy_missing_1600x900.png
-- Visual review confirms D includes the documentary attachment history, while E has no stale archive-success feedback and retains the missing-copy recovery state plus the historical entry.
+- Disposable evidence root: C:\Users\xSn\AppData\Local\Temp\icp-renov-d3-webengine-ulir_uax
+- Local production WebEngine/QWebChannel: PASS; QTWEBENGINE_DISABLE_SANDBOX and QTWEBENGINE_CHROMIUM_FLAGS are unset.
+- Actual 1600x900 captures: A-none-no-primary-renewal.png; B-manual-prepare.png; C-manual-linked-draft.png; D-tacit-fixed-modal.png; E-tacit-new-price-modal.png; F-tacit-confirmed-current-period-history.png; G-tacit-attention-signal.png.
+- Smoke result: one linked DRAFT with no number/revision; one TACIT renewal event; R01 remains the sole revision; current summary is “En cours · Du 01/01/2027 au 31/12/2027”. No bridge/JavaScript errors observed.
+- Horizontal overflow: false at 1366 and 1280. No responsive code was added.
+- Closing capture: C:\Users\xSn\AppData\Local\Temp\icp-renov-d3-history-dchkzcia\tacit-confirmed-history-ordered-1600x900.png (actual 1600x900; Reconduction confirmée is the newest visible history fact, with the copy, activation and signature below it).
+
+Frozen / intentionally unchanged
+- D1/D2 documents, revision, send, signature and signed-copy authority.
+- Step 1 through Step 3, official generation, WebEngine sandbox policy, shared shell, docs/, templates/ and spike/.
+- No termination, non-renewal notice, expiration, abandonment, intervention-sheet, automatic communication or e-signature behavior.
+- No D3 commit yet.

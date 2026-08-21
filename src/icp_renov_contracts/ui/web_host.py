@@ -322,6 +322,12 @@ class UiBridge(QObject):
         revisions = self.context.lifecycle.revisions(contract.id)
         revision_by_document = {item.id: item.revision for item in revisions}
         signature = self.context.lifecycle.signature_authority(contract.id)
+        lifecycle_projection = None
+        try:
+            if contract.status in {ContractStatus.SIGNED, ContractStatus.ACTIVE}:
+                lifecycle_projection = self.context.lifecycle.lifecycle_projection(contract.id)
+        except ContractLifecycleError:
+            lifecycle_projection = None
         signed_document_id = signature.document.id if signature else None
         revision_rows = []
         for index,item in enumerate(revisions):
@@ -357,27 +363,42 @@ class UiBridge(QObject):
             ContractEventType.CONTRACT_SENT: "Envoi de la révision enregistré",
             ContractEventType.SIGNATURE_RECORDED: "Signature enregistrée",
             ContractEventType.ACTIVATED: "Contrat activé",
+            ContractEventType.RENEWAL_CONFIRMED: "Reconduction confirmée",
         }
-        timeline = []
-        for event in self.context.lifecycle.history(contract.id):
+        timeline_entries = []
+        history = self.context.lifecycle.history(contract.id)
+        for event in history:
             if event.type not in event_labels:continue
             revision = revision_by_document.get(event.document_id or "", "")
-            timeline.append({
+            if event.type is ContractEventType.RENEWAL_CONFIRMED:
+                period = f"Du {_date_fr(event.period_start)} au {_date_fr(event.period_end)}"
+                price = " · ".join(value for value in (
+                    f"{event.renewal_annual_ht} € HT" if event.renewal_annual_ht else "",
+                    f"TVA {event.renewal_vat_rate} %" if event.renewal_vat_rate else "",
+                    f"{event.renewal_annual_ttc} € TTC" if event.renewal_annual_ttc else "",
+                ) if value)
+                timeline_entries.append((event.occurred_at, event.id, {
+                    "label": event_labels[event.type], "occurred_display": _date_fr(event.occurred_at[:10]),
+                    "effective_display": period, "revision": "", "note": price,
+                }))
+                continue
+            timeline_entries.append((event.occurred_at, event.id, {
                 "label": event_labels[event.type],
                 "occurred_display": _date_fr(event.occurred_at[:10]),
                 "effective_display": _date_fr(event.effective_date) if event.effective_date else "",
                 "revision": revision,
                 "note": event.note or "",
-            })
+            }))
         if signature and signature.document.signed_pdf_attached_at:
-            timeline.append({
+            timeline_entries.append((signature.document.signed_pdf_attached_at, signature.document.id, {
                 "label": "Copie signée archivée",
                 "occurred_display": _datetime_fr(signature.document.signed_pdf_attached_at),
                 "effective_display": "",
                 "revision": signature.document.revision,
                 "note": "",
                 "documentary": True,
-            })
+            }))
+        timeline = [entry for _, _, entry in sorted(timeline_entries, key=lambda item: (item[0], item[1]), reverse=True)]
         feedback = self.contract_documents_feedback
         if (
             signature
@@ -385,6 +406,47 @@ class UiBridge(QObject):
             and feedback == {"kind": "success", "message": "Le PDF signé a été archivé."}
         ):
             feedback = None
+        renewal_d3 = {
+            "mode": conditions.renewal_mode or "",
+            "linked_draft_allowed": bool(
+                contract.status is ContractStatus.ACTIVE and conditions.renewal_mode in {"NONE", "MANUAL"}
+            ),
+            "linked_draft_label": (
+                "Préparer le renouvellement" if conditions.renewal_mode == "MANUAL"
+                else "Créer un nouveau contrat lié"
+            ),
+            "tacit": None,
+        }
+        if lifecycle_projection and conditions.renewal_mode == "TACIT":
+            try:
+                preview = self.context.lifecycle.renewal_preview(contract.id)
+            except ContractLifecycleError:
+                preview = None
+            if preview:
+                renewal_d3["tacit"] = {
+                    "confirmation_allowed": self.context.lifecycle.renewal_attention_due(contract.id),
+                    "current_period_display": f"Du {_date_fr(preview.current_period.start.isoformat())} au {_date_fr(preview.current_period.end.isoformat())}",
+                    "next_period_display": f"Du {_date_fr(preview.next_period.start.isoformat())} au {_date_fr(preview.next_period.end.isoformat())}",
+                    "renewal_months": preview.renewal_months,
+                    "price_rule": preview.price_rule,
+                    "price_rule_label": (
+                        "Même prix" if preview.price_rule == "FIXED" else "Nouveau prix défini au renouvellement"
+                    ),
+                    "current_annual_ht": _money_fr(preview.current_price.annual_ht),
+                    "current_vat_rate": _money_fr(preview.current_price.vat_rate),
+                    "current_vat_amount": _money_fr(preview.current_price.vat_amount),
+                    "current_annual_ttc": _money_fr(preview.current_price.annual_ttc),
+                    "vat_rates": list(preview.vat_rates),
+                }
+        initial_period = (
+            f"Du {_date_fr(conditions.start_date)} au {_date_fr(resolved_end_date)}"
+            if conditions.start_date and resolved_end_date else "Non configurée"
+        )
+        renewal_events = [event for event in history if event.type is ContractEventType.RENEWAL_CONFIRMED]
+        current_period = (
+            f"En cours · Du {_date_fr(lifecycle_projection.period.start.isoformat())} au {_date_fr(lifecycle_projection.period.end.isoformat())}"
+            if lifecycle_projection and renewal_events else initial_period
+        )
         return {
             "page": "CONTRACT_WORKSPACE", "backup": backup, "active_step": self.contract_step,
             "contract_focus_target": self.contract_focus_target,
@@ -565,16 +627,14 @@ class UiBridge(QObject):
                     "copy_state": self.context.lifecycle.signed_copy_state(signature.document).value,
                 },
             },
+            "documents_d3": renewal_d3,
             "summary": {
                 "client": contract.client_snapshot.display_name if contract.client_snapshot else "Non sélectionné",
                 "signatory": " · ".join(part for part in (contract.signatory_name, contract.signatory_role) if part) or "Non renseigné",
                 "site": contract.site_snapshot.label if contract.site_snapshot else "Non sélectionné",
                 "equipment": [item.snapshot.display_name or item.snapshot.equipment_type for item in contract.equipment_items],
                 "regime": regime, "conclusion": conclusion,
-                "period": (
-                    f"Du {_date_fr(conditions.start_date)} au {_date_fr(resolved_end_date)}"
-                    if conditions.start_date and resolved_end_date else "Non configurée"
-                ),
+                "period": current_period,
                 "price": (
                     f"{_money_fr(annual_ttc)} € TTC / an" if annual_ttc is not None else "Non configuré"
                 ),
@@ -860,6 +920,65 @@ class UiBridge(QObject):
     @Slot(str, result="QVariant")
     def replaceContractSignedPdf(self, contract_id: str) -> dict:
         return self._publish_signed_copy(contract_id, "REPLACE") if contract_id == self.contract_id else {"ok": False, "message": "Ce contrat n’est plus ouvert."}
+
+    @Slot(str, str, result="QVariant")
+    def prepareLinkedRenewal(self, contract_id: str, request_id: str) -> dict:
+        if contract_id != self.contract_id or not request_id.strip():
+            return {"ok": False, "message": "La préparation du nouveau contrat n’a pas pu commencer. Le contrat actuel reste inchangé."}
+        source = self.context.contracts.get(contract_id)
+        mode = self.context.contracts.get_conditions(contract_id).renewal_mode
+        if source.status is not ContractStatus.ACTIVE or mode not in {"NONE", "MANUAL"}:
+            return {"ok": False, "message": "Ce nouveau contrat lié ne peut pas être préparé dans cet état. Le contrat actuel reste inchangé."}
+        try:
+            draft = self.context.lifecycle.create_linked_draft(contract_id, request_id)
+        except ContractLifecycleError as error:
+            return {"ok": False, "message": f"Le nouveau brouillon lié n’a pas été créé. {error.user_message} Le contrat actuel et ses documents sont conservés."}
+        self.contract_id = draft.id
+        self.page_name = "CONTRACT_WORKSPACE"
+        self.contract_step = 1
+        self.contract_focus_target = None
+        self.contract_documents_feedback = None
+        self.contract_signed_pdf_selection = None
+        self.refresh()
+        return {"ok": True, "id": draft.id, "status": draft.status.value, "predecessor_id": contract_id}
+
+    def _renewal_preview_payload(self, contract_id: str, annual_ht: str | None, vat_rate: str | None) -> dict:
+        preview, price = self.context.lifecycle.renewal_price_preview(contract_id, annual_ht, vat_rate)
+        return {
+            "current_period": f"Du {_date_fr(preview.current_period.start.isoformat())} au {_date_fr(preview.current_period.end.isoformat())}",
+            "next_period": f"Du {_date_fr(preview.next_period.start.isoformat())} au {_date_fr(preview.next_period.end.isoformat())}",
+            "renewal_months": preview.renewal_months,
+            "price_rule": preview.price_rule,
+            "vat_rates": list(preview.vat_rates),
+            "price": None if price is None else {
+                "annual_ht": _money_fr(price.annual_ht), "vat_rate": _money_fr(price.vat_rate),
+                "vat_amount": _money_fr(price.vat_amount), "annual_ttc": _money_fr(price.annual_ttc),
+            },
+        }
+
+    @Slot(str, str, str, result="QVariant")
+    def previewTacitRenewal(self, contract_id: str, annual_ht: str, vat_rate: str) -> dict:
+        if contract_id != self.contract_id:
+            return {"ok": False, "message": "Ce contrat n’est plus ouvert."}
+        try:
+            return {"ok": True, **self._renewal_preview_payload(contract_id, annual_ht or None, vat_rate or None)}
+        except ContractLifecycleError as error:
+            return {"ok": False, "message": error.user_message}
+
+    @Slot(str, str, str, result="QVariant")
+    def confirmTacitRenewal(self, contract_id: str, annual_ht: str, vat_rate: str) -> dict:
+        if contract_id != self.contract_id:
+            return {"ok": False, "message": "La reconduction n’a pas été enregistrée. Ce contrat n’est plus ouvert."}
+        if not self.context.lifecycle.renewal_attention_due(contract_id):
+            return {"ok": False, "message": "La reconduction n’est pas encore à confirmer. La période actuelle et les données existantes sont conservées."}
+        try:
+            event = self.context.lifecycle.confirm_renewal(contract_id, annual_ht or None, vat_rate or None)
+        except ContractLifecycleError as error:
+            return {"ok": False, "message": f"La reconduction n’a pas été enregistrée. {error.user_message} Les données existantes sont conservées."}
+        self.contract_step = 4
+        self.contract_documents_feedback = {"kind": "success", "message": "La reconduction a été confirmée. La nouvelle période est maintenant affichée."}
+        self.refresh()
+        return {"ok": True, "period_start": event.period_start, "period_end": event.period_end}
 
     @Slot(str, result="QVariant")
     def reopenContractForCorrection(self,contract_id:str)->dict:

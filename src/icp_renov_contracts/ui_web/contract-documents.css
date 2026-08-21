@@ -43,7 +43,8 @@
 .documents-modal-body ul{margin:0;padding-left:19px;color:#3f5059;font-size:10px;line-height:1.65}
 .documents-info-notice{padding:10px 12px;border:1px solid #bed4dc;border-radius:7px;background:#f0f7f9;color:#315e6b;display:grid;gap:3px;font-size:10px}
 .documents-modal-error{padding:9px 11px;border-radius:6px;background:#faeded;color:#913b3b;font-size:10px}
+.renewal-period-summary{display:grid;gap:4px;padding:10px 12px;border:1px solid #bed4dc;border-radius:7px;background:#f0f7f9;color:#315e6b;font-size:9px}.renewal-period-summary strong{font-size:10px;color:#203f4a}.renewal-price-inputs{display:grid;grid-template-columns:1fr 1fr;gap:10px}.renewal-price-inputs label{display:grid;gap:5px;color:#465760;font-size:9px;font-weight:700}
 .documents-modal>footer{padding:13px 21px;border-top:1px solid var(--line);background:#f7f9fa;display:flex;justify-content:flex-end;gap:8px}
 .review-consultation{grid-template-columns:minmax(0,1fr) auto;align-items:center}
 @media(max-width:1366px){.documents-section{padding:11px}.revision-card{padding:9px}.correction-zone{align-items:flex-start}.review-consultation{grid-template-columns:1fr}.review-consultation .button{justify-self:start}}
-@media(max-width:1280px){.contract-documents-panel{padding:12px}.documents-section-head,.correction-zone{align-items:flex-start;flex-direction:column}.documents-primary-actions{justify-content:flex-start}.revision-card>header{align-items:flex-start}.revision-metadata{display:grid;gap:4px}}
+@media(max-width:1280px){.contract-documents-panel{padding:12px}.documents-section-head,.correction-zone{align-items:flex-start;flex-direction:column}.documents-primary-actions{justify-content:flex-start}.revision-card>header{align-items:flex-start}.revision-metadata{display:grid;gap:4px}.renewal-price-inputs{grid-template-columns:1fr}}

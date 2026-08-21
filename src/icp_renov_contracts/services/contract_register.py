@@ -256,7 +256,7 @@ class ContractRegisterService:
                 return self._information("Résiliation programmée le", effective, 1)
         if contract.status is ContractStatus.SIGNED and projection.authority.start_date > today:
             return self._information("Prise d’effet prévue le", projection.authority.start_date, 2)
-        if contract.status is ContractStatus.ACTIVE and projection.renewal_mode == "TACIT" and projection.renewal_unresolved:
+        if contract.status is ContractStatus.ACTIVE and self.lifecycle.renewal_attention_due(contract.id):
             return ContractOperationalSignal(ContractOperationalSignalKind.ACTION, "Reconduction à confirmer", projection.next_attention_date, 4)
         if (contract.status is ContractStatus.ACTIVE and projection.renewal_mode == "MANUAL"
                 and projection.next_attention_date and today >= projection.next_attention_date):

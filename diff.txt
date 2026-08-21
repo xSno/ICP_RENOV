@@ -1,38 +1,36 @@
-C2.W3-D2 closing micro-pass current uncommitted delta against accepted D1 HEAD 3f00aef
+C2.W3-D3 current uncommitted delta against accepted D2 HEAD 784893b
 
 Created
-- tests/test_web_contract_signature_w3d2.py
+- tests/test_web_contract_renewal_w3d3.py
 
 Modified
 - recap.txt
 - diff.txt
 - src/icp_renov_contracts/services/contract_events.py
+- src/icp_renov_contracts/services/contract_register.py
 - src/icp_renov_contracts/ui/web_host.py
 - src/icp_renov_contracts/ui_web/contract-documents.css
 - src/icp_renov_contracts/ui_web/contract-workspace.js
-- tests/test_signature.py
-- tests/test_web_contract_conditions_w3b2.py
-- tests/test_web_contract_documents_w3d1.py
+- tests/test_web_contract_signature_w3d2.py
 
 Removed
 - None.
 
-Closing micro-pass delta
-- Signature business persistence and existing lifecycle status transition now complete before optional signed-copy archival is attempted.
-- Step 4 history derives the signed-copy archival fact from ContractDocument.signed_pdf_attached_at without adding a ContractEvent.
-- Current MISSING/HASH_MISMATCH integrity state clears stale signed-copy success feedback without erasing persisted documentary metadata.
-- Tests force a post-signature copy persistence failure, prove later attachment and no duplicate SIGNATURE_RECORDED, and prove history survives physical-copy loss.
+D3 delta
+- Lifecycle authority now supplies renewal previews, attention eligibility and controlled-price previews; RENEWAL_CONFIRMED remains the existing single event/persistence model.
+- Linked-DRAFT preparation receives a bounded Python request token for duplicate-submit safety while preserving the existing flexible successor model.
+- The Web bridge and Step 4 surface add only NONE/MANUAL linked-DRAFT and eligible TACIT confirmation controls, current-period summary and localized renewal History projection. The closing micro-pass merges ContractEvent and documentary history by their persisted occurrence timestamps, descending, with persisted IDs as the stable tie-break.
+- Responsive modal CSS is limited to the controlled new-price fields at the existing 1280 breakpoint.
+- The prior D2 signature-surface test now explicitly permits the bounded D3 renewal control while still excluding unsupported termination, intervention and manual activation controls.
 
 Accepted / frozen and intentionally unchanged
-- D1 document/revision, send-recording, correction, and event timeline authority except for the bounded documentary metadata projection.
-- C2 official-generation transaction, numbering/revision atomicity, rendering, conversion, publication, and recovery.
-- Step 1 through Step 3 behavior, WebEngine architecture, and sandbox policy.
-- Renewal, termination, abandonment, intervention sheets, e-signature, signature requests, and unrelated Step 4 workflows.
-- docs/, templates/, and spike/.
+- D1/D2 revision, send, correction, signature, signed-copy and status authority.
+- Step 1 through Step 3, official document generation/numbering, shared WebEngine shell and sandbox policy.
+- Termination, non-renewal, expiration, abandonment, intervention sheets, automatic document generation and all other later lifecycle work.
+- docs/, templates/ and spike/.
 
 Final validation
-- D2 targeted: 10/10 PASS; signature authority: 10/10 PASS; D1: 9/9 PASS.
-- Full suite: 359/359 PASS in 255.922 s; one new deterministic D2 regression over the incoming 358 total.
-- Sandbox-active production WebEngine smoke: PASS; all A-E captures are actual 1600x900.
-- D valid-copy history and E stale-feedback suppression/missing-copy recovery: visually verified.
+- D3 targeted: 12/12 PASS; D2 signature regression: 10/10 PASS.
+- Full suite: 371/371 PASS in 295.436 s (12 new D3 tests over the 359-test baseline).
+- Closing sandbox-active WebEngine capture: PASS; the actual 1600x900 History proof is in C:\Users\xSn\AppData\Local\Temp\icp-renov-d3-history-dchkzcia. Reconduction confirmée is newest, with signed-copy, activation and signature facts correctly merged below it.
 - git diff --check: PASS.

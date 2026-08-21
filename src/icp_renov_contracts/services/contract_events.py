@@ -79,6 +79,16 @@ class LifecycleProjection:
         return self.renewal_mode == "TACIT" and self.non_renewal_event is None and self.pending_termination is None
 
 
+@dataclass(frozen=True)
+class RenewalPreview:
+    current_period: ContractPeriod
+    next_period: ContractPeriod
+    renewal_months: int
+    price_rule: str
+    current_price: ContractPrice
+    vat_rates: tuple[str, ...]
+
+
 class FileOpener:
     def open(self, path: Path) -> None:
         os.startfile(path)  # type: ignore[attr-defined]
@@ -93,6 +103,7 @@ class ContractLifecycleService:
         self.database=database;self.contracts=contracts;self.documents=documents;self.events=events
         self.workspace_root=workspace_root.resolve();self.opener=opener or FileOpener()
         self.date_provider=date_provider or LocalBusinessDateProvider();self.now_provider=now_provider or _now
+        self._linked_draft_requests: dict[tuple[str, str], str] = {}
 
     def revisions(self, contract_id: str) -> tuple[ContractDocument, ...]:
         self.contracts.get(contract_id)
@@ -208,23 +219,40 @@ class ContractLifecycleService:
             notice_channels,max(notices,key=lambda e:(e.occurred_at,e.id),default=None),
             max(terminations,key=lambda e:(e.occurred_at,e.id),default=None))
 
-    def confirm_renewal(self,contract_id:str,annual_ht:str|None=None,vat_rate:str|None=None,note:str="")->ContractEvent:
+    def renewal_preview(self,contract_id:str)->RenewalPreview:
         contract=self.contracts.get(contract_id);projection=self.lifecycle_projection(contract_id)
         if contract.status is not ContractStatus.ACTIVE or projection.renewal_mode!="TACIT" or not projection.renewal_period_months:
             raise ContractLifecycleError("renewal unavailable","Cette reconduction ne peut pas être enregistrée.")
         if projection.non_renewal_event or projection.pending_termination:
             raise ContractLifecycleError("renewal resolved","Cette reconduction ne peut pas être enregistrée.")
-        start=projection.period.end+timedelta(days=1);end=date.fromisoformat(standard_end_date(start.isoformat(),projection.renewal_period_months))
-        if projection.renewal_price_rule=="FIXED":price=projection.price
-        elif projection.renewal_price_rule=="NEW_PRICE_ON_RENEWAL":
-            if annual_ht in (None,"") or vat_rate in (None,""):raise ContractLifecycleError("renewal price required","Renseignez le nouveau prix annuel HT et le taux de TVA.")
-            try:price=self._price(annual_ht,vat_rate,rate_is_percent=True)
-            except (ValueError,InvalidOperation) as exc:raise ContractLifecycleError("invalid renewal price","Renseignez un prix et un taux de TVA valides.") from exc
-            allowed=self._allowed_vat_rates(projection.authority.document)
-            if format(price.vat_rate,"f") not in allowed:raise ContractLifecycleError("invalid renewal vat","Choisissez un taux de TVA configuré.")
-        else:raise ContractLifecycleError("renewal price rule","Cette reconduction ne peut pas être enregistrée.")
+        if projection.renewal_price_rule not in {"FIXED","NEW_PRICE_ON_RENEWAL"}:
+            raise ContractLifecycleError("renewal price rule","Cette reconduction ne peut pas être enregistrée.")
+        start=projection.period.end+timedelta(days=1)
+        end=date.fromisoformat(standard_end_date(start.isoformat(),projection.renewal_period_months))
+        return RenewalPreview(projection.period,ContractPeriod(start,end),projection.renewal_period_months,
+            projection.renewal_price_rule,projection.price,tuple(sorted(self._allowed_vat_rates(projection.authority.document))))
+
+    def renewal_attention_due(self,contract_id:str)->bool:
+        contract=self.contracts.get(contract_id)
+        try:projection=self.lifecycle_projection(contract_id)
+        except ContractLifecycleError:return False
+        return bool(contract.status is ContractStatus.ACTIVE and projection.renewal_unresolved
+            and projection.next_attention_date and self.date_provider.today()>=projection.next_attention_date)
+
+    def renewal_price_preview(self,contract_id:str,annual_ht:str|None=None,vat_rate:str|None=None)->tuple[RenewalPreview,ContractPrice|None]:
+        preview=self.renewal_preview(contract_id)
+        if preview.price_rule=="FIXED":return preview,preview.current_price
+        if annual_ht in (None,"") or vat_rate in (None,""):return preview,None
+        try:price=self._price(annual_ht,vat_rate,rate_is_percent=True)
+        except (ValueError,InvalidOperation) as exc:raise ContractLifecycleError("invalid renewal price","Renseignez un prix et un taux de TVA valides.") from exc
+        if format(price.vat_rate,"f") not in preview.vat_rates:raise ContractLifecycleError("invalid renewal vat","Choisissez un taux de TVA configuré.")
+        return preview,price
+
+    def confirm_renewal(self,contract_id:str,annual_ht:str|None=None,vat_rate:str|None=None,note:str="")->ContractEvent:
+        preview,price=self.renewal_price_preview(contract_id,annual_ht,vat_rate);projection=self.lifecycle_projection(contract_id)
+        if price is None:raise ContractLifecycleError("renewal price required","Renseignez le nouveau prix annuel HT et le taux de TVA.")
         now=self.now_provider();event=ContractEvent(str(uuid.uuid4()),contract_id,ContractEventType.RENEWAL_CONFIRMED,now,
-            period_start=start.isoformat(),period_end=end.isoformat(),renewal_annual_ht=self._decimal_text(price.annual_ht),
+            period_start=preview.next_period.start.isoformat(),period_end=preview.next_period.end.isoformat(),renewal_annual_ht=self._decimal_text(price.annual_ht),
             renewal_vat_rate=self._decimal_text(price.vat_rate),renewal_vat_amount=self._decimal_text(price.vat_amount),
             renewal_annual_ttc=self._decimal_text(price.annual_ttc),note=note.strip() or None)
         try:
@@ -286,7 +314,11 @@ class ContractLifecycleService:
         except sqlite3.Error as exc:raise ContractLifecycleError("abandon persistence","Le contrat n’a pas pu être abandonné. Les données existantes sont conservées.") from exc
         return event
 
-    def create_linked_draft(self,contract_id:str)->Contract:
+    def create_linked_draft(self,contract_id:str,request_id:str|None=None)->Contract:
+        request=(request_id or "").strip()
+        if request:
+            existing=self._linked_draft_requests.get((contract_id,request))
+            if existing:return self.contracts.get(existing)
         predecessor=self.contracts.get(contract_id);projection=self.lifecycle_projection(contract_id)
         if predecessor.status is not ContractStatus.ACTIVE:raise ContractLifecycleError("linked draft unavailable","Un nouveau contrat lié ne peut pas être préparé dans cet état.")
         snapshot=projection.authority.document.snapshot;contract_data=snapshot.get("contract",{});service=snapshot.get("service",{});pricing=snapshot.get("pricing",{})
@@ -336,7 +368,9 @@ class ContractLifecycleService:
                 ContractEventRepository.insert(connection,created)
         except ContractLifecycleError:raise
         except sqlite3.Error as exc:raise ContractLifecycleError("linked draft persistence","Le brouillon lié n’a pas pu être créé. Les données existantes sont conservées.") from exc
-        return self.contracts.get(new_id)
+        created_contract=self.contracts.get(new_id)
+        if request:self._linked_draft_requests[(contract_id,request)]=new_id
+        return created_contract
 
     def record_signature(self, contract_id: str, document_id: str, signature_date: str,
                          signed_pdf: Path | None = None) -> SignedContractAuthority:
