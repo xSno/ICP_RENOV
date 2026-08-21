@@ -1,4 +1,4 @@
-C2.W4 / R1 audit artifact refresh against accepted D5 HEAD c246410
+C3-A Windows packaging readiness audit against accepted C2/W4 HEAD 67982c0
 
 Created
 - None.
@@ -12,15 +12,13 @@ Removed
 
 Audit scope intentionally unchanged
 - All production Python, WebEngine JavaScript/CSS/HTML, tests, documents, templates, spike content, sandbox configuration, and GPU/Chromium settings.
-- No temporary fixture or screenshot was created in the repository.
+- No packaging dependency, build, distributable, installer, or temporary fixture was created in the repository.
 
 Audit evidence
-- Full suite: 384/384 PASS in 281.211 s using QT_QPA_PLATFORM=offscreen and -W error::ResourceWarning.
-- Clean Windows LibreOffice 26.2.5.2 session confirmed after terminating only the proved orphaned prior `--version` pair.
-- Two sequential exact official CONTRACT generation transactions passed through production rendering, isolated-profile LibreOffice conversion, postflight, and publication: readable DOCX/PDF (five PDF pages each), R01, ContractDocument, immutable snapshot, DOCUMENT_GENERATED, and TO_SIGN.
-- No relevant soffice.exe / soffice.bin process remained after conversion.
-- D4/D5 and review-ready external fixtures were reconstructed through the production application context.
+- Entrypoint, runtime paths, PySide6/QtWebEngine wheel resources, local data authority, LibreOffice discovery, migrations, and current build configuration were inspected read-only.
+- Exact build plan: PyInstaller x64 --onedir primary; Inno Setup 7 installer after the one-dir smoke; pyside6-deploy/Nuitka standalone only as a justified fallback.
+- Required C3-B adaptations are bounded: frozen launcher, package-resource resolver for the field registry, explicit ui_web data manifest, QtWebEngine distribution-tree verification, and clean-machine prerequisite/diagnostic checks.
 
 Verdict
-- C2_TRANSVERSE_READY: the prior clean-session LibreOffice runtime gate is cleared; no product correction was made.
+- C3_PACKAGING_READY: no unresolved prerequisite prevents the first controlled build; no product or runtime behavior was changed by C3-A.
 - git diff --check: PASS (CRLF advisory warnings only).
