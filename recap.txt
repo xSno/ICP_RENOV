@@ -1,20 +1,53 @@
-C2.W3-C1 — Step 3 Review
+C2.W3-C2 — Step 3 Official Generation
 
 Baseline
-- Accepted B3 HEAD: 16912d6.
-- C1 remains uncommitted.
+- Accepted C1 commit: 8c67591 (B3 ancestor: 16912d6).
+- C2 remains uncommitted for manual review.
 
-Scope
-- Step 3 presents a structured, read-only review of the current Contract draft and routes each Modifier action back to its exact Step 1 or Step 2 editing target.
-- The exact nine review blocks, in authoritative order, are: Client & signataire; Site & équipements; Cadre du contrat; Modèle & prestations; Période; Conditions d’intervention; Prix & paiement; Renouvellement & fin du contrat; Conditions particulières.
-- ReviewService remains the Python authority for block state, summaries, issues, business completeness, and generation readiness checks; the Web layer only projects that result.
-- Business-data completeness is explicitly separate from generation availability for the model, workspace, DOCX, and PDF capabilities.
-- The « Générer le DOCX et le PDF » CTA remains disabled and non-operative. C1 allocates no number, creates no ContractDocument or revision, changes no Contract status, and records no generation event.
-- The incorrect sentence stating that official generation would be available in the next workflow step was removed without replacement. Official generation still belongs to Step 3, but is outside this implementation slice.
-- TACIT renewal notices remain governed by the selected template version metadata; no Person/Organization inference determines the Contract regime.
+Scope and authorities
+- Step 3 enables « Générer le DOCX et le PDF » only when authoritative business completeness and generation availability both pass. Opening/cancelling the confirmation remains side-effect free.
+- The only new Web generation intent is generateOfficialContract(contract_id). JavaScript presents confirmation, progress, success and failure; Python reruns preflight and owns every official effect.
+- Existing DocumentGenerationService, ReviewService, ProductionDocxRenderer, LibreOfficeConverter, PersistedContractNumberAllocator, ContractDocumentRepository and ContractEventRepository authorities are reused.
+- The existing isolated-attempt workflow renders and validates DOCX/PDF before one BEGIN IMMEDIATE publication transaction allocates the first official number, publishes immutable Rxx files/snapshot, inserts ContractDocument and DOCUMENT_GENERATED, and changes DRAFT to TO_SIGN. Published files are removed if final persistence rolls back.
+- A per-service contract guard rejects duplicate concurrent attempts; the database publication checks remain the final idempotency authority.
+- Planned first numbers are unreserved previews read before rendering. Planned Rxx is computed from the authoritative persisted ContractDocument revisions before rendering.
+- Cross-contract safety uses safe outcome B: the final BEGIN IMMEDIATE transaction serializes writers; PersistedContractNumberAllocator recomputes and conditionally advances numbering_settings, and DocumentGenerationService requires the claimed number to equal the rendered preview. A stale attempt raises number_changed, rolls back the counter claim and all official effects, then a new invocation re-previews and re-renders safely.
+- Revision publication re-reads the exact durable revision list inside the same transaction and requires it to equal the pre-render list. Database UNIQUE(contract_id, document_kind, revision_index), immutable document rows, contract-state predicates and official-path collision checks provide additional enforcement.
+- The persisted Contract number, immutable snapshot number/revision, ContractDocument revision, official filenames and rendered DOCX content are asserted equal after both contended successes.
+- The confirmation explains freezing, DOCX/PDF creation, deferred first number/Rxx allocation, TO_SIGN transition, and the complete failure guarantee without implementation jargon.
+- Failure results distinguish contract data, model/company, DOCX, PDF and final persistence categories and state that no new revision/first number was created and draft data is preserved.
+- No Step 4 UI, CONTRACT_SENT, signature, activation, correction UI, intervention generation, signed revision field, or official-generation side effect outside the complete-success transaction was added.
 
-Validation and evidence
-- Targeted C1 tests: 8/8 PASS.
-- Full application suite: 328/328 PASS.
-- Previously obtained production evidence remains valid: sandbox-active WebEngine smoke, 1600 visual review, and responsive 1366/1280 checks. The accepted shell, right-side summary, Step 1 and Step 2 surfaces remain intact.
-- No Step 4 behavior or official-generation side effect was introduced.
+Validation
+- Targeted C2: 12/12 PASS. The original eight tests remain green; two deterministic concurrency regressions cover distinct-contract numbering and same-contract revision contention, and two deterministic process-termination regressions cover interrupted R01/R02 recovery.
+- Distinct-contract contention: both DRAFT attempts reached render with SYNTH-S5-0001 / R01. One atomically published; the stale attempt failed with number_changed without consuming another counter. Its retry re-rendered and published SYNTH-S5-0002 / R01.
+- Same-contract contention across separate service instances: both attempts reached render with R01; only one R01 was persisted. After authoritative reopen, the next generation re-rendered and published R02 while retaining the existing Contract number.
+- C1 targeted: 8/8 PASS; B1/B2/B3/C1 regressions pass in the full run.
+- Full application suite: 340/340 PASS (incoming 338 plus exactly 2 interrupted-publication recovery tests).
+
+Interrupted-publication recovery
+- A normal Python/SQLite exception after file moves removes the moved files and rolls back the transaction.
+- An abrupt process termination after file moves but before commit leaves no authoritative database ContractDocument/event/number/status because SQLite rolls back the uncommitted transaction.
+- Retry-time reconciliation runs only inside the existing BEGIN IMMEDIATE publication boundary and only for the exact planned DOCX/PDF targets under the managed documents/contracts tree. This serialization prevents a retry from touching another live publisher's in-flight files.
+- A target referenced by any persisted ContractDocument docx_relpath, pdf_relpath or signed_pdf_path is authoritative: it is preserved and the existing collision error remains.
+- An exact managed target with no repository owner is interrupted residue: it is moved into the isolated current attempt directory, then normal attempt cleanup removes it. No workspace scan, startup recovery, arbitrary-file cleanup, number/revision/status mutation or event is introduced.
+- Simulated hard termination after R01 file moves leaves DRAFT, no number, no ContractDocument/event and an unadvanced counter; retry reconciles both orphans and publishes exactly one consistent R01 while consuming exactly one number.
+- Persisted R01 is explicitly classified authoritative and remains byte-identical. Simulated orphan R02 is reconciled after reopen, and retry publishes the real R02 without advancing the first-number counter again.
+
+Real controlled production smoke
+- Fixture root: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_C2W3_C2_20260821_000713
+- Sandbox-active production WebEngine: PASS; captured JavaScript/bridge errors: none.
+- Controlled PDF failure: PASS and atomic; draft, first number, revisions and prior state unchanged.
+- Complete real LibreOffice generation: C2-2026-0001 · R01 · À signer; exact template version f068cebe-d1d1-4c76-bf69-6eafff7caf2c retained.
+- DOCX: workspace\documents\contracts\d7f678a9-0724-4368-b37f-e56fb1045f44\R01\C2-2026-0001_R01.docx — readable and postflight clean.
+- PDF: workspace\documents\contracts\d7f678a9-0724-4368-b37f-e56fb1045f44\R01\C2-2026-0001_R01.pdf — readable, 6 pages.
+- 1366: scroll width 1351 = client width 1351; 1280: scroll width 1265 = client width 1265. No horizontal overflow.
+- Screenshots (all 1600×900): evidence\C2_W3_C2_A_review_ready_1600x900.png; evidence\C2_W3_C2_B_confirmation_1600x900.png; evidence\C2_W3_C2_C_generation_success_1600x900.png; evidence\C2_W3_C2_D_generation_failure_1600x900.png.
+
+- Recovery-correction fixture root: C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_C2W3_C2_RECOVERY_phhewd5x
+- Controlled PDF failure on the disposable copy: PASS; existing R01, number and draft state preserved.
+- Real LibreOffice retry smoke: C2-2026-0001 / R02 / TO_SIGN; DOCX/PDF exist at the authoritative managed R02 paths.
+- Sandbox-active production WebEngine after correction: local index loaded, QWebChannel available, bridge errors none, sandbox-disable flags absent.
+
+Frozen-authority alignment
+- No genuine C2 mismatch found. The already-selected production LibreOffice 26.2.5.2 converter and existing persisted numbering configuration were reused; C2 introduces no PQ-06 or PQ-08 product decision.

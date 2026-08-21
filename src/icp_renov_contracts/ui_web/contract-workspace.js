@@ -2,6 +2,7 @@ let contractWorkspaceState;
 let contractDrawer;
 let contractDrawerTrigger;
 let contractSaveFailure = '';
+let contractGenerationRunning = false;
 
 function closeContractDrawer() {
   document.querySelector('.contract-selector-overlay')?.remove();
@@ -382,8 +383,41 @@ function focusContractReviewTarget(state) {
   });
 }
 
+function closeGenerationConfirmation() {
+  if (contractGenerationRunning) return;
+  document.querySelector('.generation-modal-overlay')?.remove();
+}
+
+function confirmOfficialGeneration() {
+  if (contractGenerationRunning || !contractWorkspaceState?.official_generation?.allowed) return;
+  contractGenerationRunning = true;
+  const confirm = document.querySelector('.generation-confirm-action');
+  const cancel = document.querySelector('.generation-cancel-action');
+  if (confirm) { confirm.disabled = true; confirm.textContent = 'Génération en cours…'; }
+  if (cancel) cancel.disabled = true;
+  bridge.generateOfficialContract(contractWorkspaceState.contract.id, result => {
+    contractGenerationRunning = false;
+    document.querySelector('.generation-modal-overlay')?.remove();
+    if (!result?.ok && !contractWorkspaceState?.official_generation?.feedback) {
+      contractSaveFailure = result?.message || 'La génération a été interrompue.';
+    }
+  });
+}
+
+function openGenerationConfirmation() {
+  const generation = contractWorkspaceState?.official_generation;
+  if (!generation?.allowed || contractGenerationRunning) return;
+  document.querySelector('.generation-modal-overlay')?.remove();
+  const overlay = document.createElement('div');
+  overlay.className = 'drawer-overlay generation-modal-overlay';
+  overlay.innerHTML = `<div class="drawer-backdrop" onclick="closeGenerationConfirmation()"></div><section class="generation-modal" role="dialog" aria-modal="true" aria-labelledby="generation-modal-title"><header><span class="eyebrow">Génération officielle</span><h2 id="generation-modal-title">Créer ${esc(generation.next_revision)} ?</h2><p>Confirmez la création complète des documents officiels.</p></header><div class="generation-modal-body"><div class="generation-preview"><span>Numéro prévu</span><strong>${esc(generation.preview_number || 'Attribué après succès complet')}</strong><span>Nouvelle révision</span><strong>${esc(generation.next_revision)}</strong></div><ul><li>Les données actuelles seront figées dans une nouvelle révision.</li><li>Le DOCX et le PDF seront générés.</li><li>Le numéro officiel et ${esc(generation.next_revision)} seront attribués uniquement après le succès complet.</li><li>Le contrat passera à « À signer » uniquement après le succès complet.</li></ul><div class="generation-failure-guarantee"><strong>Si la génération échoue</strong><span>Aucune nouvelle révision ne sera créée, aucun premier numéro officiel ne sera consommé, les révisions existantes resteront inchangées et les données du brouillon seront conservées.</span></div></div><footer><button class="button button-secondary generation-cancel-action" onclick="closeGenerationConfirmation()">Annuler</button><button class="primary generation-confirm-action" onclick="confirmOfficialGeneration()">Générer le DOCX et le PDF</button></footer></section>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('.generation-cancel-action')?.focus();
+}
+
 function renderContractReview(state) {
   const review = state.review;
+  const generation = state.official_generation || {};
   const completeWithoutPendingFailure = review.data_complete && !contractSaveFailure;
   const overall = completeWithoutPendingFailure
     ? '<div class="review-business-state valid"><strong>Toutes les informations nécessaires sont complètes</strong><span>Les données métier du contrat peuvent être préparées pour une future génération.</span></div>'
@@ -403,7 +437,10 @@ function renderContractReview(state) {
       : 'Le contrat est complet, mais la génération est indisponible sur ce poste.';
   }
   const checks = review.generation_checks.map(check => `<div class="review-generation-check ${check.available ? 'available' : 'unavailable'}"><span>${esc(check.label)}</span><strong>${esc(check.detail)}</strong></div>`).join('');
-  return `<section class="contract-step-panel contract-review-panel"><header><span class="eyebrow">Étape 3 sur 4</span><h2>Revue</h2><p>Vérifiez les informations qui seront figées et la disponibilité de la génération.</p></header><section class="review-level"><span class="eyebrow">Données du contrat</span>${overall}</section><div class="review-block-grid">${blocks}</div><section class="review-generation"><div><span class="eyebrow">Disponibilité de la génération</span><h3>Préparation documentaire</h3><p>${esc(distinction)}</p></div><div class="review-generation-checks">${checks}</div><button class="primary review-generation-action" disabled>Générer le DOCX et le PDF</button></section></section>`;
+  const feedback = generation.feedback ? `<div class="generation-result ${generation.feedback.kind}"><strong>${esc(generation.feedback.title || (generation.feedback.kind === 'success' ? 'Génération terminée' : 'Génération interrompue'))}</strong><span>${esc(generation.feedback.message)}</span>${generation.feedback.guarantee ? `<small>${esc(generation.feedback.guarantee)}</small>` : ''}${generation.feedback.kind === 'success' ? `<small>${esc(generation.feedback.contract_number)} · ${esc(generation.feedback.revision)} · À signer</small>` : ''}</div>` : '';
+  const numberContext = generation.allowed ? `<div class="generation-number-context"><span>Numéro prévu</span><strong>${esc(generation.preview_number || 'Attribué après succès complet')}</strong><span>Prochaine révision</span><strong>${esc(generation.next_revision)}</strong></div>` : '';
+  const disabled = !generation.allowed || contractGenerationRunning || Boolean(contractSaveFailure);
+  return `<section class="contract-step-panel contract-review-panel"><header><span class="eyebrow">Étape 3 sur 4</span><h2>Revue</h2><p>Vérifiez les informations qui seront figées et la disponibilité de la génération.</p></header>${feedback}<section class="review-level"><span class="eyebrow">Données du contrat</span>${overall}</section><div class="review-block-grid">${blocks}</div><section class="review-generation"><div><span class="eyebrow">Disponibilité de la génération</span><h3>Préparation documentaire</h3><p>${esc(distinction)}</p></div><div class="review-generation-checks">${checks}</div>${numberContext}<button class="primary review-generation-action" ${disabled ? 'disabled' : ''} onclick="openGenerationConfirmation()">${contractGenerationRunning ? 'Génération en cours…' : 'Générer le DOCX et le PDF'}</button></section></section>`;
 }
 
 function renderContractConditions(state) {
@@ -458,4 +495,5 @@ function renderContractWorkspace(state) {
 
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && contractDrawer) closeContractDrawer();
+  if (event.key === 'Escape') closeGenerationConfirmation();
 });

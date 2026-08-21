@@ -169,7 +169,7 @@ class WebContractReviewW3C1Tests(ReviewCase):
         start = js.index("function renderContractReview")
         end = js.index("function renderContractConditions", start)
         engine = QJSEngine()
-        engine.evaluate("function esc(value){return String(value ?? '');} var contractSaveFailure='';")
+        engine.evaluate("function esc(value){return String(value ?? '');} var contractSaveFailure=''; var contractGenerationRunning=false;")
         evaluated = engine.evaluate(js[start:end]); self.assertFalse(evaluated.isError(), evaluated.toString())
         rendered = engine.evaluate("renderContractReview(" + json.dumps(self.bridge.contract_workspace_snapshot()) + ")")
         self.assertFalse(rendered.isError(), rendered.toString())

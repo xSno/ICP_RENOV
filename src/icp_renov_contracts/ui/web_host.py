@@ -11,6 +11,7 @@ from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineCore import QWebEnginePage
 from PySide6.QtWebEngineWidgets import QWebEngineView
 
+from ..documents.validation import DocumentGenerationError
 from ..domain import (
     ClientDraft, ClientMaster, ContractConditions, ContractStatus, EquipmentDraft, EquipmentMaster,
     SiteDraft, SiteMaster, TemplateVersionStatus,
@@ -173,6 +174,7 @@ class UiBridge(QObject):
         self.contract_id: str | None = None
         self.contract_step = 1
         self.contract_focus_target: str | None = None
+        self.contract_generation_feedback: dict | None = None
         self.register = ContractRegisterService(
             context.contracts, context.review, context.lifecycle, context.workspace_service,
             RealBackupSummaryProvider(context.backup, context.alerts), context.alerts,
@@ -300,6 +302,13 @@ class UiBridge(QObject):
             and contract.site_snapshot and contract.equipment_items
         )
         review = self.context.review.review(contract.id)
+        generation_allowed = bool(
+            contract.status is ContractStatus.DRAFT
+            and review.generation_available
+            and self.context.generation.available(contract.id)
+        )
+        preview_number = self.context.generation.preview_number(contract.id) if generation_allowed else None
+        next_revision = self.context.generation.next_revision(contract.id) if generation_allowed else None
         backup = self.register.backup_summary().label
         return {
             "page": "CONTRACT_WORKSPACE", "backup": backup, "active_step": self.contract_step,
@@ -457,6 +466,12 @@ class UiBridge(QObject):
                     "detail": check.detail,
                 } for check in review.generation.checks],
             },
+            "official_generation": {
+                "allowed": generation_allowed,
+                "preview_number": preview_number,
+                "next_revision": next_revision,
+                "feedback": self.contract_generation_feedback,
+            },
             "summary": {
                 "client": contract.client_snapshot.display_name if contract.client_snapshot else "Non sélectionné",
                 "signatory": " · ".join(part for part in (contract.signatory_name, contract.signatory_role) if part) or "Non renseigné",
@@ -597,6 +612,7 @@ class UiBridge(QObject):
         self.page_name = "CONTRACT_WORKSPACE"
         self.contract_step = 1
         self.contract_focus_target = None
+        self.contract_generation_feedback = None
         self.refresh()
         return {"ok": True, "id": contract_id}
 
@@ -684,6 +700,56 @@ class UiBridge(QObject):
         self.contract_step, self.contract_focus_target = target
         self.refresh()
         return {"ok": True, "id": contract_id, "step": target[0], "target": target[1]}
+
+    @staticmethod
+    def _generation_error(error: DocumentGenerationError) -> dict:
+        titles = {
+            "incomplete": "Données du contrat à corriger",
+            "template_incompatible": "Modèle indisponible",
+            "source_mismatch": "Modèle indisponible",
+            "company_unavailable": "Informations société à compléter",
+            "company_incomplete": "Informations société à compléter",
+            "render_failure": "Génération DOCX impossible",
+            "invalid_docx": "Génération DOCX impossible",
+            "unresolved_token": "Génération DOCX impossible",
+            "converter_unavailable": "Conversion PDF impossible",
+            "converter_timeout": "Conversion PDF impossible",
+            "converter_failure": "Conversion PDF impossible",
+            "converter_wrong_version": "Conversion PDF impossible",
+            "invalid_pdf": "Conversion PDF impossible",
+            "publication_failure": "Enregistrement final impossible",
+            "generation_in_progress": "Génération déjà en cours",
+        }
+        return {
+            "ok": False,
+            "code": error.code,
+            "title": titles.get(error.code, "Génération interrompue"),
+            "message": error.user_message,
+            "guarantee": "Aucune nouvelle révision n’a été créée, aucun premier numéro officiel n’a été consommé et les données du contrat sont conservées.",
+        }
+
+    @Slot(str, result="QVariant")
+    def generateOfficialContract(self, contract_id: str) -> dict:
+        if contract_id != self.contract_id:
+            return {"ok": False, "title": "Contrat indisponible", "message": "Ce contrat n’est plus ouvert.",
+                    "guarantee": "Aucune donnée n’a été modifiée."}
+        try:
+            result = self.context.generation.generate(contract_id)
+        except DocumentGenerationError as error:
+            response = self._generation_error(error)
+            self.contract_generation_feedback = {**response, "kind": "error"}
+            self.refresh()
+            return response
+        self.contract_step = 3
+        response = {
+            "ok": True, "contract_number": result.contract_number,
+            "revision": result.document.revision,
+            "status": "TO_SIGN", "status_label": "À signer",
+            "message": "Le DOCX et le PDF ont été générés avec succès.",
+        }
+        self.contract_generation_feedback = {**response, "kind": "success"}
+        self.refresh()
+        return response
 
     @Slot(str, "QVariant", result="QVariant")
     def updateContractFramework(self, contract_id: str, payload: object) -> dict:

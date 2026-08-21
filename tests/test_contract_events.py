@@ -100,9 +100,8 @@ class ContractEventLifecycleTests(GenerationCase):
             with self.assertRaises(DocumentGenerationError):database_failure.generate(self.contract.id)
         collision=r01.docx_path.parents[1]/"R02"/f"{number}_R02.docx";collision.parent.mkdir(parents=True,exist_ok=True);collision.write_bytes(b"collision")
         collision_failure=self.service();collision_failure.number_allocator=UnavailableAllocator()
-        with self.assertRaises(DocumentGenerationError):collision_failure.generate(self.contract.id)
-        collision.unlink()
-        service.number_allocator=UnavailableAllocator();self.assertEqual(service.generate(self.contract.id).document.revision,"R02")
+        recovered=collision_failure.generate(self.contract.id);self.assertEqual(recovered.document.revision,"R02")
+        self.assertNotEqual(collision.read_bytes(),b"collision");self.assertEqual(r01.docx_path.read_bytes(),before)
 
     def test_document_generated_event_failure_rolls_back_new_revision_and_files(self):
         service=self.service()

@@ -244,9 +244,10 @@ class AtomicFailureTests(GenerationCase):
     def test_converter_failure(self):self.assert_atomic_failure(self.service(converter=FakeConverter("failure")))
     def test_invalid_pdf(self):self.assert_atomic_failure(self.service(converter=FakeConverter("invalid")))
     def test_allocator_or_database_publication_failure(self):self.assert_atomic_failure(self.service(allocator=SyntheticAllocator(self.context.database,True)))
-    def test_final_collision(self):
+    def test_non_authoritative_final_collision_is_reconciled(self):
         folder=self.context.workspace.root/"documents"/"contracts"/self.contract.id/"R01";folder.mkdir(parents=True);(folder/f"{self.allocator.preview_next()}_R01.docx").write_bytes(b"existing")
-        self.assert_atomic_failure(self.service())
+        result=self.service().generate(self.contract.id)
+        self.assertEqual((result.contract_number,result.document.revision),("SYNTH-S5-0001","R01"));self.assertEqual(self.allocator.consumed(),1)
     def test_destination_write_failure(self):
         original=Path.write_bytes
         def fail_probe(path,data):

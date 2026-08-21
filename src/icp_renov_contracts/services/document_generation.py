@@ -8,6 +8,7 @@ import logging
 from pathlib import Path
 import shutil
 import sqlite3
+from threading import Lock
 import uuid
 
 from ..database import DatabaseService
@@ -36,6 +37,7 @@ class DocumentGenerationService:
         self.database=database;self.contracts=contracts;self.documents=documents;self.review_service=review;self.source_store=source_store
         self.renderer=renderer;self.converter=converter;self.company_provider=company_provider;self.number_allocator=number_allocator
         self.workspace_root=workspace_root.resolve();self.logger=logger or logging.getLogger("icp_renov_contracts.generation")
+        self._attempt_lock=Lock();self._active_contracts:set[str]=set()
     def available(self,contract_id:str)->bool:
         try:
             contract=self.contracts.get(contract_id);version=self.contracts.selected_template_version(contract_id);documents=self.documents.list_for_contract_kind(contract_id,DocumentKind.CONTRACT)
@@ -57,6 +59,10 @@ class DocumentGenerationService:
         if len(indices)!=len(set(indices)):raise DocumentGenerationError("revision_integrity","L’historique des révisions est incohérent.")
         return f"R{(max(indices,default=0)+1):02d}"
     def generate(self,contract_id:str)->GenerationResult:
+        with self._attempt_lock:
+            if contract_id in self._active_contracts:
+                raise DocumentGenerationError("generation_in_progress","Une génération est déjà en cours pour ce contrat.")
+            self._active_contracts.add(contract_id)
         attempt=uuid.uuid4().hex;stage="review";attempt_dir=self.workspace_root/"tmp"/"generation"/attempt
         final_docx=None;final_pdf=None
         try:
@@ -102,7 +108,6 @@ class DocumentGenerationService:
             docx_hash=sha256_file(docx);pdf_hash=sha256_file(pdf);generated=datetime.now(timezone.utc).isoformat();document_id=str(uuid.uuid4())
             rel_dir=Path("documents")/"contracts"/contract.id/revision;docx_rel=(rel_dir/f"{preview}_{revision}.docx").as_posix();pdf_rel=(rel_dir/f"{preview}_{revision}.pdf").as_posix()
             final_docx=(self.workspace_root/Path(docx_rel)).resolve();final_pdf=(self.workspace_root/Path(pdf_rel)).resolve()
-            if final_docx.exists() or final_pdf.exists():raise DocumentGenerationError("collision","La génération n’a pas pu être finalisée. Aucun numéro ni aucune révision n’a été créé.")
             document=ContractDocument(document_id,contract.id,DocumentKind.CONTRACT,revision_index,generated,version.id,docx_rel,pdf_rel,snapshot_json,docx_hash,pdf_hash)
             generated_event=ContractEvent(str(uuid.uuid4()),contract.id,ContractEventType.DOCUMENT_GENERATED,generated,document_id=document_id)
             stage="publication";moved=[]
@@ -113,6 +118,8 @@ class DocumentGenerationService:
                         raise DocumentGenerationError("signed","Ce contrat signé ne peut plus produire de nouvelle révision.")
                     durable=connection.execute("SELECT revision_index FROM contract_documents WHERE contract_id=? AND document_kind='CONTRACT' ORDER BY revision_index",(contract.id,)).fetchall()
                     if not current or current[0]!="DRAFT" or current[1]!=contract.number or [row[0] for row in durable]!=indices:raise DocumentGenerationError("status","Ce contrat ne peut plus être généré.")
+                    self._reconcile_interrupted_target(connection,final_docx,docx_rel,attempt_dir)
+                    self._reconcile_interrupted_target(connection,final_pdf,pdf_rel,attempt_dir)
                     allocated=self.number_allocator.allocate(connection) if first else current[1]
                     if allocated!=preview:raise DocumentGenerationError("number_changed","La numérotation a changé. Relancez la génération.")
                     final_docx.parent.mkdir(parents=True,exist_ok=True);docx.replace(final_docx);moved.append(final_docx);pdf.replace(final_pdf);moved.append(final_pdf)
@@ -137,9 +144,24 @@ class DocumentGenerationService:
         finally:
             self.logger.info("document generation attempt=%s stage=%s contract=%s",attempt,stage,contract_id)
             if attempt_dir.exists():shutil.rmtree(attempt_dir,ignore_errors=True)
+            with self._attempt_lock:self._active_contracts.discard(contract_id)
     @staticmethod
     def _prepared_company(company):
         return prepare_context({"company":company,"client":{},"site":{},"contract":{"equipment_items":[]},"service":{},"pricing":{}})["company"]
+    def _reconcile_interrupted_target(self,connection,path,relpath,attempt_dir):
+        managed_root=(self.workspace_root/"documents"/"contracts").resolve()
+        expected=(self.workspace_root/Path(relpath)).resolve()
+        if path.resolve()!=expected or not expected.is_relative_to(managed_root):
+            raise DocumentGenerationError("collision","La génération n’a pas pu être finalisée. Aucun numéro ni aucune révision n’a été créé.")
+        if not path.exists():return
+        owner=connection.execute(
+            "SELECT 1 FROM contract_documents WHERE docx_relpath=? OR pdf_relpath=? OR signed_pdf_path=? LIMIT 1",
+            (relpath,relpath,relpath),
+        ).fetchone()
+        if owner:raise DocumentGenerationError("collision","La génération n’a pas pu être finalisée. Aucun numéro ni aucune révision n’a été créé.")
+        quarantine=attempt_dir/"interrupted-publication";quarantine.mkdir(exist_ok=True)
+        path.replace(quarantine/path.name)
+        self.logger.warning("reconciled interrupted contract artifact path=%s",relpath)
     @staticmethod
     def _snapshot(contract,conditions,version,company,number,revision="R01"):
         client=asdict(contract.client_snapshot);client.update({"regime":contract.regime.value,"representative_name":contract.signatory_name,"representative_role":contract.signatory_role,"signatory_name":contract.signatory_name,"signatory_role":contract.signatory_role,"postal_address":client.get("address_line1","")})
