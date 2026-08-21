@@ -1,32 +1,54 @@
-C3-B1 — Windows packaging foundation
+C3-B2 — First Windows one-dir build
 
 Baseline
-- Accepted C3-A HEAD: 5f65040 (C3-A Windows packaging readiness audit).
-- Incoming full suite: 384/384 PASS. No PyInstaller build, installer, LibreOffice bundle, user data, or release QA was created in B1.
+- Accepted C3-B1 HEAD: 8f74308 (C3-B1 Windows packaging foundation).
+- Incoming full suite: 390/390 PASS. B2 did not change production Python, domain behavior, WebEngine security, LibreOffice authority, or installer scope.
 
-Tracked build foundation
-- packaging/launch_icp_renov.py is a frozen launcher only: it imports and calls the existing icp_renov_contracts.app.main() authority, with no sys.path mutation, CWD dependence, or alternate application implementation.
-- runtime_resources.py is the common package-resource authority. It uses importlib.resources for the canonical field registry and the local ui_web directory in both source and frozen layouts.
-- The unchanged FIELD_TEMPLATE_CONTRACT_V1_1 canonical content moved from root docs/ into src/icp_renov_contracts/resources/ (SHA-256 039C2F19A91017B84C78EBB571C8491F8571356E26BF1224269ED739552413C4). documents/registry.py no longer traverses repository parents.
-- WebUiHost now receives its local index.html and every companion CSS/JS asset from runtime_resources.web_ui_root(); local-file loading, QWebChannel, and TrustedLocalPage restrictions are unchanged.
-- pyproject.toml keeps PySide6 as the sole application runtime dependency and adds the build-only optional extra packaging = PyInstaller==6.22.2. Package data explicitly includes the field resource and ui_web HTML/JS/CSS.
-- packaging/icp_renov_contracts.spec is Windows x64, one-dir, and windowed. It lists the exact production Web assets and field resource; retains PyInstaller PySide6 hooks plus explicit QtWebEngineProcess, platform plugin, ICU, WebEngine .pak and locale data collection. It excludes tests and spike, and does not add LibreOffice, root templates, prototype, fixtures, user workspace data, or sandbox/GPU/debug flags.
-- packaging/build_windows_bundle.ps1 is the single tracked Windows build command. It invokes the pinned PyInstaller spec only; it has no installer or prerequisite logic.
-- .gitignore now excludes build/, dist/, and installer-output/. No tracked packaging input is ignored.
+Build environment
+- Windows 10 10.0.19045 x64; Python 3.14.3 x64; PySide6/Qt/QtWebEngine 6.11.1; PyInstaller 6.22.2.
+- Only the pinned B1 packaging extra was installed. No unrelated dependency was upgraded.
 
-Diagnostics and user data
-- app.main() preserves its existing application startup sequence and local rotating log. Unexpected startup construction failures now log locally and show a concise French startup dialog instead of disappearing in a windowed build; no traceback is exposed as the primary UX, no crash reporter or telemetry was added.
-- %LOCALAPPDATA%\ICP Renov\Contrats remains the machine/bootstrap/log location; the selected Documents\ICP Renov\Contrats workspace remains the only writable location for SQLite, CompanySettings, template registry/imported sources, generated documents, and backups. The bundle directory remains read-only runtime content.
+Tracked packaging corrections
+- First build proved the spec resolved ROOT one parent too high from SPECPATH. packaging/icp_renov_contracts.spec now uses the actual packaging parent as repository root.
+- PyInstaller proved Analysis requires a mutable hiddenimports sequence. The existing exact six production Qt imports are now a list, with no new hidden imports.
+- packaging/build_windows_bundle.ps1 now deletes only the exact repository build/ and dist/ paths, after a resolved-path containment check, before its unchanged tracked PyInstaller invocation. This gives B2 clean generated output without broad cleanup.
+
+Final clean one-dir build
+- Command: .\packaging\build_windows_bundle.ps1
+- Exit: 0; elapsed: 163.025 seconds.
+- Application directory: dist\ICP Renov - Contrats
+- Windowed executable: ICP Renov - Contrats.exe (no console is intended for user launch).
+- Inventory: 2,956 files; 580,521,515 bytes / 553.63 MiB.
+
+Actual QtWebEngine tree
+- _internal\PySide6\QtWebEngineProcess.exe
+- _internal\PySide6\Qt6WebEngineCore.dll; Qt6WebEngineWidgets.dll; Qt6WebChannel.dll
+- _internal\PySide6\plugins\platforms\qwindows.dll
+- _internal\PySide6\resources\icudtl.dat and qtwebengine_resources.pak
+- _internal\PySide6\translations\qtwebengine_locales\en-US.pak and fr.pak, plus Qt translation .qm files.
+- Native VC runtime DLLs are present under _internal and the PySide6/shiboken runtime folders.
+
+Resource and security checks
+- Packaged field registry: _internal\icp_renov_contracts\resources\FIELD_TEMPLATE_CONTRACT_V1_1.txt; SHA-256 039C2F19A91017B84C78EBB571C8491F8571356E26BF1224269ED739552413C4 (accepted B1 value).
+- All 11 declared production Web HTML/CSS/JS assets are byte-identical to src/icp_renov_contracts/ui_web/.
+- No --no-sandbox, QTWEBENGINE_DISABLE_SANDBOX, remote-debugging, or GPU-disable configuration was found in packaged text inputs/output; the direct smoke inherited no sandbox-disable variable.
+- No LibreOffice/soffice payload, tests, spike, known dev-only packages, repository .git content, user SQLite/config/log files, backups, fixtures, screenshots, or generated contracts were found in dist.
+
+Direct packaged execution
+- A copy of the complete one-dir tree was launched from C:\Users\xSn\AppData\Local\Temp\icp-renov-c3-b2-20260822-003658\bundle\ICP Renov - Contrats with a separate non-repository CWD, no PYTHONPATH/PYTHONHOME, and no source-Python launcher.
+- Effective LOCALAPPDATA was isolated at C:\Users\xSn\AppData\Local\Temp\icp-renov-c3-b2-20260822-003658\localappdata; the ready workspace/database remained under the same TEMP root, outside dist.
+- The copied ICP Renov - Contrats.exe opened a normal visible window (title: ICP Renov — Contrats d’entretien); QtWebEngineProcess was a child of that copied bundle. The local Contracts WebEngine surface, sidebar and initial bridge snapshot rendered; no startup dialog, blank page, console interaction, or immediate crash occurred. Screenshot: C:\Users\xSn\AppData\Local\Temp\icp-renov-c3-b2-20260822-003658\c3-b2-bundle-direct-launch.png (1296x839).
+- Direct runtime paths were the copied bundle path, not the repository; no checkout path reference was found in packaged readable content. The application context also initialized the existing external LibreOffice converter authority without a repository-Python dependency.
+- No writable SQLite/config/log data was created in dist. The isolated machine config/log location and workspace were external, and the application was closed normally.
+
+Bounded windowed diagnostic
+- A second disposable invalid bootstrap profile produced the concise French Qt dialog “La configuration locale de ce poste est invalide.” without a terminal or traceback. The detailed exception was recorded only in that profile’s application.log. Screenshot: C:\Users\xSn\AppData\Local\Temp\icp-renov-c3-b2-20260822-003658\c3-b2-startup-diagnostic.png.
 
 Validation
-- B1 packaging/resource/startup targeted tests: 6/6 PASS.
-- Full application suite: 390/390 PASS in 302.952 s with QT_QPA_PLATFORM=offscreen and ResourceWarning promoted to errors. The total increases by six for bounded resource, manifest, sandbox-flag and startup-diagnostic regression coverage.
-- PowerShell build script syntax: PASS. PyInstaller spec AST syntax: PASS. No PyInstaller dependency was installed and no distribution was built.
-- git diff --check: PASS (CRLF advisory warnings only).
-
-Release notes
-- No .ico was created. An approved icon and final installer identity remain later installer/release gates, not B1 blockers.
-- B2 must build and inspect the actual one-dir QtWebEngine tree before claiming packaged runtime success.
+- Packaging/resource/startup targeted discovery: 6/6 PASS.
+- No production Python changed, so the accepted C3-B1 full-suite result remains 390/390 PASS and B2 required no full-suite rerun.
+- git diff --check: PASS (Git emits only pre-existing CRLF conversion advisories).
+- build/ and dist/ are ignored; no generated binaries are tracked. No installer was created.
 
 Verdict
-C3_B1_READY_FOR_FIRST_BUILD
+C3_B2_BUNDLE_READY

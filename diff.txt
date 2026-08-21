@@ -1,35 +1,38 @@
-C3-B1 packaging foundation against accepted C3-A HEAD 5f65040
+C3-B2 — First Windows one-dir build
+
+Baseline
+- Accepted C3-B1 HEAD: 8f74308 (C3-B1 Windows packaging foundation).
 
 Created
-- packaging/build_windows_bundle.ps1
-- packaging/icp_renov_contracts.spec
-- packaging/launch_icp_renov.py
-- src/icp_renov_contracts/resources/FIELD_TEMPLATE_CONTRACT_V1_1.txt
-- src/icp_renov_contracts/runtime_resources.py
-- tests/test_packaging_foundation_c3b1.py
+- None.
 
 Modified
-- .gitignore
+- packaging/icp_renov_contracts.spec
+  - Corrects the actual SPECPATH-derived repository root used by the tracked spec.
+  - Uses the mutable hiddenimports form required by PyInstaller Analysis; the six existing production Qt imports are unchanged.
+- packaging/build_windows_bundle.ps1
+  - Performs a bounded, resolved-path-checked cleanup of only repository build/ and dist/ before the existing tracked build invocation.
 - recap.txt
+  - Records the actual B2 clean build, package inventory, external direct-executable smoke, security/resource checks, diagnostic, and validation.
 - diff.txt
-- pyproject.toml
-- src/icp_renov_contracts/app.py
-- src/icp_renov_contracts/documents/registry.py
-- src/icp_renov_contracts/ui/web_host.py
+  - Records this real C3-B2 worktree delta.
 
 Removed
-- docs/FIELD_TEMPLATE_CONTRACT_V1_1.txt (relocated unchanged into the installed package resources).
+- None.
 
-B1 intentional scope
-- Frozen launcher, package-resource resolver, canonical runtime-field relocation, explicit PyInstaller data manifest, build-only PyInstaller pin, one Windows build script, ignore rules, and minimum startup diagnostic boundary.
-- No installer, distributable, PyInstaller installation, LibreOffice bundle, user data, schema/business change, Web UI redesign, sandbox/GPU/debug flag, templates fixture, tests/spike package data, or release QA.
+Intentionally unchanged / frozen
+- No production Python/domain/lifecycle/document/Web UI behavior.
+- No WebEngine sandbox, remote-debugging, GPU, or LibreOffice authority change.
+- No installer, icon, installer prerequisites, release packaging, generated binary, fixture, user data, tests, spike, or documentation change.
+
+Generated output
+- build/ and dist/ were created only by the tracked script and remain ignored/untracked. They are deliberately absent from this review diff.
 
 Validation
-- Packaging/resource/startup tests: 6/6 PASS.
-- Full suite: 390/390 PASS in 302.952 s using QT_QPA_PLATFORM=offscreen and -W error::ResourceWarning.
-- PowerShell script and PyInstaller spec syntax: PASS; no bundle built.
-- git diff --check: PASS (CRLF advisory warnings only).
+- Final clean tracked build: exit 0 in 163.025 seconds.
+- Actual one-dir QtWebEngine/runtime/resource tree inspected; copied bundle launched directly outside the repository with isolated LOCALAPPDATA and no PYTHONPATH.
+- Targeted packaging/resource/startup tests: 6/6 PASS.
+- git diff --check: PASS (CRLF conversion advisories only).
 
 Verdict
-- C3_B1_READY_FOR_FIRST_BUILD.
-- git diff --check: PASS (CRLF advisory warnings only).
+- C3_B2_BUNDLE_READY.

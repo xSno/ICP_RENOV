@@ -8,7 +8,7 @@ import struct
 from PyInstaller.utils.hooks import collect_data_files
 
 
-ROOT = Path(SPECPATH).resolve().parent.parent
+ROOT = Path(SPECPATH).resolve().parent
 SRC = ROOT / "src"
 PACKAGE = SRC / "icp_renov_contracts"
 WEB_UI = PACKAGE / "ui_web"
@@ -47,14 +47,14 @@ datas.extend(collect_data_files("PySide6", includes=(
     "plugins/platforms/*",
 )))
 
-hiddenimports = (
+hiddenimports = [
     "PySide6.QtCore",
     "PySide6.QtGui",
     "PySide6.QtWidgets",
     "PySide6.QtWebChannel",
     "PySide6.QtWebEngineCore",
     "PySide6.QtWebEngineWidgets",
-)
+]
 
 a = Analysis(
     [str(ROOT / "packaging" / "launch_icp_renov.py")],
