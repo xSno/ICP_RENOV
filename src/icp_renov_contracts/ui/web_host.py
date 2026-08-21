@@ -13,10 +13,10 @@ from PySide6.QtWebEngineWidgets import QWebEngineView
 
 from ..documents.validation import DocumentGenerationError
 from ..domain import (
-    ClientDraft, ClientMaster, ContractConditions, ContractStatus, EquipmentDraft, EquipmentMaster,
+    ClientDraft, ClientMaster, ContractConditions, ContractEventType, ContractStatus, EquipmentDraft, EquipmentMaster,
     SiteDraft, SiteMaster, TemplateVersionStatus,
 )
-from ..errors import ApplicationError, ContractConditionsValidationError, MasterDataValidationError
+from ..errors import ApplicationError, ContractConditionsValidationError, ContractLifecycleError, MasterDataValidationError
 from ..services import (
     ContractOperationalSignalKind,
     ContractRegisterFilter,
@@ -175,6 +175,7 @@ class UiBridge(QObject):
         self.contract_step = 1
         self.contract_focus_target: str | None = None
         self.contract_generation_feedback: dict | None = None
+        self.contract_documents_feedback: dict | None = None
         self.register = ContractRegisterService(
             context.contracts, context.review, context.lifecycle, context.workspace_service,
             RealBackupSummaryProvider(context.backup, context.alerts), context.alerts,
@@ -310,6 +311,40 @@ class UiBridge(QObject):
         preview_number = self.context.generation.preview_number(contract.id) if generation_allowed else None
         next_revision = self.context.generation.next_revision(contract.id) if generation_allowed else None
         backup = self.register.backup_summary().label
+        revisions = self.context.lifecycle.revisions(contract.id)
+        revision_by_document = {item.id: item.revision for item in revisions}
+        revision_rows = []
+        for index,item in enumerate(revisions):
+            template = self.context.template_catalog.get_version(item.template_version_id)
+            sent = self.context.lifecycle.latest_send(item.id)
+            revision_rows.append({
+                "revision": item.revision,
+                "generated_display": _date_fr(item.generated_at_utc[:10]),
+                "template_name": template.template_name,
+                "template_version": template.version,
+                "latest": index == 0,
+                "replaced": index > 0,
+                "sent_display": _date_fr(sent.effective_date) if sent else "",
+                "docx_available": self.context.lifecycle.resolve_document_path(item.docx_relpath) is not None,
+                "pdf_available": self.context.lifecycle.resolve_document_path(item.pdf_relpath) is not None,
+            })
+        event_labels = {
+            ContractEventType.CREATED: "Contrat créé",
+            ContractEventType.DOCUMENT_GENERATED: "Révision contractuelle générée",
+            ContractEventType.REOPENED_FOR_CORRECTION: "Contrat rouvert pour correction",
+            ContractEventType.CONTRACT_SENT: "Envoi de la révision enregistré",
+        }
+        timeline = []
+        for event in self.context.lifecycle.history(contract.id):
+            if event.type not in event_labels:continue
+            revision = revision_by_document.get(event.document_id or "", "")
+            timeline.append({
+                "label": event_labels[event.type],
+                "occurred_display": _date_fr(event.occurred_at[:10]),
+                "effective_display": _date_fr(event.effective_date) if event.effective_date else "",
+                "revision": revision,
+                "note": event.note or "",
+            })
         return {
             "page": "CONTRACT_WORKSPACE", "backup": backup, "active_step": self.contract_step,
             "contract_focus_target": self.contract_focus_target,
@@ -472,6 +507,15 @@ class UiBridge(QObject):
                 "next_revision": next_revision,
                 "feedback": self.contract_generation_feedback,
             },
+            "documents_d1": {
+                "available": bool(revisions),
+                "revisions": revision_rows,
+                "timeline": timeline,
+                "send_allowed": contract.status is ContractStatus.TO_SIGN,
+                "correction_allowed": contract.status is ContractStatus.TO_SIGN,
+                "today": self.context.lifecycle.date_provider.today().isoformat(),
+                "feedback": self.contract_documents_feedback,
+            },
             "summary": {
                 "client": contract.client_snapshot.display_name if contract.client_snapshot else "Non sélectionné",
                 "signatory": " · ".join(part for part in (contract.signatory_name, contract.signatory_role) if part) or "Non renseigné",
@@ -487,11 +531,7 @@ class UiBridge(QObject):
                 ),
                 "renewal": " · ".join(value for value in (renewal, renewal_price) if value),
                 "template": version.display_name if version else "Non configuré",
-                "completion": (
-                    ("Revue complète" if review.data_complete else "Revue à corriger") if self.contract_step == 3
-                    else "Étape 2 à compléter" if self.contract_step == 2
-                    else "Étape 1 complète" if complete_step_one else "Étape 1 à compléter"
-                ),
+                "completion": "Revue complète" if review.data_complete else "Revue à corriger",
             },
         }
 
@@ -613,6 +653,7 @@ class UiBridge(QObject):
         self.contract_step = 1
         self.contract_focus_target = None
         self.contract_generation_feedback = None
+        self.contract_documents_feedback = None
         self.refresh()
         return {"ok": True, "id": contract_id}
 
@@ -670,16 +711,53 @@ class UiBridge(QObject):
         self.page_name = "CONTRACTS"
         self.contract_id = None
         self.contract_step = 1
+        self.contract_documents_feedback = None
         self.refresh()
 
     @Slot(str, int, result="QVariant")
     def setContractStep(self, contract_id: str, step: int) -> dict:
-        if contract_id != self.contract_id or step not in {1, 2, 3}:
+        if contract_id != self.contract_id or step not in {1, 2, 3, 4}:
             return {"ok": False, "message": "Cette étape n’est pas disponible."}
+        if step == 4 and not self.context.lifecycle.revisions(contract_id):
+            return {"ok": False, "message": "Aucune révision contractuelle n’est encore disponible."}
         self.contract_step = step
         self.contract_focus_target = None
         self.refresh()
         return {"ok": True, "id": contract_id, "step": step}
+
+    def _contract_revision(self,contract_id:str,revision:str):
+        if contract_id != self.contract_id:return None
+        return next((item for item in self.context.lifecycle.revisions(contract_id) if item.revision==revision),None)
+
+    @Slot(str, str, str, result="QVariant")
+    def openContractDocument(self,contract_id:str,revision:str,kind:str)->dict:
+        document=self._contract_revision(contract_id,revision)
+        if document is None or kind not in {"docx","pdf"}:
+            return {"ok":False,"message":"Ce document n’est pas disponible."}
+        try:self.context.lifecycle.open_document(document.id,kind)
+        except (ContractLifecycleError,OSError):return {"ok":False,"message":"Le fichier est introuvable dans le dossier de travail."}
+        return {"ok":True,"revision":revision,"kind":kind}
+
+    @Slot(str, result="QVariant")
+    def reopenContractForCorrection(self,contract_id:str)->dict:
+        if contract_id != self.contract_id:return {"ok":False,"message":"Ce contrat n’est plus ouvert."}
+        try:self.context.lifecycle.reopen_for_correction(contract_id)
+        except ContractLifecycleError:return {"ok":False,"message":"Ce contrat ne peut pas être rouvert pour correction."}
+        self.contract_step=4
+        self.contract_documents_feedback={"kind":"success","message":"Le contrat est revenu à l’état Brouillon. Les révisions existantes sont conservées."}
+        self.refresh()
+        return {"ok":True,"id":contract_id,"status":"DRAFT","status_label":"Brouillon"}
+
+    @Slot(str, str, str, str, result="QVariant")
+    def recordContractSent(self,contract_id:str,revision:str,effective_date:str,note:str)->dict:
+        document=self._contract_revision(contract_id,revision)
+        if document is None or not all(isinstance(value,str) for value in (effective_date,note)):
+            return {"ok":False,"message":"Choisissez une révision contractuelle existante."}
+        try:event=self.context.lifecycle.record_send(contract_id,document.id,effective_date,note)
+        except ContractLifecycleError:return {"ok":False,"message":"L’envoi ne peut pas être enregistré. Vérifiez la révision et la date."}
+        self.contract_documents_feedback={"kind":"success","message":f"L’envoi de {revision} a été enregistré au {_date_fr(event.effective_date)}."}
+        self.refresh()
+        return {"ok":True,"revision":revision,"effective_date":event.effective_date}
 
     @Slot(str, str, result="QVariant")
     def openContractReviewBlock(self, contract_id: str, block_id: str) -> dict:

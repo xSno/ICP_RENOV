@@ -1,35 +1,36 @@
-C2.W3-C2 current uncommitted delta against accepted C1 HEAD 8c67591
+C2.W3-D1 current uncommitted delta against accepted C2 HEAD 6641289
 
 Created
-- tests/test_web_contract_generation_w3c2.py
+- src/icp_renov_contracts/ui_web/contract-documents.css
+- tests/test_web_contract_documents_w3d1.py
 
 Modified
 - recap.txt
 - diff.txt
-- src/icp_renov_contracts/services/document_generation.py
 - src/icp_renov_contracts/ui/web_host.py
-- src/icp_renov_contracts/ui_web/contract-review.css
 - src/icp_renov_contracts/ui_web/contract-workspace.js
-- tests/test_contract_events.py
-- tests/test_document_generation.py
-- tests/test_web_contract_review_w3c1.py
+- src/icp_renov_contracts/ui_web/index.html
+- tests/test_web_contract_generation_w3c2.py
+- tests/test_web_contract_workspace_w3a.py
 
 Removed
-- None
+- None.
 
 Accepted / frozen and intentionally unchanged
-- Step 1, Step 2 and the nine-block Step 3 Review structure/routing.
-- Step 4 UI and all send/sign/activate/renew/terminate/intervention/correction workflows.
-- Contract domain, schema, template/version selection semantics and immutable snapshot model.
+- C2 official-generation transaction, number/revision atomicity, rendering, conversion, publication, and recovery.
+- Step 1 and Step 2 behavior; Step 3 nine-block review structure and summaries.
+- Contract domain/schema and existing ContractLifecycleService/repository semantics.
 - WebEngine architecture and sandbox policy.
+- Signature, signed PDF, activation, renewal, termination, abandonment, and intervention-sheet generation.
 - docs/, templates/, and spike/.
 
 Final validation
-- C2 targeted: 12/12 PASS, including deterministic number/revision contention and interrupted R01/R02 recovery.
-- Core document generation: 41/41 PASS; lifecycle regression: 11/11 PASS.
-- C1 targeted: 8/8 PASS; B1/B2/B3/C1 regressions green.
-- Full suite: 340/340 PASS (2-test increase from incoming 338; 12-test C2 increase from accepted C1 baseline 328).
-- Real sandbox-active WebEngine + LibreOffice R02 generation after recovery correction: PASS.
-- Controlled PDF failure atomicity: PASS.
-- 1600 screenshots A/B/C/D: PASS; 1366/1280 horizontal overflow: none.
+- D1 targeted: 9/9 PASS, covering all 23 requested behaviors through bounded compound regressions.
+- B1/B2/B3/C1/C2 targeted regressions: 8/8, 10/10, 13/13, 8/8, 12/12 PASS.
+- Full suite: 349/349 PASS; exact increase of 9 from the accepted 340-test C2 baseline.
+- Real sandbox-active production WebEngine smoke: PASS; bridge errors none.
+- Exact DOCX/PDF open, sent recording, correction, preserved R01, and supported-event timeline: PASS.
+- Closing micro-pass: TO_SIGN send CTA visible; reopened DRAFT send CTA absent; historical R01 sent marker/event retained; Complétude sourced from ReviewService.
+- Closing 1600x900 screenshots A/B: visually verified on disposable fixture C:\Users\xSn\AppData\Local\Temp\ICP_RENOV_C2W3_D1_CLOSING_hb2j_xvc.
+- 1366 and 1280 horizontal overflow: none.
 - git diff --check: PASS.

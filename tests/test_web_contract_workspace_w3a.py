@@ -160,7 +160,7 @@ class WebContractWorkspaceW3ATests(unittest.TestCase):
         contract = self.contracts.create_draft(); self.contracts.select_client(contract.id, self.client_a.id)
         contract = self.contracts.select_site(contract.id, self.site_a.id)
         self.bridge.openContract(contract.id); state = self.states[-1]
-        self.assertEqual(contract.equipment_items, ()); self.assertEqual(state["summary"]["completion"], "Étape 1 à compléter")
+        self.assertEqual(contract.equipment_items, ()); self.assertEqual(state["summary"]["completion"], "Revue à corriger")
         issues = [issue.message for block in self.context.review.review(contract.id).blocks for issue in block.issues]
         self.assertIn("Aucun équipement sélectionné.", issues)
 

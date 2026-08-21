@@ -1,0 +1,42 @@
+.contract-documents-panel{padding:15px}
+.documents-feedback{margin-top:12px;padding:10px 12px;border:1px solid #b8d8c8;border-radius:7px;background:#edf7f1;color:#2e6d52;font-size:10px}
+.documents-feedback.error{border-color:#e4bcbc;background:#faeded;color:#913b3b}
+.documents-section{margin-top:13px;padding:13px;border:1px solid var(--line);border-radius:7px;background:#fff}
+.documents-section h3{margin:4px 0 0;font-size:15px}
+.documents-section-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.revision-list{margin-top:11px;display:grid;gap:8px}
+.revision-card{padding:11px;border:1px solid #dce3e6;border-radius:7px;background:#fbfcfc}
+.revision-card>header{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.revision-card>header>div{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.revision-number{font-size:15px;font-weight:750;color:#20333b}
+.revision-pill,.revision-sent,.revision-unsent{display:inline-flex;padding:3px 7px;border-radius:999px;font-size:8px;font-weight:750}
+.revision-pill.latest{background:#e7f1f2;color:#1e6670}.revision-pill.replaced{background:#edf0f1;color:#68777e}
+.revision-sent{background:#edf7f1;color:#2e6d52}.revision-unsent{background:#f2f4f5;color:#68777e}
+.revision-metadata{margin-top:8px;display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:9px}
+.revision-metadata strong{color:#384b54}
+.revision-actions{margin-top:9px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.revision-actions .button{min-height:30px;padding:0 9px;font-size:9px}
+.revision-file-missing{padding:6px 8px;border-radius:5px;background:#faeded;color:#913b3b;font-size:9px;font-weight:700}
+.revision-anomaly{margin:8px 0 0;color:#8a3e35;font-size:9px;line-height:1.4}
+.correction-zone{margin-top:13px;padding:13px;border:1px solid #e1c89f;border-radius:7px;background:#fff7e8;display:flex;align-items:center;justify-content:space-between;gap:14px}
+.correction-zone h3{margin:4px 0;font-size:14px}.correction-zone p{margin:0;color:#76511d;font-size:9px;line-height:1.4}
+.other-documents{background:#f8fafb}.other-documents p{margin:8px 0 0;color:var(--muted);font-size:10px}
+.contract-timeline{margin:12px 0 0;padding:0;list-style:none;display:grid;gap:0}
+.contract-timeline li{position:relative;min-height:48px;padding:0 0 12px 25px;border-left:1px solid #d5dfe2;margin-left:6px}
+.contract-timeline li:last-child{border-left-color:transparent;padding-bottom:0}
+.timeline-dot{position:absolute;left:-5px;top:2px;width:9px;height:9px;border-radius:50%;background:#1e6670;border:2px solid #e7f1f2}
+.contract-timeline strong,.contract-timeline small{display:block}.contract-timeline strong{font-size:10px}.contract-timeline small{margin-top:3px;color:var(--muted);font-size:9px}
+.contract-timeline p{margin:4px 0 0;color:#4d5e66;font-size:9px}.timeline-empty{border-left:0!important;color:var(--muted);font-size:10px}
+.documents-modal-overlay{z-index:155;align-items:center;justify-content:center}
+.documents-modal{position:relative;width:min(560px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;border-radius:9px;background:#fff;box-shadow:0 22px 65px rgba(10,24,30,.28)}
+.documents-modal>header{padding:19px 21px 14px;border-bottom:1px solid var(--line)}
+.documents-modal h2{margin:4px 0;font-size:20px}.documents-modal header p{margin:0;color:var(--muted);font-size:10px}
+.documents-modal-body{padding:17px 21px;display:grid;gap:12px}.documents-modal-body>label{display:grid;gap:5px;color:#465760;font-size:9px;font-weight:700}
+.documents-modal-body input,.documents-modal-body select,.documents-modal-body textarea{width:100%;padding:8px 9px;border:1px solid #c9d2d8;border-radius:6px;background:#fff;font:11px "Segoe UI",Arial}
+.documents-modal-body ul{margin:0;padding-left:19px;color:#3f5059;font-size:10px;line-height:1.65}
+.documents-info-notice{padding:10px 12px;border:1px solid #bed4dc;border-radius:7px;background:#f0f7f9;color:#315e6b;display:grid;gap:3px;font-size:10px}
+.documents-modal-error{padding:9px 11px;border-radius:6px;background:#faeded;color:#913b3b;font-size:10px}
+.documents-modal>footer{padding:13px 21px;border-top:1px solid var(--line);background:#f7f9fa;display:flex;justify-content:flex-end;gap:8px}
+.review-consultation{grid-template-columns:minmax(0,1fr) auto;align-items:center}
+@media(max-width:1366px){.documents-section{padding:11px}.revision-card{padding:9px}.correction-zone{align-items:flex-start}.review-consultation{grid-template-columns:1fr}.review-consultation .button{justify-self:start}}
+@media(max-width:1280px){.contract-documents-panel{padding:12px}.documents-section-head,.correction-zone{align-items:flex-start;flex-direction:column}.revision-card>header{align-items:flex-start}.revision-metadata{display:grid;gap:4px}}

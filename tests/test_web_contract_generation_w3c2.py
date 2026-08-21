@@ -229,7 +229,7 @@ class WebContractGenerationW3C2Tests(GenerationCase):
         locked = self.bridge.generateOfficialContract(self.contract.id)
         self.assertEqual(locked["code"], "status")
         self.assertEqual(len(self.documents.list_for_contract(self.contract.id)), 1)
-        self.assertFalse(self.bridge.setContractStep(self.contract.id, 4)["ok"])
+        self.assertTrue(self.bridge.setContractStep(self.contract.id, 4)["ok"])
 
     def test_frontend_ready_disabled_success_and_error_states_are_bounded(self):
         application = QCoreApplication.instance() or QCoreApplication([])

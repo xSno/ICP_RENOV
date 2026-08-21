@@ -3,6 +3,7 @@ let contractDrawer;
 let contractDrawerTrigger;
 let contractSaveFailure = '';
 let contractGenerationRunning = false;
+let contractDocumentsError = '';
 
 function closeContractDrawer() {
   document.querySelector('.contract-selector-overlay')?.remove();
@@ -121,6 +122,54 @@ function setContractStep(step) {
   bridge.setContractStep(contractWorkspaceState.contract.id, step, result => {
     if (!result?.ok) contractSaveFailure = result?.message || 'Cette étape n’est pas disponible.';
   });
+}
+
+function closeContractDocumentsModal() {
+  document.querySelector('.documents-modal-overlay')?.remove();
+}
+
+function openContractFile(revision, kind) {
+  contractDocumentsError = '';
+  bridge.openContractDocument(contractWorkspaceState.contract.id, revision, kind, result => {
+    if (!result?.ok) {
+      contractDocumentsError = result?.message || 'Le fichier est introuvable dans le dossier de travail.';
+      renderContractWorkspace(contractWorkspaceState);
+    }
+  });
+}
+
+function openCorrectionConfirmation() {
+  if (!contractWorkspaceState?.documents_d1?.correction_allowed) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'drawer-overlay documents-modal-overlay';
+  overlay.innerHTML = `<div class="drawer-backdrop" onclick="closeContractDocumentsModal()"></div><section class="documents-modal" role="dialog" aria-modal="true" aria-labelledby="correction-modal-title"><header><span class="eyebrow">Correction du contrat</span><h2 id="correction-modal-title">Corriger le contrat</h2><p>Confirmez le retour du contrat à l’état Brouillon.</p></header><div class="documents-modal-body"><ul><li>Le contrat retournera à l’état Brouillon.</li><li>Chaque révision existante restera préservée.</li><li>Cette action ne crée aucune nouvelle révision.</li><li>Une nouvelle révision existera uniquement après une future génération réussie depuis la Revue.</li></ul><div class="documents-modal-error" hidden></div></div><footer><button class="button button-secondary" onclick="closeContractDocumentsModal()">Annuler</button><button class="primary correction-confirm-action">Corriger le contrat</button></footer></section>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('.correction-confirm-action').addEventListener('click', () => {
+    bridge.reopenContractForCorrection(contractWorkspaceState.contract.id, result => {
+      if (result?.ok) closeContractDocumentsModal();
+      else { const error = overlay.querySelector('.documents-modal-error'); error.hidden = false; error.textContent = result?.message || 'Le contrat ne peut pas être rouvert pour correction.'; }
+    });
+  });
+  overlay.querySelector('.button-secondary')?.focus();
+}
+
+function openRecordSentModal() {
+  const data = contractWorkspaceState?.documents_d1;
+  if (!data?.send_allowed || !data?.revisions?.length) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'drawer-overlay documents-modal-overlay';
+  overlay.innerHTML = `<div class="drawer-backdrop" onclick="closeContractDocumentsModal()"></div><section class="documents-modal" role="dialog" aria-modal="true" aria-labelledby="sent-modal-title"><header><span class="eyebrow">Suivi du contrat</span><h2 id="sent-modal-title">Enregistrer l’envoi</h2><p>L’événement sera attaché uniquement à la révision choisie.</p></header><div class="documents-modal-body"><label><span>Révision envoyée</span><select id="sent-revision">${data.revisions.map(item => `<option value="${esc(item.revision)}">${esc(item.revision)} · ${esc(item.template_name)} · ${esc(item.template_version)}</option>`).join('')}</select></label><label><span>Date d’envoi</span><input id="sent-date" type="date" value="${esc(data.today)}" required></label><label><span>Note <small>Facultatif</small></span><textarea id="sent-note" rows="3" placeholder="Ex. transmise à la direction"></textarea></label><div class="documents-info-notice"><strong>Aucun message ne sera envoyé</strong><span>L’application enregistre une action réalisée hors du logiciel.</span></div><div class="documents-modal-error" hidden></div></div><footer><button class="button button-secondary" onclick="closeContractDocumentsModal()">Annuler</button><button class="primary sent-confirm-action">Enregistrer l’envoi</button></footer></section>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('.sent-confirm-action').addEventListener('click', () => {
+    const revision = overlay.querySelector('#sent-revision').value;
+    const effectiveDate = overlay.querySelector('#sent-date').value;
+    const note = overlay.querySelector('#sent-note').value;
+    bridge.recordContractSent(contractWorkspaceState.contract.id, revision, effectiveDate, note, result => {
+      if (result?.ok) closeContractDocumentsModal();
+      else { const error = overlay.querySelector('.documents-modal-error'); error.hidden = false; error.textContent = result?.message || 'L’envoi ne peut pas être enregistré.'; }
+    });
+  });
+  overlay.querySelector('.button-secondary')?.focus();
 }
 
 function updateContractRegime(regime) {
@@ -415,17 +464,38 @@ function openGenerationConfirmation() {
   overlay.querySelector('.generation-cancel-action')?.focus();
 }
 
+function renderContractDocuments(state) {
+  const data = state.documents_d1;
+  const feedback = data.feedback ? `<div class="documents-feedback ${esc(data.feedback.kind)}">${esc(data.feedback.message)}</div>` : '';
+  const error = contractDocumentsError ? `<div class="documents-feedback error">${esc(contractDocumentsError)}</div>` : '';
+  const revisions = data.revisions.map(item => {
+    const statePill = item.latest ? '<span class="revision-pill latest">Dernière révision</span>' : '<span class="revision-pill replaced">Révision précédente</span>';
+    const sent = item.sent_display ? `<span class="revision-sent">Envoyée le ${esc(item.sent_display)}</span>` : '<span class="revision-unsent">Non envoyée</span>';
+    const docx = item.docx_available ? `<button class="button button-secondary" onclick="openContractFile('${esc(item.revision)}','docx')">Ouvrir le DOCX</button>` : '<span class="revision-file-missing">DOCX introuvable</span>';
+    const pdf = item.pdf_available ? `<button class="button button-secondary" onclick="openContractFile('${esc(item.revision)}','pdf')">Ouvrir le PDF</button>` : '<span class="revision-file-missing">PDF introuvable</span>';
+    const anomaly = item.docx_available && item.pdf_available ? '' : '<p class="revision-anomaly">La révision reste conservée dans l’historique. Le fichier manquant n’a pas été recréé.</p>';
+    return `<article class="revision-card"><header><div><span class="revision-number">${esc(item.revision)}</span>${statePill}</div>${sent}</header><div class="revision-metadata"><span>Générée le <strong>${esc(item.generated_display)}</strong></span><span>Modèle <strong>${esc(item.template_name)} · ${esc(item.template_version)}</strong></span></div><div class="revision-actions">${docx}${pdf}</div>${anomaly}</article>`;
+  }).join('');
+  const timeline = data.timeline.map(item => `<li><span class="timeline-dot"></span><div><strong>${esc(item.label)}${item.revision ? ` · ${esc(item.revision)}` : ''}</strong><small>${esc(item.effective_display || item.occurred_display)}</small>${item.note ? `<p>${esc(item.note)}</p>` : ''}</div></li>`).join('');
+  const correction = data.correction_allowed ? `<section class="correction-zone"><div><span class="eyebrow">Contrat à signer</span><h3>Une correction est nécessaire ?</h3><p>Les données structurées restent verrouillées tant que le contrat n’est pas explicitement rouvert.</p></div><button class="button button-secondary" onclick="openCorrectionConfirmation()">Corriger le contrat</button></section>` : '';
+  const sendAction = data.send_allowed ? '<button class="primary" onclick="openRecordSentModal()">Enregistrer un envoi</button>' : '';
+  return `<section class="contract-step-panel contract-documents-panel"><header><span class="eyebrow">Étape 4 sur 4</span><h2>Documents & suivi</h2><p>Consultez les révisions officielles et enregistrez les actions réalisées hors du logiciel.</p></header>${feedback}${error}<section class="documents-section"><div class="documents-section-head"><div><span class="eyebrow">Révisions contractuelles</span><h3>Documents officiels</h3></div>${sendAction}</div><div class="revision-list">${revisions || '<div class="contract-empty">Aucune révision contractuelle disponible.</div>'}</div></section>${correction}<section class="documents-section other-documents"><div><span class="eyebrow">Autres documents</span><h3>Documents distincts du contrat</h3></div><p>Aucun autre document disponible.</p></section><section class="documents-section history-section"><div><span class="eyebrow">Historique</span><h3>Événements du contrat</h3></div><ol class="contract-timeline">${timeline || '<li class="timeline-empty">Aucun événement disponible.</li>'}</ol></section></section>`;
+}
+
 function renderContractReview(state) {
   const review = state.review;
   const generation = state.official_generation || {};
   const completeWithoutPendingFailure = review.data_complete && !contractSaveFailure;
-  const overall = completeWithoutPendingFailure
+  const overall = !state.contract.editable
+    ? '<div class="review-business-state valid"><strong>Révision officielle créée</strong><span>La Revue est en consultation. Toute correction doit être ouverte depuis Documents & suivi.</span></div>'
+    : completeWithoutPendingFailure
     ? '<div class="review-business-state valid"><strong>Toutes les informations nécessaires sont complètes</strong><span>Les données métier du contrat peuvent être préparées pour une future génération.</span></div>'
     : `<div class="review-business-state error"><strong>${contractSaveFailure ? 'Des modifications ne sont pas encore enregistrées' : 'Informations à compléter avant génération'}</strong><span>${contractSaveFailure ? 'Enregistrez les dernières modifications avant de considérer la revue comme complète.' : 'Corrigez les éléments signalés dans les blocs ci-dessous.'}</span></div>`;
   const blocks = review.blocks.map(block => {
     const valid = block.state === 'VALID';
     const issues = block.issues.map(issue => `<li>${esc(issue)}</li>`).join('');
-    return `<article class="review-block ${valid ? 'valid' : 'error'}"><header><span class="review-state">${valid ? 'Valide' : 'À corriger'}</span><h3>${esc(block.title)}</h3><button class="button button-secondary" onclick="openReviewBlock('${esc(block.id)}')">Modifier</button></header><p>${esc(block.summary)}</p>${issues ? `<ul>${issues}</ul>` : ''}</article>`;
+    const action = state.contract.editable ? `<button class="button button-secondary" onclick="openReviewBlock('${esc(block.id)}')">Modifier</button>` : '';
+    return `<article class="review-block ${valid ? 'valid' : 'error'}"><header><span class="review-state">${valid ? 'Valide' : 'À corriger'}</span><h3>${esc(block.title)}</h3>${action}</header><p>${esc(block.summary)}</p>${issues ? `<ul>${issues}</ul>` : ''}</article>`;
   }).join('');
   const failedChecks = review.generation_checks.filter(check => !check.available);
   let distinction = 'Les informations du contrat et les capacités de génération sont disponibles.';
@@ -440,7 +510,8 @@ function renderContractReview(state) {
   const feedback = generation.feedback ? `<div class="generation-result ${generation.feedback.kind}"><strong>${esc(generation.feedback.title || (generation.feedback.kind === 'success' ? 'Génération terminée' : 'Génération interrompue'))}</strong><span>${esc(generation.feedback.message)}</span>${generation.feedback.guarantee ? `<small>${esc(generation.feedback.guarantee)}</small>` : ''}${generation.feedback.kind === 'success' ? `<small>${esc(generation.feedback.contract_number)} · ${esc(generation.feedback.revision)} · À signer</small>` : ''}</div>` : '';
   const numberContext = generation.allowed ? `<div class="generation-number-context"><span>Numéro prévu</span><strong>${esc(generation.preview_number || 'Attribué après succès complet')}</strong><span>Prochaine révision</span><strong>${esc(generation.next_revision)}</strong></div>` : '';
   const disabled = !generation.allowed || contractGenerationRunning || Boolean(contractSaveFailure);
-  return `<section class="contract-step-panel contract-review-panel"><header><span class="eyebrow">Étape 3 sur 4</span><h2>Revue</h2><p>Vérifiez les informations qui seront figées et la disponibilité de la génération.</p></header>${feedback}<section class="review-level"><span class="eyebrow">Données du contrat</span>${overall}</section><div class="review-block-grid">${blocks}</div><section class="review-generation"><div><span class="eyebrow">Disponibilité de la génération</span><h3>Préparation documentaire</h3><p>${esc(distinction)}</p></div><div class="review-generation-checks">${checks}</div>${numberContext}<button class="primary review-generation-action" ${disabled ? 'disabled' : ''} onclick="openGenerationConfirmation()">${contractGenerationRunning ? 'Génération en cours…' : 'Générer le DOCX et le PDF'}</button></section></section>`;
+  const generationPanel = state.contract.editable ? `<section class="review-generation"><div><span class="eyebrow">Disponibilité de la génération</span><h3>Préparation documentaire</h3><p>${esc(distinction)}</p></div><div class="review-generation-checks">${checks}</div>${numberContext}<button class="primary review-generation-action" ${disabled ? 'disabled' : ''} onclick="openGenerationConfirmation()">${contractGenerationRunning ? 'Génération en cours…' : 'Générer le DOCX et le PDF'}</button></section>` : `<section class="review-generation review-consultation"><div><span class="eyebrow">Consultation</span><h3>Révision officielle créée</h3><p>Les données sont en lecture seule. Utilisez Documents & suivi pour consulter les fichiers ou corriger le contrat.</p></div><button class="button button-secondary" onclick="setContractStep(4)">Ouvrir Documents & suivi</button></section>`;
+  return `<section class="contract-step-panel contract-review-panel"><header><span class="eyebrow">Étape 3 sur 4</span><h2>Revue</h2><p>Vérifiez les informations qui seront figées et la disponibilité de la génération.</p></header>${feedback}<section class="review-level"><span class="eyebrow">Données du contrat</span>${overall}</section><div class="review-block-grid">${blocks}</div>${generationPanel}</section>`;
 }
 
 function renderContractConditions(state) {
@@ -482,6 +553,11 @@ function renderContractWorkspace(state) {
   const editSite = c.site_id ? 'Changer le site' : 'Choisir un site';
   const failure = contractSaveFailure ? `<div class="contract-persistence-error">Les dernières modifications ne sont pas encore enregistrées. ${esc(contractSaveFailure)}</div>` : '';
   document.querySelector('#app').innerHTML = `<div class="app"><aside class="side"><div class="brand"><span class="brand-icon">${icon('air')}</span><span>ICP Renov<br><small>Contrats d’entretien</small></span></div><div class="nav active" onclick="bridge.returnToContracts()">${icon('file')}Contrats</div><div class="nav" onclick="bridge.navigate('CLIENTS')">${icon('users')}Clients & installations</div><div class="nav" onclick="bridge.navigate('SETTINGS')">${icon('settings')}Paramètres</div><div class="side-bottom"><div class="local-state">${icon('laptop')}<b>Mode local</b><small>Données conservées uniquement sur ce poste.</small></div><div class="backup-state">${icon('backup')}<small>Sauvegarde</small><b>${esc(backup)}</b></div></div></aside><main class="main contract-main"><header class="contract-header"><button class="ghost contract-back" onclick="bridge.returnToContracts()">← Retour Contrats</button><div class="contract-heading"><span class="pill ${esc(c.status)}">${esc(c.status_label)}</span><h1>${esc(c.number)}</h1><p>${esc(c.client || 'Client à sélectionner')} · ${esc(c.site || 'Site à sélectionner')}</p></div><div class="contract-header-state"><span class="contract-save-state">${esc(c.saved_label)}</span></div></header><div class="contract-shell"><nav class="contract-step-rail" aria-label="Étapes du contrat">${steps.map((label,index) => `<button class="contract-step ${index === (state.active_step || 1) - 1 ? 'active' : ''}" ${index > 2 ? 'disabled' : `onclick="setContractStep(${index + 1})"`}><span>${index + 1}</span><span><strong>${label}</strong>${index === (state.active_step || 1) - 1 ? '<small>Étape en cours</small>' : ''}</span></button>`).join('')}</nav><div class="contract-workspace-body">${failure}<section class="contract-step-panel"><header><span class="eyebrow">Étape 1 sur 4</span><h2>Client, site & équipements</h2><p>Définissez le contexte exact repris dans ce contrat.</p></header><article class="contract-section" data-review-target="client-signatory"><div class="contract-section-head"><div><span class="eyebrow">Client du contrat</span><h3>${esc(c.client || 'Aucun client sélectionné')}</h3></div>${c.editable ? `<div><button class="button button-secondary" onclick="openContractSelector('client',this)">${editClient}</button><button class="ghost" onclick="openClientDrawer('contract-create',this)">Créer un nouveau client</button></div>` : ''}</div>${c.client_id ? `<div class="contract-signatory"><div><span class="eyebrow">Signataire pour ce contrat</span><p>Ces informations ne modifient pas la fiche maître.</p></div><label><span>Nom</span><input id="contract-signatory-name" value="${esc(c.signatory_name)}" ${c.editable ? '' : 'disabled'}></label><label><span>Fonction ou qualité</span><input id="contract-signatory-role" value="${esc(c.signatory_role)}" ${c.editable ? '' : 'disabled'}></label>${c.editable ? '<button class="button button-secondary" onclick="saveContractSignatory()">Enregistrer</button>' : ''}</div>` : '<div class="contract-empty">Choisissez ou créez un client pour continuer.</div>'}</article><article class="contract-section ${!c.client_id ? 'disabled-section' : ''}" data-review-target="site-equipment"><div class="contract-section-head"><div><span class="eyebrow">Site unique du contrat</span><h3>${esc(c.site || 'Aucun site sélectionné')}</h3></div>${c.editable && c.client_id ? `<div><button class="button button-secondary" onclick="openContractSelector('site',this)">${editSite}</button><button class="ghost" onclick="openContractSiteCreator(this)">Ajouter un site</button></div>` : ''}</div>${!c.client_id ? '<div class="contract-empty">Sélectionnez d’abord un client.</div>' : !c.site_id ? '<div class="contract-empty">Choisissez ou ajoutez un site.</div>' : ''}</article><article class="contract-section equipment-contract-section ${!c.site_id ? 'disabled-section' : ''}"><div class="contract-section-head"><div><span class="eyebrow">Équipements du site</span><h3>${selected.length} équipement(s) sélectionné(s)</h3></div>${c.editable && c.site_id ? `<button class="button button-secondary" onclick="openContractEquipmentCreator(this)">${icon('plus')}Ajouter un équipement</button>` : ''}</div>${c.site_id ? `<p class="order-copy">Ordre repris dans l’annexe du contrat</p>${equipmentRows || '<div class="contract-empty">Aucun équipement actif sur ce site.</div>'}${selected.length ? '' : '<div class="step-anomaly">Aucun équipement sélectionné. Le brouillon reste enregistré, mais la génération future sera bloquée.</div>'}` : '<div class="contract-empty">Sélectionnez d’abord un site.</div>'}</article></section></div><aside class="contract-summary"><span class="eyebrow">Résumé du contrat</span><h2>État actuel</h2><dl>${workspaceSummaryRow('Client',state.summary.client)}${workspaceSummaryRow('Signataire',state.summary.signatory)}${workspaceSummaryRow('Site',state.summary.site)}${workspaceSummaryRow('Équipements',summaryEquipment)}${workspaceSummaryRow('Régime',state.summary.regime)}${workspaceSummaryRow('Mode de conclusion',state.summary.conclusion)}${workspaceSummaryRow('Période',state.summary.period)}${workspaceSummaryRow('Prix',state.summary.price)}${workspaceSummaryRow('Renouvellement',state.summary.renewal)}${workspaceSummaryRow('Modèle / version',state.summary.template)}${workspaceSummaryRow('Complétude',state.summary.completion,state.summary.completion.includes('complète') ? 'complete' : 'warning')}</dl></aside></div></main></div>`;
+  const documentsStep = document.querySelectorAll('.contract-step')[3];
+  if (documentsStep && state.documents_d1.available) {
+    documentsStep.disabled = false;
+    documentsStep.onclick = () => setContractStep(4);
+  }
   if ((state.active_step || 1) === 2) {
     const body = document.querySelector('.contract-workspace-body');
     body.innerHTML = failure + renderContractConditions(state);
@@ -489,6 +565,8 @@ function renderContractWorkspace(state) {
     body.querySelector('.conditions-step-panel').insertAdjacentHTML('beforeend', renderContractB3(state));
   } else if ((state.active_step || 1) === 3) {
     document.querySelector('.contract-workspace-body').innerHTML = failure + renderContractReview(state);
+  } else if ((state.active_step || 1) === 4) {
+    document.querySelector('.contract-workspace-body').innerHTML = failure + renderContractDocuments(state);
   }
   focusContractReviewTarget(state);
 }
@@ -496,4 +574,5 @@ function renderContractWorkspace(state) {
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && contractDrawer) closeContractDrawer();
   if (event.key === 'Escape') closeGenerationConfirmation();
+  if (event.key === 'Escape') closeContractDocumentsModal();
 });
