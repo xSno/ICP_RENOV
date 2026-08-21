@@ -1,35 +1,33 @@
-C2.W3-D5 — Step 4 Intervention Sheet
+C2.W4 — Transverse V1 Closure Audit / R1 clean LibreOffice runtime verification
 
 Baseline
-- Accepted D4 commit: 2a07e0761e0c148afac722025a9c2a26de3e599a.
-- Incoming full suite: 383/383 PASS.
-- D5 remains uncommitted for review.
+- Accepted D5 HEAD: c246410 (C2.W3-D5 Step 4 intervention sheets).
+- Working tree was clean at audit start; the only audit delta is recap.txt and diff.txt.
+- Full suite: 384/384 PASS in 281.211 s.
 
-Scope
-- Step 4 projects only AVAILABLE INTERVENTION_SHEET versions, a French JJ/MM/AAAA intervention modal, a closed Web bridge DTO, and exact-document DOCX/PDF opening under Autres documents.
-- Intervention sheets remain immutable documents distinct from CONTRACT revisions: no number allocation, Rxx, lifecycle, renewal, signature, or signed-copy mutation.
-- DOCUMENT_GENERATED remains the sole existing event authority for both document kinds; no event enum or generation transaction changed.
+Cross-slice findings
+- Navigation, four-step workspace, Contract list ACTION versus INFORMATION authority, Step 1 cascades, Step 2 conditionals, nine-block Review, official-generation transaction, Documents, signature/signed-copy, renewal, end-of-contract, and INTERVENTION_SHEET separation are covered by the accepted W3 regression set and remain internally consistent.
+- DOCUMENT_GENERATED history projection resolves the persisted document by event.document_id: CONTRACT retains Révision contractuelle générée · Rxx; INTERVENTION_SHEET projects Fiche d’intervention générée without Rxx.
+- Restart reconstruction passed: the D4 fixture restores ACTIVE, scheduled-termination, TERMINATED, EXPIRED, TO_SIGN, and ABANDONED projections; the D5 fixture restores R01 plus three intervention sheets and their document-specific History entries; the review-ready fixture restores a DRAFT with nine valid Review blocks.
+- No production source, test, sandbox, GPU, or Chromium flag was changed during C2.W4/R1.
 
-History projection correction
-- Every DOCUMENT_GENERATED history entry resolves its exact persisted ContractDocument by event.document_id.
-- CONTRACT remains Révision contractuelle générée · Rxx.
-- INTERVENTION_SHEET now projects Fiche d’intervention générée with no Rxx, id, UUID, filename, or inferred document kind.
-- An unresolved document retains the existing bounded generic projection; History order remains occurred_at DESC, persisted id DESC.
+Clean LibreOffice runtime evidence
+- Before R1, the only soffice.exe / soffice.bin pair was proved orphaned from the earlier repository `--version` probe: its parent no longer existed and its command line was rooted in this repository. It was terminated by exact PID only.
+- A clean LibreOffice session was confirmed before the smoke. LibreOffice 26.2.5.2 was retained unchanged.
+- Two sequential disposable official CONTRACT generations used DocumentGenerationService, ProductionDocxRenderer, LibreOfficeConverter, postflight, and the official publication transaction with distinct isolated profiles/workspaces under C:\Users\xSn\AppData\Local\Temp\icp-c2-w4-r1-vmpfpeao.
+- First conversion: DOCX render 0.132 s; LibreOffice conversion 6.908 s; full operation 7.689 s. Second conversion: DOCX render 0.114 s; LibreOffice conversion 5.761 s; full operation 6.521 s.
+- Both generated readable DOCX files and readable five-page PDFs with no unresolved markers; each retained its exact template version, allocated the first official number only after success, persisted R01, ContractDocument, immutable snapshot and DOCUMENT_GENERATED, then reached TO_SIGN.
+- No soffice.exe or soffice.bin process remained after the second conversion. The prior runtime blocker is cleared; no product correction is required.
 
-Preserved D5 behavior
-- Kind-only available-template filtering, contract-template rejection, technician requiredness, French date input, contractual equipment snapshot, document paths, multiple-sheet preservation, missing-file behavior, and exact opening are unchanged.
-- D1/D2/D3/D4 authority is unchanged.
+Windows QA fixtures
+- Review-ready DRAFT: C:\Users\xSn\AppData\Local\Temp\icp-renov-c2-w4-review-ready-20260821 (contract d299d647-9789-42c8-b0b9-8888a82ec44e).
+- TO_SIGN, ACTIVE, TACIT attention, scheduled termination, and terminal states: C:\Users\xSn\AppData\Local\Temp\icp-renov-d4-final-authority-review-20260821-1600 (mapping.json).
+- Intervention sheets: C:\Users\xSn\AppData\Local\Temp\icp-renov-d5-manual-review-20260821 (SYNTH-S5-0001, R01, three sheets).
+- Automated WebEngine visual capture remains a known non-gate GPU-context limitation; no workaround was used.
 
 Validation
-- D5 Web targeted: 5/5 PASS (one new document-kind History projection regression).
-- Existing S9 intervention authority: 12/12 PASS.
-- Full suite: 384/384 PASS in 270.090 s with QT_QPA_PLATFORM=offscreen and ResourceWarning promoted to errors.
-- The total increases by one from the accepted D5 baseline, for the deterministic CONTRACT R01 plus two INTERVENTION_SHEET DOCUMENT_GENERATED projection test.
-- git diff --check: PASS (only CRLF advisory warnings).
+- Full suite: 384/384 PASS with QT_QPA_PLATFORM=offscreen and ResourceWarning promoted to errors.
+- git diff --check: PASS (CRLF advisory warnings only).
 
-Manual Windows fixture
-- Persistent fixture root: C:\Users\xSn\AppData\Local\Temp\icp-renov-d5-manual-review-20260821
-- Contract SYNTH-S5-0001 retains CONTRACT R01 and two intervention sheets dated 14/08/2026 and 21/08/2026.
-
-Review state
-- No D5 commit yet.
+Verdict
+C2_TRANSVERSE_READY

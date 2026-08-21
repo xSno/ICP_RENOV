@@ -1,32 +1,26 @@
-C2.W3-D5 uncommitted delta against accepted D4 HEAD 2a07e0761e0c148afac722025a9c2a26de3e599a
+C2.W4 / R1 audit artifact refresh against accepted D5 HEAD c246410
 
 Created
-- tests/test_web_intervention_w3d5.py
+- None.
 
 Modified
 - recap.txt
 - diff.txt
-- src/icp_renov_contracts/ui/web_host.py
-- src/icp_renov_contracts/ui_web/contract-documents.css
-- src/icp_renov_contracts/ui_web/contract-workspace.js
-- tests/test_web_contract_renewal_w3d3.py
-- tests/test_web_contract_signature_w3d2.py
 
 Removed
 - None.
 
-D5 scope
-- WebChannel projection and closed DTO route for the existing InterventionSheetGenerationService.
-- Strict kind-based AVAILABLE INTERVENTION_SHEET selection, French date modal, distinct Autres documents cards, and bounded exact DOCX/PDF opening.
-- DOCUMENT_GENERATED History presentation now resolves event.document_id to the persisted ContractDocument: CONTRACT retains Révision contractuelle générée · Rxx; INTERVENTION_SHEET projects Fiche d’intervention générée without a revision.
-- No new ContractEvent type, number allocation, CONTRACT revision mutation, lifecycle transition, signature, or signed-copy behavior.
+Audit scope intentionally unchanged
+- All production Python, WebEngine JavaScript/CSS/HTML, tests, documents, templates, spike content, sandbox configuration, and GPU/Chromium settings.
+- No temporary fixture or screenshot was created in the repository.
 
-Accepted / intentionally unchanged
-- Official CONTRACT generation, numbering, revision, signature, signed-copy, renewal, D4 end-of-contract lifecycle, and History ordering authority.
-- templates/, docs/, and spike/.
+Audit evidence
+- Full suite: 384/384 PASS in 281.211 s using QT_QPA_PLATFORM=offscreen and -W error::ResourceWarning.
+- Clean Windows LibreOffice 26.2.5.2 session confirmed after terminating only the proved orphaned prior `--version` pair.
+- Two sequential exact official CONTRACT generation transactions passed through production rendering, isolated-profile LibreOffice conversion, postflight, and publication: readable DOCX/PDF (five PDF pages each), R01, ContractDocument, immutable snapshot, DOCUMENT_GENERATED, and TO_SIGN.
+- No relevant soffice.exe / soffice.bin process remained after conversion.
+- D4/D5 and review-ready external fixtures were reconstructed through the production application context.
 
-Validation
-- D5 Web targeted 5/5 PASS; S9 intervention authority 12/12 PASS.
-- Full suite 384/384 PASS in 270.090 s using QT_QPA_PLATFORM=offscreen and -W error::ResourceWarning.
-- git diff --check: PASS (only CRLF advisory warnings).
-- Manual fixture remains external to the repository at C:\Users\xSn\AppData\Local\Temp\icp-renov-d5-manual-review-20260821.
+Verdict
+- C2_TRANSVERSE_READY: the prior clean-session LibreOffice runtime gate is cleared; no product correction was made.
+- git diff --check: PASS (CRLF advisory warnings only).
