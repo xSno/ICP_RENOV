@@ -24,6 +24,18 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _external_gate_status(value: ExternalGateStatus | str) -> ExternalGateStatus:
+    """Normalize the primitive status sent by UI boundaries to its domain enum."""
+    if isinstance(value, ExternalGateStatus):
+        return value
+    if isinstance(value, str):
+        try:
+            return ExternalGateStatus(value)
+        except ValueError as exc:
+            raise ContractValidationError("external validation status") from exc
+    raise ContractValidationError("external validation status")
+
+
 class TemplateCatalogService:
     """Governed model/version catalog with explicit, non-legal validation evidence."""
 
@@ -259,16 +271,18 @@ class TemplateCatalogService:
         )
         self.validation_repository.set_context_review(version_id, status, _now())
 
-    def set_external_gate(self, version_id: str, code: str, status: ExternalGateStatus,
+    def set_external_gate(self, version_id: str, code: str, status: ExternalGateStatus | str,
                           reference: str = "") -> None:
         self._editable(version_id)
         if code not in EXTERNAL_GATE_CODES: raise ContractValidationError("external gate")
+        status = _external_gate_status(status)
         self.validation_repository.set_external_gate(version_id, code, status, reference.strip(), _now())
 
-    def set_external_content(self, version_id: str, status: ExternalGateStatus, validator: str = "",
+    def set_external_content(self, version_id: str, status: ExternalGateStatus | str, validator: str = "",
                              validation_date: str | None = None, scope: str = "", reference: str = "",
                              reservations: str = "") -> None:
         self._editable(version_id)
+        status = _external_gate_status(status)
         if status is ExternalGateStatus.CONFIRMED:
             if not all(value.strip() for value in (validator, scope, reference)) or not validation_date:
                 raise ContractValidationError("external content confirmation")

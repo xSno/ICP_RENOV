@@ -1,54 +1,51 @@
-C3-B2 — First Windows one-dir build
+C3-B3 — External template validation enum/string boundary
 
 Baseline
-- Accepted C3-B1 HEAD: 8f74308 (C3-B1 Windows packaging foundation).
-- Incoming full suite: 390/390 PASS. B2 did not change production Python, domain behavior, WebEngine security, LibreOffice authority, or installer scope.
+- Current accepted HEAD: 3918004 (C3-B2 first Windows one-dir build).
+- This is a blocking packaged-runtime correction only; no commit is made in this review state.
 
-Build environment
-- Windows 10 10.0.19045 x64; Python 3.14.3 x64; PySide6/Qt/QtWebEngine 6.11.1; PyInstaller 6.22.2.
-- Only the pinned B1 packaging extra was installed. No unrelated dependency was upgraded.
+Root cause and authority
+- The affected screen is the native Qt ModelVersionDetail external-validation form, not a WebChannel method.
+- PySide6 QComboBox.currentData() returns primitive strings such as "CONFIRMED" even when the item data was supplied as ExternalGateStatus.CONFIRMED.
+- ModelVersionDetail._save_external() passed those strings to TemplateCatalogService; TemplateValidationRepository.set_external_content() and set_external_gate() then attempted status.value, causing AttributeError: 'str' object has no attribute 'value'.
+- The view catches that exception and displays its text to the user, so the historical failure does not produce a Python traceback in application.log. No logging behavior was changed for this bounded fix.
+- TemplateCatalogService now explicitly accepts an existing ExternalGateStatus enum or validates an exact primitive token into that enum before repository persistence. Unknown strings and non-string/non-enum values raise ContractValidationError. TEMPLATE_VALIDATION_MATRIX authority and all availability gates are unchanged.
 
-Tracked packaging corrections
-- First build proved the spec resolved ROOT one parent too high from SPECPATH. packaging/icp_renov_contracts.spec now uses the actual packaging parent as repository root.
-- PyInstaller proved Analysis requires a mutable hiddenimports sequence. The existing exact six production Qt imports are now a list, with no new hidden imports.
-- packaging/build_windows_bundle.ps1 now deletes only the exact repository build/ and dist/ paths, after a resolved-path containment check, before its unchanged tracked PyInstaller invocation. This gives B2 clean generated output without broad cleanup.
+Controlled vocabulary and projection
+- Existing controlled values inspected: NOT_APPLICABLE, TO_REVIEW, CONFIRMED, REJECTED.
+- The actual native UI save path was covered for CONFIRMED, NOT_APPLICABLE, and TO_REVIEW across several gate rows; no uncontrolled token is accepted.
+- Repository reads continue to rehydrate ExternalGateStatus values deterministically. Qt currentData() continues to project primitive strings for the UI boundary.
+- No template was made AVAILABLE during verification.
 
-Final clean one-dir build
-- Command: .\packaging\build_windows_bundle.ps1
-- Exit: 0; elapsed: 163.025 seconds.
-- Application directory: dist\ICP Renov - Contrats
-- Windowed executable: ICP Renov - Contrats.exe (no console is intended for user launch).
-- Inventory: 2,956 files; 580,521,515 bytes / 553.63 MiB.
-
-Actual QtWebEngine tree
-- _internal\PySide6\QtWebEngineProcess.exe
-- _internal\PySide6\Qt6WebEngineCore.dll; Qt6WebEngineWidgets.dll; Qt6WebChannel.dll
-- _internal\PySide6\plugins\platforms\qwindows.dll
-- _internal\PySide6\resources\icudtl.dat and qtwebengine_resources.pak
-- _internal\PySide6\translations\qtwebengine_locales\en-US.pak and fr.pak, plus Qt translation .qm files.
-- Native VC runtime DLLs are present under _internal and the PySide6/shiboken runtime folders.
-
-Resource and security checks
-- Packaged field registry: _internal\icp_renov_contracts\resources\FIELD_TEMPLATE_CONTRACT_V1_1.txt; SHA-256 039C2F19A91017B84C78EBB571C8491F8571356E26BF1224269ED739552413C4 (accepted B1 value).
-- All 11 declared production Web HTML/CSS/JS assets are byte-identical to src/icp_renov_contracts/ui_web/.
-- No --no-sandbox, QTWEBENGINE_DISABLE_SANDBOX, remote-debugging, or GPU-disable configuration was found in packaged text inputs/output; the direct smoke inherited no sandbox-disable variable.
-- No LibreOffice/soffice payload, tests, spike, known dev-only packages, repository .git content, user SQLite/config/log files, backups, fixtures, screenshots, or generated contracts were found in dist.
-
-Direct packaged execution
-- A copy of the complete one-dir tree was launched from C:\Users\xSn\AppData\Local\Temp\icp-renov-c3-b2-20260822-003658\bundle\ICP Renov - Contrats with a separate non-repository CWD, no PYTHONPATH/PYTHONHOME, and no source-Python launcher.
-- Effective LOCALAPPDATA was isolated at C:\Users\xSn\AppData\Local\Temp\icp-renov-c3-b2-20260822-003658\localappdata; the ready workspace/database remained under the same TEMP root, outside dist.
-- The copied ICP Renov - Contrats.exe opened a normal visible window (title: ICP Renov — Contrats d’entretien); QtWebEngineProcess was a child of that copied bundle. The local Contracts WebEngine surface, sidebar and initial bridge snapshot rendered; no startup dialog, blank page, console interaction, or immediate crash occurred. Screenshot: C:\Users\xSn\AppData\Local\Temp\icp-renov-c3-b2-20260822-003658\c3-b2-bundle-direct-launch.png (1296x839).
-- Direct runtime paths were the copied bundle path, not the repository; no checkout path reference was found in packaged readable content. The application context also initialized the existing external LibreOffice converter authority without a repository-Python dependency.
-- No writable SQLite/config/log data was created in dist. The isolated machine config/log location and workspace were external, and the application was closed normally.
-
-Bounded windowed diagnostic
-- A second disposable invalid bootstrap profile produced the concise French Qt dialog “La configuration locale de ce poste est invalide.” without a terminal or traceback. The detailed exception was recorded only in that profile’s application.log. Screenshot: C:\Users\xSn\AppData\Local\Temp\icp-renov-c3-b2-20260822-003658\c3-b2-startup-diagnostic.png.
+Regression coverage
+- tests/test_model_catalog_s12.py adds a native Qt regression using the real ModelVersionDetail sender path.
+- It proves primitive-string normalization and persistence, reopening/projection as primitive UI values, multiple controlled gate rows, and clean rejection of INVALID values.
 
 Validation
-- Packaging/resource/startup targeted discovery: 6/6 PASS.
-- No production Python changed, so the accepted C3-B1 full-suite result remains 390/390 PASS and B2 required no full-suite rerun.
-- git diff --check: PASS (Git emits only pre-existing CRLF conversion advisories).
-- build/ and dist/ are ignored; no generated binaries are tracked. No installer was created.
+- Targeted native Qt regression: 1/1 PASS.
+- Model catalog module: 17/17 PASS.
+- Full application suite: 391/391 PASS.
+- git diff --check: PASS; Git reports only LF-to-CRLF advisory messages.
+
+Packaged runtime recheck
+- One-dir bundle was rebuilt through packaging/build_windows_bundle.ps1 from clean repository build/dist output.
+- Rebuilt executable: dist\ICP Renov - Contrats\ICP Renov - Contrats.exe.
+- It was launched directly with isolated LOCALAPPDATA, no PYTHONPATH/PYTHONHOME, no --no-sandbox, and no QTWEBENGINE_DISABLE_SANDBOX.
+- In the real external-validation form, controlled TO_REVIEW values saved successfully with the visible message "Validation externe enregistrée." No attribute error occurred and the template remained non-AVAILABLE.
+- Manual evidence: C:\Users\xSn\AppData\Local\Temp\icp-renov-c3-b3-20260822-013120\b3-rebuilt-external-save-bottom.png.
+
+Frozen / intentionally unchanged
+- Template availability rules, legal/product requiredness, validation-matrix semantics, SQLite schema, contract lifecycle, document generation, LibreOffice authority, WebEngine sandbox, installer scope, and all unrelated UI behavior.
 
 Verdict
-C3_B2_BUNDLE_READY
+C3_B3_EXTERNAL_VALIDATION_FIX_READY_FOR_REVIEW
+
+Resume packaged clean-profile workflow
+- Reused the isolated B3 profile/workspace and the rebuilt dist\ICP Renov - Contrats\ICP Renov - Contrats.exe; ordinary workflow actions used the packaged executable only.
+- The user explicitly confirmed the external-validation decisions. All controlled gate rows and the global state were saved as Confirmed, with synthetic B3 review metadata; the checklist displayed "Validation externe" as satisfied.
+- Synthetic Company fixture data was entered through Paramètres > Société only. A first decimal-format rejection for "10 000 EUR" was corrected to "10000"; a subsequent unchanged-profile save displayed "Informations société enregistrées." No SQLite manipulation occurred.
+- The normal Diagnostic génération page found DOCX available and LibreOffice 26.2.5.2. The selected model's confirmed non-official test completed with "Résultat → Test réussi..." and exposed its DOCX/PDF open actions.
+- Before the remaining visual-control, external-content confirmation, AVAILABLE transition, contract journey, and restart checks, the packaged application lost its titled main window: its remaining process was responsive but exposed only an empty 181x150 window, with no shutdown or traceback in the isolated application.log. No further UI input or restart was attempted.
+
+Resume verdict
+C3_B3_CORRECTIONS_REQUIRED

@@ -22,6 +22,7 @@ from icp_renov_contracts.domain import (
     EXTERNAL_GATE_CODES, ExternalGateStatus, ReviewEvidenceStatus,
     TemplateVersionStatus, ValidationCheckStatus,
 )
+from icp_renov_contracts.errors import ContractValidationError
 from icp_renov_contracts.repositories import (
     CompanySettingsRepository, TemplateCatalogRepository, TemplateValidationRepository,
 )
@@ -121,6 +122,43 @@ class ModelCatalogS12Tests(unittest.TestCase):
         with self.database.connection() as connection: counts = tuple(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] for table in ("contract_templates", "contract_template_versions"))
         with self.assertRaises(Exception): self.service.add_model("Cassé", "CONTRACT", "1", invalid)
         with self.database.connection() as connection: self.assertEqual(tuple(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] for table in ("contract_templates", "contract_template_versions")), counts)
+
+    def test_external_validation_qt_string_statuses_are_normalized_and_reopen_as_primitives(self):
+        version = self.add_contract("Validation Qt", "1")
+        page = ModelsSettingsPage(self.service); page.open_version(version.id); self.application.processEvents()
+        detail = page.stack.currentWidget()
+
+        self.assertEqual(type(detail.external_content_status.currentData()), str)
+        detail.external_content_status.setCurrentIndex(detail.external_content_status.findData("CONFIRMED"))
+        detail.validator.setText("Validation externe synthétique")
+        detail.validation_date.setText("2026-08-22")
+        detail.scope.setText("Contrat de test")
+        detail.external_reference.setText("QT-BOUNDARY-1")
+        statuses = ("CONFIRMED", "NOT_APPLICABLE", "TO_REVIEW")
+        expected_statuses = {}
+        for index, (code, (combo, reference)) in enumerate(detail.gate_controls.items()):
+            status = statuses[index % len(statuses)]
+            expected_statuses[code] = ExternalGateStatus(status)
+            self.assertEqual(type(combo.currentData()), str)
+            combo.setCurrentIndex(combo.findData(status))
+            reference.setText(f"preuve-{index}")
+
+        detail._save_external(); self.application.processEvents()
+        record = self.service.validation_record(version.id)
+        self.assertIs(record.external_content_status, ExternalGateStatus.CONFIRMED)
+        self.assertEqual(record.external_validator, "Validation externe synthétique")
+        self.assertEqual({item.code: item.status for item in record.external_gates}, expected_statuses)
+        self.assertEqual(detail.feedback.text(), "Validation externe enregistrée.")
+
+        page.open_version(version.id); self.application.processEvents()
+        reopened = page.stack.currentWidget()
+        self.assertEqual(reopened.external_content_status.currentData(), "CONFIRMED")
+        self.assertEqual(reopened.gate_controls[EXTERNAL_GATE_CODES[0]][0].currentData(), "CONFIRMED")
+        with self.assertRaisesRegex(ContractValidationError, "external validation status"):
+            self.service.set_external_gate(version.id, EXTERNAL_GATE_CODES[0], "INVALID", "preuve")
+        with self.assertRaisesRegex(ContractValidationError, "external validation status"):
+            self.service.set_external_content(version.id, "INVALID")
+        page.close()
 
     def test_initial_version_is_explicit_editable_literal_and_scoped_to_its_family(self):
         dialog = AddModelDialog()

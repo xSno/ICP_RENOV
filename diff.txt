@@ -1,38 +1,44 @@
-C3-B2 — First Windows one-dir build
+C3-B3 — External template validation enum/string boundary
 
 Baseline
-- Accepted C3-B1 HEAD: 8f74308 (C3-B1 Windows packaging foundation).
+- Current accepted HEAD: 3918004 (C3-B2 first Windows one-dir build).
 
 Created
 - None.
 
 Modified
-- packaging/icp_renov_contracts.spec
-  - Corrects the actual SPECPATH-derived repository root used by the tracked spec.
-  - Uses the mutable hiddenimports form required by PyInstaller Analysis; the six existing production Qt imports are unchanged.
-- packaging/build_windows_bundle.ps1
-  - Performs a bounded, resolved-path-checked cleanup of only repository build/ and dist/ before the existing tracked build invocation.
+- src/icp_renov_contracts/services/template_catalog.py
+  - Normalizes only the native UI boundary's exact controlled ExternalGateStatus primitive strings into the authoritative enum before repository calls.
+  - Rejects invalid tokens cleanly with ContractValidationError.
+- tests/test_model_catalog_s12.py
+  - Covers actual ModelVersionDetail/QComboBox string payloads, persistence, reopening/projection, multiple controlled values, and invalid-token rejection.
 - recap.txt
-  - Records the actual B2 clean build, package inventory, external direct-executable smoke, security/resource checks, diagnostic, and validation.
+  - Records the diagnosed boundary, validation evidence, and packaged runtime recheck.
 - diff.txt
-  - Records this real C3-B2 worktree delta.
+  - Records this actual C3-B3 review delta.
 
 Removed
 - None.
 
 Intentionally unchanged / frozen
-- No production Python/domain/lifecycle/document/Web UI behavior.
-- No WebEngine sandbox, remote-debugging, GPU, or LibreOffice authority change.
-- No installer, icon, installer prerequisites, release packaging, generated binary, fixture, user data, tests, spike, or documentation change.
-
-Generated output
-- build/ and dist/ were created only by the tracked script and remain ignored/untracked. They are deliberately absent from this review diff.
+- TEMPLATE_VALIDATION_MATRIX semantics and template availability gates.
+- SQLite schema and direct database authority.
+- Contract lifecycle, document generation, LibreOffice authority, WebEngine sandbox, installer scope, and unrelated UI behavior.
 
 Validation
-- Final clean tracked build: exit 0 in 163.025 seconds.
-- Actual one-dir QtWebEngine/runtime/resource tree inspected; copied bundle launched directly outside the repository with isolated LOCALAPPDATA and no PYTHONPATH.
-- Targeted packaging/resource/startup tests: 6/6 PASS.
-- git diff --check: PASS (CRLF conversion advisories only).
+- Targeted native Qt regression: 1/1 PASS.
+- Model catalog module: 17/17 PASS.
+- Full application suite: 391/391 PASS.
+- Rebuilt one-dir packaged executable saved controlled external-validation values successfully without marking the template AVAILABLE.
+- git diff --check: PASS (only Git LF-to-CRLF advisories).
 
 Verdict
-- C3_B2_BUNDLE_READY.
+C3_B3_EXTERNAL_VALIDATION_FIX_READY_FOR_REVIEW
+
+Resume packaged workflow evidence
+- No additional tracked production, test, packaging, configuration, or source file was changed while resuming the clean-profile packaged workflow.
+- The B3 fixture's controlled external validation and fictional Company profile were updated only through the packaged UI. The real non-official DOCX/PDF diagnostic succeeded through LibreOffice 26.2.5.2.
+- The resumed workflow cannot continue to AVAILABLE or the contract journey because the packaged application subsequently lost its titled main window while its process remained responsive; application.log has no shutdown or traceback.
+
+Resume verdict
+C3_B3_CORRECTIONS_REQUIRED
