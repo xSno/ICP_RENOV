@@ -1,42 +1,36 @@
-NEW WORK EXECUTED IN THIS RUN
+NEW WORK EXECUTED IN C3-B6 FINAL CLOSURE
 
-C3-B5-R2 installer delta against C3-B3 baseline d00b61a
-
-Files created
-- packaging/installer/icp_renov_contrats.iss
-- packaging/build_windows_installer.ps1
-- tests/test_packaging_installer_c3b5.py
+Closure review against B5 HEAD c9d0012
 
 Files modified
 - recap.txt
 - diff.txt
 
+Files created
+- None.
+
 Files removed
 - None.
 
-Installer implementation
-- The Inno Setup script installs the complete existing one-dir bundle to C:\Program Files\ICP Renov\Contrats, creates direct Start-menu and public-desktop shortcuts, and preserves LOCALAPPDATA/workspace data at uninstall.
-- LibreOffice prerequisite guidance is a FileExists-only preflight; it does not execute, install, download or configure LibreOffice.
-- The build helper invokes the existing bundle build, resolves the local Inno Setup compiler, compiles the setup and verifies the expected setup artifact.
-- The static regression tests cover installer locality, direct shortcut targets, absence of shell/network/security-changing behavior and uninstaller-data preservation intent.
+Intentionally unchanged
+- Production source, document templates, installer behavior, packaging, WebEngine sandbox and version 0.1.0.
+- No QA database, generated Contract document, backup archive, build, dist or installer output is tracked.
 
-Accepted/frozen areas intentionally unchanged
-- All production Python/domain/UI behavior.
-- WebEngine sandbox and bridge architecture.
-- Contract lifecycle, document generation, template-validation authority and LibreOffice capability authority.
-- Existing packaging launcher behavior and all B3 runtime behavior.
+Final manual evidence recorded
+- Installed application QA PASS: B3-QA-0004 / R01, TemplateVersion 1.2, official generation, TO_SIGN, Step 4, DOCX/PDF opening, content inspection, restart durability and backup.
 
-R2 technical lifecycle evidence
-- Clean setup artifact produced: installer-output\ICP-Renov-Contrats-Setup-0.1.0.exe (SHA-256 8F43795B23746BCEA09BFB5F6558C212FE38B198064340BB475D09B8DD6EBE2F; NotSigned).
-- Installed root, direct shortcuts, bundled WebEngine assets and local UI assets verified.
-- Fresh/restarted/final installed launches used isolated TEMP LOCALAPPDATA only; Program Files remained free of mutable application state.
-- Same-version reinstall, silent uninstall (exit code 0) and final reinstall all preserved the isolated QA state. Uninstall removed only the installed root and application shortcuts.
+Technical status
+- C2, C3-B1, C3-B2, C3-B3, C3-B5 and C3-B6 are CLOSED.
+- V1_TECHNICALLY_READY.
+- C3-B4 was not required.
 
-Final validation summary
-- installer packaging tests: 2/2 PASS
-- inherited B5 source suite: 404/404 PASS
-- git diff --check: PASS (only Git LF-to-CRLF informational warnings for the two handoff files)
-- No commit performed. Build/dist/installer-output remain ignored.
+Remaining external-distribution gate
+- INSTALLER_SECURITY_REVIEW_PENDING: unsigned setup and prior Defender Trojan:Win32/Ludicrouz.P compilation-time detection require false-positive review, trusted signing and final signed-artifact verification before external distribution.
 
-External-distribution release gate
-- R1 Defender false-positive evidence remains open: submit the local Trojan:Win32/Ludicrouz.P compiler-temporary-file detection for review and sign the release with trusted Authenticode before external distribution.
+V1.01 backlog
+- Step 2 local save feedback / saved-state hierarchy.
+- Approved final Windows icon, if supplied.
+
+Validation
+- git diff --check: PASS.
+- No commit performed.

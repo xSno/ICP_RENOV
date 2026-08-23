@@ -1,54 +1,42 @@
-NEW WORK EXECUTED IN THIS RUN
+NEW WORK EXECUTED IN C3-B6 FINAL CLOSURE
 
-C3-B5-R2 — Installer build and full technical lifecycle QA
+Baseline
+- HEAD: c9d00123be3999221a281c21e2f108a4ddca26c9 (C3-B5 Windows installer lifecycle).
+- B6 introduced no production source change.
 
-Baseline and scope
-- Baseline HEAD: d00b61afb455759a620cf5677e2d188c75c11a47 (C3-B3 close packaged V1 workflow).
-- Scope: conventional Windows one-dir installer only; no production source, test, WebEngine, sandbox, LibreOffice-authority or workflow behavior change during R2.
-- Inno Setup compiler: 7.1.0.
+Final installed manual QA
+- PASS: installed Windows launch, no console flash, TemplateVersion Contrat habitation B3 · 1.2, Step 3 readiness, official generation, TO_SIGN and Step 4.
+- Evidence: B3-QA-0004 / R01 created from the installed application.
+- DOCX and PDF opening: PASS.
+- Five-page PDF inspection: PASS; no unresolved marker, no “pendant jours”, no “visite(s)”, correct PERSON name and priority wording, and correct Article 14 conditional behavior.
+- Close/relaunch durability: PASS; R01, History and documents persisted.
+- Installed UI backup: PASS.
+- User simplicity: PASS; no technical/user-simplicity blocker observed.
 
-Installer publication
-- After the user manually allowed the previously diagnosed local Defender detection, the clean one-dir build and Inno compilation completed.
-- Setup: installer-output\ICP-Renov-Contrats-Setup-0.1.0.exe.
-- Size: 149,232,472 bytes.
-- SHA-256: 8F43795B23746BCEA09BFB5F6558C212FE38B198064340BB475D09B8DD6EBE2F.
-- Authenticode: NotSigned; no signer or timestamp.
-- No fresh Defender threat event was observed during this allowed rebuild; only normal Defender health events followed it.
+Technical V1 status
+- C2: CLOSED.
+- C3-B1: CLOSED.
+- C3-B2: CLOSED.
+- C3-B3: CLOSED.
+- C3-B5: CLOSED.
+- C3-B6: CLOSED.
+- C3-B4 was not required: its packaging/runtime corrections were absorbed and validated during B2/B3.
+- V1_TECHNICALLY_READY.
 
-Installed content and shortcuts
-- Installed root: C:\Program Files\ICP Renov\Contrats.
-- Installed executable and uninstaller present: ICP Renov - Contrats.exe and unins000.exe.
-- Complete bundled WebEngine runtime present under _internal\PySide6 (QtWebEngineProcess.exe, resources, locales) and local ui_web assets present (index.html and app.js).
-- Application resource FIELD_TEMPLATE_CONTRACT_V1_1.txt is present.
-- Start-menu and public-desktop shortcuts both target C:\Program Files\ICP Renov\Contrats\ICP Renov - Contrats.exe directly; no wrapper is used.
-- No application log, SQLite database, backup archive or machine-config file was found in Program Files.
+Separate external-distribution gate
+- INSTALLER_SECURITY_REVIEW_PENDING.
+- Current setup is unsigned and the prior Defender compilation-time detection was Trojan:Win32/Ludicrouz.P.
+- Before external distribution: submit the false-positive evidence, use trusted Authenticode signing if approved, rebuild/sign the final setup, verify Defender/SmartScreen behavior, and perform a target-PC smoke if it differs from the QA machine.
 
-Installed runtime and data locality
-- Fresh isolated QA profile: C:\Users\xSn\AppData\Local\Temp\icp-renov-c3-b5-r2-installed-qa-20260823.
-- First installed launch remained alive after 15 seconds; its only initial state was written under that QA LOCALAPPDATA profile. The install tree was byte/metadata unchanged.
-- Restart with the same QA profile remained alive after 12 seconds; the install tree remained unchanged.
-- Final launch after uninstall/reinstall remained alive after 15 seconds from C:\Program Files\ICP Renov\Contrats\ICP Renov - Contrats.exe, with the same isolated profile and no install-tree mutation.
-- A non-interactive launch against the previously validated B3 profile also remained alive from the installed executable. No GUI workflow action was performed.
+V1.01 backlog (non-blocking; no project backlog file exists)
+- Step 2 local save feedback / saved state: consider feedback in the saved block, CTA state after persistence, explicit saved-versus-modified state, and avoiding reliance on a page-top banner.
+- Final Windows icon: release polish only; no approved .ico exists and no placeholder was generated.
 
-LibreOffice and application boundary
-- LibreOffice detected at C:\Program Files\LibreOffice\program\soffice.com, version 26.2.5.2.
-- Conversion PDF capability is available. DOCX opening remains a separate workstation capability and was not treated as a bundled dependency.
-- Installer prerequisite guidance is FileExists-only. It does not launch, install, download, configure or modify LibreOffice.
+Versioning and hygiene
+- Project/package version remains 0.1.0. A future externally shipped 1.0.0 name requires an explicit product decision; no installer rename was made.
+- Only recap.txt and diff.txt differ from HEAD. No QA database, generated document, backup archive, build, dist or installer-output is tracked.
+- git diff --check: PASS.
+- No commit created in this closure pass.
 
-Maintenance lifecycle
-- Same-version silent reinstall completed with the installed executable and uninstaller still present; the QA profile was unchanged.
-- Silent uninstall returned exit code 0, removed the Program Files root and both shortcuts, and preserved the QA profile unchanged.
-- Final silent reinstall returned exit code 0, restored the executable, uninstaller and both shortcuts, and again preserved the QA profile unchanged.
-- The installer is intentionally per-machine/admin, x64, complete one-dir, French, with no [Run], [UninstallRun], URL/download, PowerShell/cmd, service, task, startup, registry security change or custom native helper.
-
-Validation
-- Installer packaging static tests: 2/2 PASS.
-- Source regression suite: 404/404 PASS (B5 baseline; no source/test change after that run).
-- git diff --check: PASS (Git reports only existing LF-to-CRLF informational warnings for recap.txt and diff.txt).
-
-Security release gate retained
-- The R1 diagnosis remains applicable: Defender classified an earlier compiler temporary file as Trojan:Win32/Ludicrouz.P. That was a concrete local real-time detection, not SmartScreen or PUA.
-- Before external distribution: perform a Microsoft Defender false-positive review and apply trusted Authenticode signing. Neither action was simulated or bypassed here.
-- No commit has been created.
-
-C3_B5_INSTALLER_READY_FOR_REVIEW
+V1_TECHNICALLY_READY
+INSTALLER_SECURITY_REVIEW_PENDING
