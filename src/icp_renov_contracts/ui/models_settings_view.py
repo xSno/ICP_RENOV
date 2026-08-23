@@ -229,7 +229,7 @@ class ModelsSettingsPage(QWidget):
 class ModelVersionDetail(QWidget):
     SECTION_TITLES = (
         "Identité & source", "Utilisation / régimes", "Données requises", "Blocs de contexte",
-        "Contrôle de structure", "Test de génération", "Validation externe", "Conditions de mise à disposition",
+        "Tarification", "Contrôle de structure", "Test de génération", "Validation externe", "Conditions de mise à disposition",
     )
 
     def __init__(self, service: TemplateCatalogService, version_id: str, close_callback, opener: FileOpener, open_diagnostic=None) -> None:
@@ -289,6 +289,35 @@ class ModelVersionDetail(QWidget):
         required.layout().addLayout(company_grid)
         self.technician_required = QCheckBox("intervention.technician requis"); self.technician_required.setChecked("intervention.technician" in version.required_intervention_fields); self.technician_required.setVisible(version.document_kind == "INTERVENTION_SHEET"); self.technician_required.setEnabled(editable); required.layout().addWidget(self.technician_required)
         save_required = QPushButton("Enregistrer les données requises"); save_required.setVisible(editable); save_required.clicked.connect(self._save_required); required.layout().addWidget(save_required)
+
+        if version.document_kind == "CONTRACT":
+            pricing = self._section("Tarification")
+            pricing.layout().addWidget(QLabel("Taux de TVA autorisés pour les nouveaux contrats de ce modèle. Les contrats et documents déjà enregistrés conservent leur taux."))
+            vat_row = QHBoxLayout(); self.vat_rates = QLineEdit(" ; ".join(version.catalogs.vat_rates) or "20")
+            self.vat_rates.setObjectName("templateVatRates")
+            self.vat_rates.setPlaceholderText("Ex. 5,5 ; 10 ; 20")
+            self.vat_rates.setEnabled(version.status is not TemplateVersionStatus.ARCHIVED)
+            save_vat = QPushButton("Enregistrer les taux de TVA"); save_vat.setObjectName("secondaryButton")
+            save_vat.setEnabled(version.status is not TemplateVersionStatus.ARCHIVED); save_vat.clicked.connect(self._save_vat_rates)
+            vat_row.addWidget(self.vat_rates, 1); vat_row.addWidget(save_vat); pricing.layout().addLayout(vat_row)
+            pricing.layout().addWidget(QLabel("Modalités de paiement proposées"))
+            saved_terms = {item.code for item in version.catalogs.payment_terms} or {item.code for item in self.service.PAYMENT_TERM_OPTIONS}
+            self.payment_term_boxes = {}
+            for item in self.service.PAYMENT_TERM_OPTIONS:
+                box = QCheckBox(item.label); box.setObjectName(f"templatePaymentTerm_{item.code}")
+                box.setChecked(item.code in saved_terms); box.setEnabled(version.status is not TemplateVersionStatus.ARCHIVED)
+                self.payment_term_boxes[item.code] = box; pricing.layout().addWidget(box)
+            pricing.layout().addWidget(QLabel("Moyens de paiement proposés"))
+            saved_methods = {item.code for item in version.catalogs.payment_methods} or {item.code for item in self.service.PAYMENT_METHOD_OPTIONS}
+            self.payment_method_boxes = {}
+            methods_row = QHBoxLayout()
+            for item in self.service.PAYMENT_METHOD_OPTIONS:
+                box = QCheckBox(item.label); box.setObjectName(f"templatePaymentMethod_{item.code}")
+                box.setChecked(item.code in saved_methods); box.setEnabled(version.status is not TemplateVersionStatus.ARCHIVED)
+                self.payment_method_boxes[item.code] = box; methods_row.addWidget(box)
+            pricing.layout().addLayout(methods_row)
+            save_payment = QPushButton("Enregistrer les modalités et moyens de paiement"); save_payment.setObjectName("secondaryButton")
+            save_payment.setEnabled(version.status is not TemplateVersionStatus.ARCHIVED); save_payment.clicked.connect(self._save_payment_options); pricing.layout().addWidget(save_payment)
 
         context = self._section("Blocs de contexte")
         context.layout().addWidget(QLabel("Blocs sensibles fermés : rétractation, exécution anticipée, résiliation électronique."))
@@ -364,7 +393,8 @@ class ModelVersionDetail(QWidget):
         if version.status is not TemplateVersionStatus.ARCHIVED:
             self.archive_button = QPushButton("Archiver"); self.archive_button.setObjectName("secondaryButton")
             self.archive_button.clicked.connect(self._archive); availability.layout().addWidget(self.archive_button)
-        if version.status in {TemplateVersionStatus.AVAILABLE, TemplateVersionStatus.ARCHIVED}: availability.layout().addWidget(QLabel("Cette version est en lecture seule. Toute modification de contenu exige une Nouvelle version."))
+        if version.status is TemplateVersionStatus.AVAILABLE: availability.layout().addWidget(QLabel("Cette version est en lecture seule, à l’exception des taux de TVA administrables. Toute autre modification exige une Nouvelle version."))
+        if version.status is TemplateVersionStatus.ARCHIVED: availability.layout().addWidget(QLabel("Cette version est en lecture seule. Toute modification de contenu exige une Nouvelle version."))
         self.layout.addStretch(1)
 
     def _section(self, title: str, form: bool = False):
@@ -381,6 +411,8 @@ class ModelVersionDetail(QWidget):
         self.feedback.setText(text); self.feedback.setObjectName("successFeedback" if success else "formError"); self.feedback.show()
 
     def _save_targets(self): self._run(lambda: self.service.set_target_regimes(self.version_id, tuple(code for code, box in self.target_boxes.items() if box.isChecked())), "Régimes visés enregistrés.")
+    def _save_vat_rates(self): self._run(lambda: self.service.set_vat_rates(self.version_id, tuple(self.vat_rates.text().split(";"))), "Taux de TVA enregistrés.")
+    def _save_payment_options(self): self._run(lambda: self.service.set_payment_options(self.version_id, tuple(code for code, box in self.payment_term_boxes.items() if box.isChecked()), tuple(code for code, box in self.payment_method_boxes.items() if box.isChecked())), "Modalités et moyens de paiement enregistrés.")
     def _confirm_regime(self): self._run(lambda: self.service.confirm_regime(self.version_id, self.confirm_regime_combo.currentData(), self.regime_reference.text()), "Régime confirmé explicitement.")
     def _save_required(self): self._run(lambda: self.service.set_required_fields(self.version_id, tuple(key for key, box in self.company_boxes.items() if box.isChecked()), ("intervention.technician",) if self.technician_required.isVisible() and self.technician_required.isChecked() else ()), "Données requises enregistrées.")
     def _save_context(self):

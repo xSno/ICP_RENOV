@@ -5,7 +5,7 @@ import sqlite3
 
 from ..database import DatabaseService
 from ..domain import (
-    ContractTemplate, ContractTemplateVersion, TemplateDefaults, TemplateOptionCatalogs,
+    ContractTemplate, ContractTemplateVersion, ControlledOption, PaymentTermOption, TemplateDefaults, TemplateOptionCatalogs,
     TemplateValidationMetadata, TemplateVersionStatus,
 )
 
@@ -160,6 +160,45 @@ class TemplateCatalogRepository:
             connection.execute(
                 "UPDATE contract_template_versions SET target_client_regimes_json=?,updated_at_utc=? WHERE id=?",
                 (json.dumps(regimes, ensure_ascii=False, separators=(",", ":")), now, version_id),
+            )
+
+    def update_vat_rates(self, version_id: str, vat_rates: tuple[str, ...], now: str) -> None:
+        with self.database.transaction() as connection:
+            self._rows(connection)
+            row = connection.execute(
+                "SELECT version_status,option_catalogs_json FROM contract_template_versions WHERE id=?", (version_id,),
+            ).fetchone()
+            if row is None:
+                raise LookupError(version_id)
+            if row["version_status"] == "ARCHIVED":
+                raise ValueError("template version is archived")
+            catalogs = json.loads(row["option_catalogs_json"])
+            catalogs["vat_rates"] = list(vat_rates)
+            connection.execute(
+                "UPDATE contract_template_versions SET option_catalogs_json=?,updated_at_utc=? WHERE id=?",
+                (json.dumps(catalogs, ensure_ascii=False, separators=(",", ":")), now, version_id),
+            )
+
+    def update_payment_options(self, version_id: str, payment_terms: tuple[PaymentTermOption, ...],
+                               payment_methods: tuple[ControlledOption, ...], now: str) -> None:
+        with self.database.transaction() as connection:
+            self._rows(connection)
+            row = connection.execute(
+                "SELECT version_status,option_catalogs_json FROM contract_template_versions WHERE id=?", (version_id,),
+            ).fetchone()
+            if row is None:
+                raise LookupError(version_id)
+            if row["version_status"] == "ARCHIVED":
+                raise ValueError("template version is archived")
+            catalogs = json.loads(row["option_catalogs_json"])
+            catalogs["payment_terms"] = [{
+                "code": item.code, "label": item.label, "requires_day_count": item.requires_day_count,
+                "allows_custom_text": item.allows_custom_text,
+            } for item in payment_terms]
+            catalogs["payment_methods"] = [{"code": item.code, "label": item.label} for item in payment_methods]
+            connection.execute(
+                "UPDATE contract_template_versions SET option_catalogs_json=?,updated_at_utc=? WHERE id=?",
+                (json.dumps(catalogs, ensure_ascii=False, separators=(",", ":")), now, version_id),
             )
 
     def make_available(self, version_id: str, now: str) -> None:

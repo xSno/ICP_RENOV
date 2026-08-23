@@ -1310,7 +1310,7 @@ class UiBridge(QObject):
             return _master_error(error)
         self.contract_id = contract_id
         self.refresh()
-        return {"ok": True, "id": contract_id, "visits_per_year": saved.visits_per_year}
+        return {"ok": True, "id": contract_id, "visits_per_year": saved.visits_per_year, "message": "Prestations enregistrées."}
 
     @Slot(str, "QVariant", result="QVariant")
     def updateContractPeriod(self, contract_id: str, payload: object) -> dict:
@@ -1346,7 +1346,7 @@ class UiBridge(QObject):
             return _master_error(error)
         self.contract_id = contract_id
         self.refresh()
-        return {"ok": True, "id": contract_id, "resolved_end_date": saved.resolved_end_date}
+        return {"ok": True, "id": contract_id, "resolved_end_date": saved.resolved_end_date, "message": "Période enregistrée."}
 
     @Slot(str, "QVariant", result="QVariant")
     def updateContractInterventionConditions(self, contract_id: str, payload: object) -> dict:
@@ -1369,7 +1369,7 @@ class UiBridge(QObject):
             return _master_error(error)
         self.contract_id = contract_id
         self.refresh()
-        return {"ok": True, "id": contract_id, "travel_included": saved.travel_included}
+        return {"ok": True, "id": contract_id, "travel_included": saved.travel_included, "message": "Conditions d’intervention enregistrées."}
 
     @Slot(str, "QVariant", result="QVariant")
     def updateContractPricing(self, contract_id: str, payload: object) -> dict:
@@ -1403,6 +1403,7 @@ class UiBridge(QObject):
             "ok": True, "id": contract_id,
             "vat_amount": _money_fr(saved.vat_amount) if saved.vat_amount is not None else "",
             "annual_ttc": _money_fr(saved.annual_ttc) if saved.annual_ttc is not None else "",
+            "message": "Prix et paiement enregistrés.",
         }
 
     @Slot(str, "QVariant", result="QVariant")
@@ -1436,7 +1437,7 @@ class UiBridge(QObject):
             return _master_error(error)
         self.contract_id = contract_id
         self.refresh()
-        return {"ok": True, "id": contract_id, "renewal_mode": saved.renewal_mode}
+        return {"ok": True, "id": contract_id, "renewal_mode": saved.renewal_mode, "message": "Renouvellement enregistré."}
 
     @Slot(str, "QVariant", result="QVariant")
     def updateContractEarlyTermination(self, contract_id: str, payload: object) -> dict:
@@ -1490,7 +1491,7 @@ class UiBridge(QObject):
             return _master_error(error)
         self.contract_id = contract_id
         self.refresh()
-        return {"ok": True, "id": contract_id, "special_terms": saved.special_terms}
+        return {"ok": True, "id": contract_id, "special_terms": saved.special_terms, "message": "Conditions particulières enregistrées."}
 
     @Slot()
     def openContractModels(self) -> None:

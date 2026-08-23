@@ -137,6 +137,9 @@ class WebContractGenerationW3C2Tests(GenerationCase):
         self.assertNotIn("bridge.generateOfficialContract", opening)
         confirmation = js[js.index("function confirmOfficialGeneration"):js.index("function openGenerationConfirmation")]
         self.assertIn("bridge.generateOfficialContract", confirmation)
+        self.assertIn("finally", confirmation)
+        self.assertIn("contractGenerationRunning = false", confirmation)
+        self.assertIn("renderContractWorkspace(contractWorkspaceState)", confirmation)
         for copy in ("Annuler", "Générer le DOCX et le PDF", "Numéro prévu", "À signer", "Si la génération échoue"):
             self.assertIn(copy, opening)
 

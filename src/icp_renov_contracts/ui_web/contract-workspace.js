@@ -2,6 +2,7 @@ let contractWorkspaceState;
 let contractDrawer;
 let contractDrawerTrigger;
 let contractSaveFailure = '';
+let contractSaveFeedback = '';
 let contractGenerationRunning = false;
 let contractDocumentsError = '';
 
@@ -13,11 +14,37 @@ function closeContractDrawer() {
   if (trigger && document.contains(trigger)) trigger.focus();
 }
 
-function contractMutation(invoke, preserveValues = false) {
+function showContractSaveFeedback(message) {
+  contractSaveFeedback = message;
+  window.setTimeout(() => {
+    if (contractSaveFeedback !== message) return;
+    let notice = document.querySelector('.documents-feedback.contract-save-success');
+    if (!notice) {
+      notice = document.createElement('div');
+      notice.className = 'documents-feedback contract-save-success';
+      document.querySelector('.contract-workspace-body')?.prepend(notice);
+    }
+    notice.textContent = message;
+    window.setTimeout(() => {
+      if (contractSaveFeedback !== message) return;
+      contractSaveFeedback = '';
+      document.querySelector('.documents-feedback.contract-save-success')?.remove();
+    }, 3500);
+  }, 0);
+}
+
+function contractMutation(invoke, preserveValues = false, successMessage = '') {
   const save = document.querySelector('.contract-save-state');
   if (save) { save.textContent = 'Enregistrement…'; save.classList.remove('failed'); }
   invoke(result => {
-    if (result?.ok) { contractSaveFailure = ''; closeContractDrawer(); return; }
+    if (result?.ok) {
+      contractSaveFailure = '';
+      const current = document.querySelector('.contract-save-state');
+      if (current) { current.textContent = 'Enregistré'; current.classList.remove('failed'); }
+      if (successMessage) showContractSaveFeedback(result.message || successMessage);
+      closeContractDrawer();
+      return;
+    }
     contractSaveFailure = result?.message || 'Les dernières modifications ne sont pas encore enregistrées.';
     const current = document.querySelector('.contract-save-state');
     if (current) { current.textContent = 'Non enregistré'; current.classList.add('failed'); }
@@ -487,7 +514,7 @@ function saveContractServiceOffer() {
   };
   contractMutation(callback => bridge.updateContractServiceOffer(
     contractWorkspaceState.contract.id, payload, callback
-  ), true);
+  ), true, 'Prestations enregistrées.');
 }
 
 function periodDependentMarkup(mode, months, endDate) {
@@ -517,7 +544,7 @@ function saveContractPeriod() {
     initial_duration_months: mode === 'STANDARD' && months ? Number(months) : null,
     initial_end_date: mode === 'CUSTOM' ? endDate : null,
     signature_city: document.querySelector('#contract-signature-city')?.value || '',
-  }, callback), true);
+  }, callback), true, 'Période enregistrée.');
 }
 
 function missedAppointmentMarkup(value = '') {
@@ -541,7 +568,7 @@ function saveContractInterventionConditions() {
     travel_included: travel ? travel.value === 'true' : null,
     missed_appointment_fee: amountMode ? document.querySelector('#missed-appointment-fee')?.value || '' : null,
     additional_exclusions: document.querySelector('#contract-additional-exclusions')?.value || '',
-  }, callback), true);
+  }, callback), true, 'Conditions d’intervention enregistrées.');
 }
 
 function paymentConditionalMarkup(code, dueDays, customText) {
@@ -571,7 +598,7 @@ function saveContractPricing() {
     payment_due_days: due ? Number(due) : null,
     payment_terms_custom_text: document.querySelector('#contract-payment-custom')?.value || '',
     payment_methods: [...document.querySelectorAll('input[name="payment-method"]:checked')].map(node => node.value),
-  }, callback), true);
+  }, callback), true, 'Prix et paiement enregistrés.');
 }
 
 function renderContractB2(state) {
@@ -624,7 +651,7 @@ function saveContractRenewal() {
     non_renewal_notice_channels: [...document.querySelectorAll('input[name="non-renewal-channel"]:checked')].map(node => node.value),
     internal_alert_days: mode === 'MANUAL' || mode === 'TACIT' ? integerValue('#contract-internal-alert-days') : null,
     renewal_price_rule: mode === 'MANUAL' || mode === 'TACIT' ? document.querySelector('#contract-renewal-price-rule')?.value || null : null,
-  }, callback), true);
+  }, callback), true, 'Renouvellement enregistré.');
 }
 
 function openEarlyTerminationDrawer(trigger) {
@@ -655,7 +682,7 @@ function saveEarlyTermination() {
 function saveContractSpecialTerms() {
   contractMutation(callback => bridge.updateContractSpecialTerms(contractWorkspaceState.contract.id, {
     special_terms: document.querySelector('#contract-special-terms')?.value || '',
-  }, callback), true);
+  }, callback), true, 'Conditions particulières enregistrées.');
 }
 
 function renderContractB3(state) {
@@ -713,10 +740,14 @@ function confirmOfficialGeneration() {
   if (confirm) { confirm.disabled = true; confirm.textContent = 'Génération en cours…'; }
   if (cancel) cancel.disabled = true;
   bridge.generateOfficialContract(contractWorkspaceState.contract.id, result => {
-    contractGenerationRunning = false;
-    document.querySelector('.generation-modal-overlay')?.remove();
-    if (!result?.ok && !contractWorkspaceState?.official_generation?.feedback) {
-      contractSaveFailure = result?.message || 'La génération a été interrompue.';
+    try {
+      if (!result?.ok && !contractWorkspaceState?.official_generation?.feedback) {
+        contractSaveFailure = result?.message || 'La génération a été interrompue.';
+      }
+    } finally {
+      contractGenerationRunning = false;
+      document.querySelector('.generation-modal-overlay')?.remove();
+      if (contractWorkspaceState) renderContractWorkspace(contractWorkspaceState);
     }
   });
 }

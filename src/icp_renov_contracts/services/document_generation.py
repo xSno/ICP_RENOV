@@ -29,6 +29,41 @@ class GenerationResult:
     docx_path:Path
     pdf_path:Path
 
+
+@dataclass(frozen=True)
+class GenerationPreflightIssue:
+    key:str
+    label:str
+    owner:str
+    classification:str
+
+
+@dataclass(frozen=True)
+class GenerationPreflight:
+    available:bool
+    issues:tuple[GenerationPreflightIssue,...]=()
+
+    @property
+    def detail(self)->str:
+        if not self.issues:return "Disponible" if self.available else "Indisponible"
+        issue=self.issues[0]
+        if issue.classification=="TEMPLATE_VALIDATION_GAP":
+            return f"Modèle à corriger : {issue.label} requis"
+        return f"{issue.label} à compléter"
+
+
+REQUIRED_FIELD_LABELS={
+    "company.registered_address":"Adresse de l’entreprise",
+    "company.email":"E-mail de l’entreprise",
+    "client.address_line1":"Adresse du client",
+    "site.address_line1":"Adresse du site",
+    "equipment.location":"Localisation de l’équipement",
+    "contract.visits_per_year":"Nombre de visites annuelles",
+    "contract.breach_cure_period_days":"Délai de régularisation (jours)",
+    "pricing.annual_ht":"Prix annuel HT",
+    "pricing.vat_rate":"Taux de TVA",
+}
+
 class DocumentGenerationService:
     def __init__(self,database:DatabaseService,contracts:ContractService,documents:ContractDocumentRepository,
                  review:ReviewService,source_store:TemplateSourceStore,renderer:ProductionDocxRenderer,
@@ -39,15 +74,41 @@ class DocumentGenerationService:
         self.workspace_root=workspace_root.resolve();self.logger=logger or logging.getLogger("icp_renov_contracts.generation")
         self._attempt_lock=Lock();self._active_contracts:set[str]=set()
     def available(self,contract_id:str)->bool:
+        return self.readiness(contract_id).available
+
+    def readiness(self,contract_id:str)->GenerationPreflight:
         try:
             contract=self.contracts.get(contract_id);version=self.contracts.selected_template_version(contract_id);documents=self.documents.list_for_contract_kind(contract_id,DocumentKind.CONTRACT)
-            if contract.status is not ContractStatus.DRAFT or not version or not self.company_provider.available() or not self.converter.available():return False
+            if contract.status is not ContractStatus.DRAFT or not version or not self.company_provider.available() or not self.converter.available():return GenerationPreflight(False)
             with self.database.connection() as connection:
-                if connection.execute("SELECT 1 FROM contract_events WHERE contract_id=? AND type='SIGNATURE_RECORDED'",(contract_id,)).fetchone():return False
-            if bool(contract.number)!=bool(documents):return False
-            if not documents and not self.number_allocator.available():return False
-            company=self._prepared_company(self.company_provider.get());return all(company.get(key) not in (None,"") for key in version.required_company_fields)
-        except Exception:return False
+                if connection.execute("SELECT 1 FROM contract_events WHERE contract_id=? AND type='SIGNATURE_RECORDED'",(contract_id,)).fetchone():return GenerationPreflight(False)
+            if bool(contract.number)!=bool(documents):return GenerationPreflight(False)
+            if not documents and not self.number_allocator.available():return GenerationPreflight(False)
+            company=self.company_provider.get();prepared_company=self._prepared_company(company)
+            missing_company=tuple(key for key in version.required_company_fields if prepared_company.get(key) in (None,""))
+            if missing_company:
+                return GenerationPreflight(False,tuple(self._issue(key,version) for key in missing_company))
+            source=self.source_store.verify(version.source_relpath,version.source_hash)
+            number=contract.number or self.number_allocator.preview_next()
+            if not number:return GenerationPreflight(False)
+            issues=self._required_value_issues(source,contract,self.contracts.get_conditions(contract_id),version,company,number,self.next_revision(contract_id))
+            return GenerationPreflight(not issues,issues)
+        except Exception:return GenerationPreflight(False)
+
+    @staticmethod
+    def _issue(key:str,version)->GenerationPreflightIssue:
+        owner=("CompanySettings" if key.startswith("company.") else "Client" if key.startswith("client.")
+               else "Site" if key.startswith("site.") else "Equipment" if key.startswith("equipment.")
+               else "Pricing" if key.startswith("pricing.") else "Contract")
+        template_gap=(key=="contract.breach_cure_period_days" and not version.validation.requires_breach_cure_period_days)
+        return GenerationPreflightIssue(key,REQUIRED_FIELD_LABELS.get(key,"Information requise par le modèle"),owner,
+                                       "TEMPLATE_VALIDATION_GAP" if template_gap else "COMPANY_GENERATION_GAP" if owner=="CompanySettings" else "CONTRACT_REVIEW_GAP")
+
+    def _required_value_issues(self,source:Path,contract,conditions,version,company,number:str,revision:str)->tuple[GenerationPreflightIssue,...]:
+        required_values=getattr(self.renderer,"required_values",None)
+        if required_values is None:return ()
+        context=self._snapshot(contract,conditions,version,company,number,revision)
+        return tuple(self._issue(key,version) for key in required_values(source,context))
     def preview_number(self,contract_id:str|None=None)->str|None:
         if contract_id:
             contract=self.contracts.get(contract_id)
@@ -97,6 +158,8 @@ class DocumentGenerationService:
                 if not (preview:=self.number_allocator.preview_next()):
                     raise DocumentGenerationError("numbering_unavailable", "La numérotation des contrats est à configurer. Ouvrez Paramètres > Numérotation & alertes.")
             else:preview=contract.number
+            if self._required_value_issues(source,contract,self.contracts.get_conditions(contract_id),version,company,preview,revision):
+                raise DocumentGenerationError("required_value","Le contrat contient une information requise manquante pour le modèle sélectionné.")
             stage="workspace_write";attempt_dir.mkdir(parents=True,exist_ok=False);probe=attempt_dir/".write-test";probe.write_bytes(b"ok");probe.unlink()
             stage="snapshot";snapshot=self._snapshot(contract,self.contracts.get_conditions(contract_id),version,company,preview,revision)
             snapshot_json=json.dumps(snapshot,ensure_ascii=False,sort_keys=True,separators=(",",":"))
@@ -178,6 +241,14 @@ class DocumentGenerationService:
         service={key:getattr(conditions,key) for key in ("visits_per_year","refrigerant_handling_mode","included_area","business_hours","travel_included","priority_breakdown","priority_breakdown_delay","included_options","additional_exclusions")};service["included_options"]=list(service["included_options"])
         pricing={"annual_ht":conditions.annual_ht,"vat_rate":str((Decimal(conditions.vat_rate or '0')/100)),"payment_terms_code":conditions.payment_terms_code,"payment_due_days":conditions.payment_due_days,
                  "payment_terms_custom_text":conditions.payment_terms_custom_text,"payment_methods":list(conditions.payment_methods),"missed_appointment_fee":conditions.missed_appointment_fee,"renewal_price_rule":conditions.renewal_price_rule}
+        payment_term=next((item for item in version.catalogs.payment_terms if item.code==conditions.payment_terms_code),None)
         return {"company":company,"client":client,"site":site,"contract":contract_data,"service":service,"pricing":pricing,"document":{"document_kind":"CONTRACT","revision":revision},
                 "template":{"id":version.template_id,"version_id":version.id,"version":version.version,"source_hash":version.source_hash,"source_relpath":version.source_relpath,
-                            "selected_blocks":list(selected),"required_company_fields":list(version.required_company_fields)}}
+                            "selected_blocks":list(selected),"required_company_fields":list(version.required_company_fields),
+                            "requires_conclusion":version.validation.requires_conclusion(contract.regime.value),
+                            "requires_early_performance":{"BLOCK_WITHDRAWAL","BLOCK_EARLY_PERFORMANCE"}.issubset(selected),
+                            "requires_non_renewal_notice_days":version.validation.requires_non_renewal_notice_days,
+                            "requires_non_renewal_notice_channels":version.validation.requires_non_renewal_notice_channels,
+                            "requires_breach_cure_period_days":version.validation.requires_breach_cure_period_days,
+                            "payment_term_requires_day_count":bool(payment_term and payment_term.requires_day_count),
+                            "payment_term_allows_custom_text":bool(payment_term and payment_term.allows_custom_text)}}

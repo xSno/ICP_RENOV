@@ -117,7 +117,7 @@ def build_application_context(
     failures = lifecycle.reconcile_due_activations()
     if failures:
         application_logger.error("Due contract activation reconciliation failed for %s", ",".join(failures))
-    review.generation_ready = generation.available
+    review.generation_readiness = generation.readiness
     diagnostic = GenerationDiagnosticService(workspace, workspaces, template_catalog, template_catalog.validation_runner)
     application_logger.info("Local workspace and database initialized")
     return ApplicationContext(

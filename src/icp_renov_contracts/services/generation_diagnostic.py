@@ -36,7 +36,8 @@ class GenerationDiagnosticService:
         self.validation_runner = validation_runner; self.capability_probe = capability_probe or DocumentCapabilityProbe()
 
     def workstation_status(self) -> WorkstationGenerationStatus:
-        inspection = self.workspace_service.inspect(self.workspace.root); capability = self.capability_probe.probe()
+        inspection = self.workspace_service.inspect(self.workspace.root)
+        capability = self.capability_probe.probe(refresh=True) if isinstance(self.capability_probe, DocumentCapabilityProbe) else self.capability_probe.probe()
         # The production renderer is local and has no external executable prerequisite;
         # converter readiness remains the shared probe authority used by Review.
         return WorkstationGenerationStatus(inspection.available and inspection.writable, True,

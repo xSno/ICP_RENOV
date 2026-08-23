@@ -270,6 +270,25 @@ class WebContractConditionsW3B2Tests(unittest.TestCase):
 
         self.assertEqual(engine.evaluate("paymentConditionalMarkup('UNKNOWN', 99, 'libre')").toString(), "")
 
+    def test_step_two_save_feedback_uses_python_success_only(self):
+        js = (Path(__file__).parents[1] / "src" / "icp_renov_contracts" / "ui_web" / "contract-workspace.js").read_text(encoding="utf-8")
+        for message in (
+            "Prestations enregistrées.", "Période enregistrée.", "Conditions d’intervention enregistrées.",
+            "Prix et paiement enregistrés.", "Renouvellement enregistré.", "Conditions particulières enregistrées.",
+        ):
+            self.assertIn(message, js)
+        start = js.index("function contractMutation")
+        end = js.index("function openContractSelector", start)
+        mutation = js[start:end]
+        self.assertIn("if (result?.ok)", mutation)
+        self.assertIn("showContractSaveFeedback(result.message || successMessage)", mutation)
+        self.assertIn("contractSaveFailure", mutation)
+        result = self.bridge.updateContractPricing(self.contract.id, self.pricing(
+            annual_ht="100", vat_rate="20", payment_terms_code="DUE", payment_due_days=30,
+            payment_methods=["TRANSFER"],
+        ))
+        self.assertEqual(result["message"], "Prix et paiement enregistrés.")
+
     def test_period_intervention_pricing_survive_template_change_without_live_binding(self):
         self.bridge.updateContractPeriod(self.contract.id, self.period(
             issue_date="2026-08-20", start_date="2026-09-01", initial_duration_mode="STANDARD",

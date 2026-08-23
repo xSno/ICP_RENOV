@@ -41,7 +41,7 @@ def catalogs() -> TemplateOptionCatalogs:
         vat_rates=("5.5", "20"),
         payment_terms=(PaymentTermOption("DUE", "À échéance", True, False),
                        PaymentTermOption("CUSTOM", "Modalité personnalisée", False, True)),
-        payment_methods=(ControlledOption("TRANSFER", "Virement"), ControlledOption("CARD", "Carte")),
+        payment_methods=(ControlledOption("TRANSFER", "Virement"), ControlledOption("CHEQUE", "Chèque")),
         non_renewal_channels=(ControlledOption("EMAIL", "E-mail"), ControlledOption("POST", "Courrier")),
         early_termination_reasons=(ControlledOption("BREACH", "Manquement"), ControlledOption("OTHER", "Autre")),
     )
@@ -209,6 +209,33 @@ class ServicePeriodPricingTests(ConditionsCase):
         self.assertIsNone(self.contracts.save_conditions(self.contract.id, ContractConditions()).missed_appointment_fee)
         with self.assertRaises(ContractConditionsValidationError):
             self.contracts.save_conditions(self.contract.id, ContractConditions(payment_methods=("CASH",)))
+
+    def test_mutable_pricing_catalog_preserves_existing_contract_values_and_changes_future_selection(self):
+        version = self.contracts.selected_template_version(self.contract.id)
+        original = self.contracts.save_conditions(self.contract.id, ContractConditions(
+            annual_ht="100", vat_rate="20", payment_terms_code="DUE", payment_due_days=30,
+            payment_methods=("TRANSFER",),
+        ))
+        self.assertEqual((original.vat_rate, original.payment_terms_code, original.payment_due_days, original.payment_methods),
+                         ("20", "DUE", 30, ("TRANSFER",)))
+
+        self.catalog.set_vat_rates(version.id, ("5.5",))
+        self.catalog.set_payment_options(version.id, ("CUSTOM",), ("CHEQUE",))
+
+        historical = self.contracts.get_conditions(self.contract.id)
+        self.assertEqual((historical.vat_rate, historical.payment_terms_code, historical.payment_due_days, historical.payment_methods),
+                         ("20", "DUE", 30, ("TRANSFER",)))
+
+        future = self.contracts.create_draft(); self.contracts.change_regime(future.id, "CONSUMER")
+        self.contracts.select_template_version(future.id, version.id)
+        saved = self.contracts.save_conditions(future.id, ContractConditions(
+            annual_ht="100", vat_rate="5.5", payment_terms_code="CUSTOM",
+            payment_terms_custom_text="À réception", payment_methods=("CHEQUE",),
+        ))
+        self.assertEqual((saved.vat_rate, saved.payment_terms_code, saved.payment_due_days, saved.payment_methods),
+                         ("5.5", "CUSTOM", None, ("CHEQUE",)))
+        with self.assertRaises(ContractConditionsValidationError):
+            self.contracts.save_conditions(future.id, ContractConditions(vat_rate="20", payment_methods=("TRANSFER",)))
 
     def test_renewal_modes_clear_only_irrelevant_fields_and_indexed_rejected(self):
         base = ContractConditions(renewal_mode="TACIT", renewal_period_months=12, non_renewal_notice_days=60,

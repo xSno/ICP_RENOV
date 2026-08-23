@@ -124,7 +124,7 @@ def _page_breaks(parent):
             run=next(child.iter(q(W,"r")),None)
             if run is not None and not any(br.get(q(W,"type"))=="page" for br in child.iter(q(W,"br"))):
                 page=ET.Element(q(W,"br"));page.set(q(W,"type"),"page");run.insert(1 if run.find(q(W,"rPr")) is not None else 0,page)
-def adapt(source:Path,target:Path)->None:
+def adapt_package(source:Path)->dict[str,bytes]:
     parts=read_package(source)
     for name in story_parts(parts):
         root=ET.fromstring(parts[name])
@@ -137,4 +137,7 @@ def adapt(source:Path,target:Path)->None:
         parts[name]=xml_bytes(root)
     if "word/settings.xml" in parts:
         settings=ET.fromstring(parts["word/settings.xml"]);_normalize_layout(settings);parts["word/settings.xml"]=xml_bytes(settings)
-    write_package(parts,target)
+    return parts
+
+def adapt(source:Path,target:Path)->None:
+    write_package(adapt_package(source),target)

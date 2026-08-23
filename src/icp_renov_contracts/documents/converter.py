@@ -7,12 +7,19 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 import uuid
 
 from .validation import DocumentGenerationError
 
 
 REQUIRED_LIBREOFFICE_VERSION = "26.2.5.2"
+_VERSION_CACHE_SECONDS = 5.0
+
+
+def _windows_background_process_kwargs() -> dict[str, int]:
+    """Keep LibreOffice utility invocations invisible for the windowed app."""
+    return {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0)}
 
 
 def discover_libreoffice_executable() -> Path | None:
@@ -37,14 +44,24 @@ class LibreOfficeConverter(PdfConverter):
     def __init__(self, executable: Path | None = None, timeout_seconds: int = 180) -> None:
         self.executable = executable or discover_libreoffice_executable()
         self.timeout_seconds = timeout_seconds
+        self._cached_version: str | None = None
+        self._version_checked_at: float | None = None
 
-    def version(self) -> str | None:
+    def version(self, refresh: bool = False) -> str | None:
         if not self.executable: return None
+        if not refresh and self._version_checked_at is not None and time.monotonic() - self._version_checked_at < _VERSION_CACHE_SECONDS:
+            return self._cached_version
         try:
-            result = subprocess.run([str(self.executable), "--version"], capture_output=True, text=True, timeout=15)
-        except (OSError, subprocess.SubprocessError): return None
+            result = subprocess.run(
+                [str(self.executable), "--version"], capture_output=True, text=True, timeout=15,
+                **_windows_background_process_kwargs(),
+            )
+        except (OSError, subprocess.SubprocessError):
+            self._cached_version = None; self._version_checked_at = time.monotonic(); return None
         match = re.search(r"LibreOffice\s+([0-9.]+)", result.stdout + result.stderr)
-        return match.group(1) if result.returncode == 0 and match else None
+        self._cached_version = match.group(1) if result.returncode == 0 and match else None
+        self._version_checked_at = time.monotonic()
+        return self._cached_version
 
     def available(self) -> bool:
         return bool(self.executable and self.executable.is_file() and self.version() == REQUIRED_LIBREOFFICE_VERSION)
@@ -63,13 +80,13 @@ class LibreOfficeConverter(PdfConverter):
                        "--headless", "--norestore", "--nodefault", "--nolockcheck",
                        "--convert-to", "pdf", "--outdir", str(output_dir), str(docx.resolve())]
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                                       creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+                                       **_windows_background_process_kwargs())
             try:
                 stdout, stderr = process.communicate(timeout=self.timeout_seconds)
             except subprocess.TimeoutExpired as exc:
                 if os.name == "nt":
                     subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
-                                   capture_output=True, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+                                   capture_output=True, **_windows_background_process_kwargs())
                 else: process.kill()
                 try:
                     process.communicate(timeout=5)

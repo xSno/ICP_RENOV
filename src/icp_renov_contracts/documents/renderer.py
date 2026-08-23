@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-from .adapter import adapt
+from .adapter import adapt_package
 from .formatters import lookup,prepare_context
 from .ooxml import W,add_image,clone,get_sdt_tag,image_run,q,read_package,replace_child,set_text,story_parts,write_package,xml_bytes
 from .registry import BLOCKS,FIELDS,LOOPS,OBSOLETE_FIELDS,SHEET_BLOCKS,renderable
@@ -25,8 +25,8 @@ def _active(name,linked,ctx,equipment):
     if name=="BLOCK_OPTIONAL_COMPANY_FIELD":return _truthy(lookup(ctx,linked,equipment))
     if name=="BLOCK_INTERVENTION_DETAILS":return any(_truthy(intervention.get(key)) for key in ("notes","issues","quote_recommended"))
     return direct.get(name,False)
-def _preflight_adapted(path:Path,document_kind:str)->None:
-    parts=read_package(path);seen_loop=False
+def _preflight_adapted_parts(parts:dict[str,bytes],document_kind:str)->None:
+    seen_loop=False
     for name in story_parts(parts):
         root=ET.fromstring(parts[name])
         visible="".join(node.text or "" for node in root.iter(q(W,"t")))
@@ -45,6 +45,10 @@ def _preflight_adapted(path:Path,document_kind:str)->None:
                 seen_loop=True
             if kind not in {"field","image","optional","block","loop"}:raise DocumentGenerationError("unknown_marker","Le modèle sélectionné ne peut pas être utilisé.")
     if document_kind=="CONTRACT" and not seen_loop:raise DocumentGenerationError("missing_loop","Le modèle ne contient pas la liste des équipements requise.")
+def _preflight_adapted(path:Path,document_kind:str)->None:
+    _preflight_adapted_parts(read_package(path),document_kind)
+
+
 def _empty_required(key,value):
     if value is None or value=="" or value==[] or value==():return True
     if key=="contract.visits_per_year":
@@ -54,6 +58,24 @@ def _empty_required(key,value):
         try:return int(value)<0
         except (TypeError,ValueError):return True
     return False
+
+
+def _required_when_active(key,ctx):
+    company=ctx.get("company",{});client=ctx.get("client",{});contract=ctx.get("contract",{});service=ctx.get("service",{});pricing=ctx.get("pricing",{});template=ctx.get("template",{})
+    if key.startswith("company."):
+        return key.split(".",1)[1] in set(template.get("required_company_fields",()))
+    if key in {"client.first_name","client.last_name"}:return client.get("party_type")=="PERSON"
+    if key in {"client.organization_name","client.legal_form","client.siret"}:return client.get("party_type")=="ORGANIZATION"
+    if key in {"contract.initial_duration_months","contract.initial_end_date"}:return contract.get("initial_duration_mode")==("STANDARD" if key.endswith("months") else "CUSTOM")
+    if key=="contract.conclusion_mode":return bool(template.get("requires_conclusion"))
+    if key=="contract.early_performance_requested":return bool(template.get("requires_early_performance"))
+    if key in {"contract.renewal_period_months","contract.internal_alert_days","pricing.renewal_price_rule"}:return contract.get("renewal_mode")!="NONE"
+    if key in {"contract.non_renewal_notice_days","contract.non_renewal_notice_channels"}:return contract.get("renewal_mode")=="TACIT" and bool(template.get("requires_"+key.split(".",1)[1]))
+    if key=="contract.breach_cure_period_days":return bool(template.get("requires_breach_cure_period_days"))
+    if key=="service.priority_breakdown_delay":return bool(service.get("priority_breakdown"))
+    if key=="pricing.payment_due_days":return bool(template.get("payment_term_requires_day_count"))
+    if key=="pricing.payment_terms_custom_text":return bool(template.get("payment_term_allows_custom_text"))
+    return True
 def _required_values(parent,ctx,equipment):
     for child in list(parent):
         if child.tag!=q(W,"sdt"):
@@ -62,20 +84,24 @@ def _required_values(parent,ctx,equipment):
         if content is None:continue
         if kind=="field":
             key=value.partition("|")[0];spec=FIELDS[key]
-            if spec.requiredness=="REQUIRED" or spec.requiredness.startswith("REQUIRED_WHEN"):
+            if spec.requiredness=="REQUIRED" or (spec.requiredness.startswith("REQUIRED_WHEN") and _required_when_active(key,ctx)):
                 yield key,lookup(ctx,key,equipment)
         elif kind=="optional" or kind=="block":
             active=_truthy(lookup(ctx,value,equipment)) if kind=="optional" else _active(value.partition("|")[0],value.partition("|")[2],ctx,equipment)
             if active:yield from _required_values(content,ctx,equipment)
         elif kind=="loop":
             for item in ctx["contract"]["equipment_items"]:yield from _required_values(content,ctx,item)
-def _preflight_required_values(parts,ctx):
+def _missing_required_values(parts,ctx):
     missing=[]
     for name in story_parts(parts):
         root=ET.fromstring(parts[name])
         for key,value in _required_values(root,ctx,None):
             if _empty_required(key,value) and key not in missing:missing.append(key)
-    if missing:
+    return tuple(missing)
+
+
+def _preflight_required_values(parts,ctx):
+    if _missing_required_values(parts,ctx):
         raise DocumentGenerationError("required_value","Le contrat contient une information requise manquante pour le modèle sélectionné.")
 def _render(parent,ctx,equipment,parts,part_name):
     for child in list(parent):
@@ -99,10 +125,26 @@ def _render(parent,ctx,equipment,parts,part_name):
                 holder=ET.Element("holder");holder.extend(clone(node) for node in list(content));_render(holder,ctx,item,parts,part_name);nodes.extend(list(holder))
             replace_child(parent,child,nodes)
 class ProductionDocxRenderer:
-    def render(self,source:Path,output:Path,context:dict,workdir:Path)->None:
-        adapted=workdir/"adapted.docx"
+    @staticmethod
+    def _prepared_parts(source:Path,context:dict):
         document_kind=context.get("document",{}).get("document_kind","CONTRACT")
-        try:adapt(source,adapted);_preflight_adapted(adapted,document_kind);parts=read_package(adapted);prepared=prepare_context(context);_preflight_required_values(parts,prepared)
+        parts=adapt_package(source);_preflight_adapted_parts(parts,document_kind)
+        prepared=prepare_context(context)
+        return parts,prepared,_missing_required_values(parts,prepared)
+
+    def required_values(self,source:Path,context:dict)->tuple[str,...]:
+        """Return deterministic required values before creating a document artifact."""
+        try:
+            _,_,missing=self._prepared_parts(source,context)
+            return missing
+        except DocumentGenerationError:raise
+        except Exception as exc:raise DocumentGenerationError("template_preflight","Le modèle sélectionné ne peut pas être utilisé.") from exc
+
+    def render(self,source:Path,output:Path,context:dict,workdir:Path)->None:
+        try:
+            parts,prepared,missing=self._prepared_parts(source,context)
+            if missing:
+                raise DocumentGenerationError("required_value","Le contrat contient une information requise manquante pour le modèle sélectionné.")
         except DocumentGenerationError:raise
         except Exception as exc:raise DocumentGenerationError("template_preflight","Le modèle sélectionné ne peut pas être utilisé.") from exc
         for name in story_parts(parts):

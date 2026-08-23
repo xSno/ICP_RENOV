@@ -1,44 +1,40 @@
-C3-B3 — External template validation enum/string boundary
+C3-B3-R4.1 review diff against current HEAD
 
-Baseline
-- Current accepted HEAD: 3918004 (C3-B2 first Windows one-dir build).
+Modified production files
+- bootstrap/context.py
+- documents/adapter.py, converter.py, formatters.py, renderer.py
+- repositories/template_catalog.py
+- services/capabilities.py, document_generation.py, generation_diagnostic.py, review.py, template_catalog.py
+- ui/models_settings_view.py, ui/web_host.py, ui_web/contract-workspace.js
 
-Created
-- None.
+Modified tests
+- test_conditions.py
+- test_document_generation.py
+- test_model_catalog_s12.py
+- test_review.py
+- test_web_contract_conditions_w3b2.py
+- test_web_contract_generation_w3c2.py
 
-Modified
-- src/icp_renov_contracts/services/template_catalog.py
-  - Normalizes only the native UI boundary's exact controlled ExternalGateStatus primitive strings into the authoritative enum before repository calls.
-  - Rejects invalid tokens cleanly with ContractValidationError.
-- tests/test_model_catalog_s12.py
-  - Covers actual ModelVersionDetail/QComboBox string payloads, persistence, reopening/projection, multiple controlled values, and invalid-token rejection.
+Review artifacts
 - recap.txt
-  - Records the diagnosed boundary, validation evidence, and packaged runtime recheck.
 - diff.txt
-  - Records this actual C3-B3 review delta.
 
-Removed
-- None.
+R4.1 reconciliation
+- FIELD_TEMPLATE_CONTRACT_V1_1.txt is intentionally unchanged from HEAD and its canonical normalized SHA-256 is asserted by regression coverage.
+- Existing document formatter fields are used for canonical rendering: client.contract_name and service.priority_breakdown_label; no presentation-only registry keys remain.
+- The renderer regression derives a successor source using only canonical keys, validates static Article 8 text, clean visits wording and conditional removal of Article 14.
+- Existing version immutability and catalog archival coverage remains in the reviewed delta.
 
-Intentionally unchanged / frozen
-- TEMPLATE_VALIDATION_MATRIX semantics and template availability gates.
-- SQLite schema and direct database authority.
-- Contract lifecycle, document generation, LibreOffice authority, WebEngine sandbox, installer scope, and unrelated UI behavior.
+Accepted/frozen areas intentionally unchanged
+- TemplateVersion 1.0 and 1.1 historical source content and ContractDocuments.
+- Contract lifecycle, document generation transaction, LibreOffice authority, WebEngine sandbox and installer scope.
+- No tracked file was created or removed.
 
-Validation
-- Targeted native Qt regression: 1/1 PASS.
-- Model catalog module: 17/17 PASS.
-- Full application suite: 391/391 PASS.
-- Rebuilt one-dir packaged executable saved controlled external-validation values successfully without marking the template AVAILABLE.
-- git diff --check: PASS (only Git LF-to-CRLF advisories).
+Final validation
+- canonical registry/resource: 20/20 PASS
+- document rendering/version immutability: 45/45 PASS
+- full suite: 402/402 PASS in 224.596 s
+- git diff --check: PASS (line-ending advisories only)
+- clean PyInstaller one-dir rebuild and isolated packaged launch smoke: PASS
 
-Verdict
-C3_B3_EXTERNAL_VALIDATION_FIX_READY_FOR_REVIEW
-
-Resume packaged workflow evidence
-- No additional tracked production, test, packaging, configuration, or source file was changed while resuming the clean-profile packaged workflow.
-- The B3 fixture's controlled external validation and fictional Company profile were updated only through the packaged UI. The real non-official DOCX/PDF diagnostic succeeded through LibreOffice 26.2.5.2.
-- The resumed workflow cannot continue to AVAILABLE or the contract journey because the packaged application subsequently lost its titled main window while its process remained responsive; application.log has no shutdown or traceback.
-
-Resume verdict
-C3_B3_CORRECTIONS_REQUIRED
+No commit performed.

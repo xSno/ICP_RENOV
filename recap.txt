@@ -1,51 +1,37 @@
-C3-B3 — External template validation enum/string boundary
+C3-B3-R4.1 — Canonical field registry reconciliation
 
-Baseline
-- Current accepted HEAD: 3918004 (C3-B2 first Windows one-dir build).
-- This is a blocking packaged-runtime correction only; no commit is made in this review state.
+1. Canonical authority restored
+- FIELD_TEMPLATE_CONTRACT_V1_1.txt is restored to the accepted frozen baseline.
+- Normalized SHA-256: 11542d5ec835a774232ba00e2ffb588f1c4ef204a4403bb4a112db38b189ce49.
+- The registry remains closed: contract.visits_label, contract.breach_cure_period_clause and contract.special_terms_display are not canonical fields.
+- Empty OPTIONAL content removes its containing output; BLOCK_SPECIAL_TERMS remains conditional on contract.special_terms.
 
-Root cause and authority
-- The affected screen is the native Qt ModelVersionDetail external-validation form, not a WebChannel method.
-- PySide6 QComboBox.currentData() returns primitive strings such as "CONFIRMED" even when the item data was supplied as ExternalGateStatus.CONFIRMED.
-- ModelVersionDetail._save_external() passed those strings to TemplateCatalogService; TemplateValidationRepository.set_external_content() and set_external_gate() then attempted status.value, causing AttributeError: 'str' object has no attribute 'value'.
-- The view catches that exception and displays its text to the user, so the historical failure does not produce a Python traceback in application.log. No logging behavior was changed for this bounded fix.
-- TemplateCatalogService now explicitly accepts an existing ExternalGateStatus enum or validates an exact primitive token into that enum before repository persistence. Unknown strings and non-string/non-enum values raise ContractValidationError. TEMPLATE_VALIDATION_MATRIX authority and all availability gates are unchanged.
+2. Historical preservation and archival
+- B3-QA-0001 / R01 remains tied to TemplateVersion 1.0 (id 9cc006fa-0f62-49bc-a7fa-45e6965a06cd).
+- B3-QA-0002 / R01 remains tied to TemplateVersion 1.1 (id 559e7f2b-d8d2-4e53-80fc-81232026a442).
+- Neither historical source, hash, ContractDocument nor revision was edited.
+- After 1.2 became AVAILABLE, 1.0 and 1.1 were archived through TemplateCatalogService. Existing documents remain readable.
 
-Controlled vocabulary and projection
-- Existing controlled values inspected: NOT_APPLICABLE, TO_REVIEW, CONFIRMED, REJECTED.
-- The actual native UI save path was covered for CONFIRMED, NOT_APPLICABLE, and TO_REVIEW across several gate rows; no uncontrolled token is accepted.
-- Repository reads continue to rehydrate ExternalGateStatus values deterministically. Qt currentData() continues to project primitive strings for the UI boundary.
-- No template was made AVAILABLE during verification.
+3. Corrected normal successor
+- TemplateVersion 1.2 id: 26a39209-6daf-4e1e-af91-b8289f6b2953; status AVAILABLE.
+- Its normal source uses only existing fields and blocks: static Article 8 wording, contract.visits_per_year, service.priority_breakdown_label, client.contract_name and BLOCK_SPECIAL_TERMS.
+- Empty special terms remove Article 14 completely while Article 15 retains its stable number.
+- PERSON contract identity is first name + space + last name; priority output is inclus / non inclus.
 
-Regression coverage
-- tests/test_model_catalog_s12.py adds a native Qt regression using the real ModelVersionDetail sender path.
-- It proves primitive-string normalization and persistence, reopening/projection as primitive UI values, multiple controlled gate rows, and clean rejection of INVALID values.
+4. Real official proof
+- New disposable Contract: 276bb473-4bb5-4aff-82df-3441b4bbdc8b / B3-QA-0003 / R01.
+- DOCX: C:\Users\xSn\AppData\Local\Temp\icp-renov-c3-b3-20260822-013120\Documents\ICP Renov\Contrats\documents\contracts\276bb473-4bb5-4aff-82df-3441b4bbdc8b\R01\B3-QA-0003_R01.docx
+- PDF: C:\Users\xSn\AppData\Local\Temp\icp-renov-c3-b3-20260822-013120\Documents\ICP Renov\Contrats\documents\contracts\276bb473-4bb5-4aff-82df-3441b4bbdc8b\R01\B3-QA-0003_R01.pdf
+- Verified: exact 1.2 reference, no "pendant jours", no "visite(s)", priority grammar, no PERSON comma, Article 14 absent, Article 15 present, no unresolved markers and readable five-page PDF.
 
-Validation
-- Targeted native Qt regression: 1/1 PASS.
-- Model catalog module: 17/17 PASS.
-- Full application suite: 391/391 PASS.
-- git diff --check: PASS; Git reports only LF-to-CRLF advisory messages.
+5. Regression and package evidence
+- Canonical registry/resource targeted suite: 20/20 PASS.
+- Document rendering and version immutability targeted suite: 45/45 PASS.
+- Full source suite: 402/402 PASS in 224.596 s.
+- Clean PyInstaller one-dir rebuild: PASS.
+- Isolated packaged startup smoke: PASS (LOCALAPPDATA C:\Users\xSn\AppData\Local\Temp\icp-r41-packaged-smoke-20260823).
+- git diff --check: PASS (line-ending advisories only).
 
-Packaged runtime recheck
-- One-dir bundle was rebuilt through packaging/build_windows_bundle.ps1 from clean repository build/dist output.
-- Rebuilt executable: dist\ICP Renov - Contrats\ICP Renov - Contrats.exe.
-- It was launched directly with isolated LOCALAPPDATA, no PYTHONPATH/PYTHONHOME, no --no-sandbox, and no QTWEBENGINE_DISABLE_SANDBOX.
-- In the real external-validation form, controlled TO_REVIEW values saved successfully with the visible message "Validation externe enregistrée." No attribute error occurred and the template remained non-AVAILABLE.
-- Manual evidence: C:\Users\xSn\AppData\Local\Temp\icp-renov-c3-b3-20260822-013120\b3-rebuilt-external-save-bottom.png.
+No commit was created.
 
-Frozen / intentionally unchanged
-- Template availability rules, legal/product requiredness, validation-matrix semantics, SQLite schema, contract lifecycle, document generation, LibreOffice authority, WebEngine sandbox, installer scope, and all unrelated UI behavior.
-
-Verdict
-C3_B3_EXTERNAL_VALIDATION_FIX_READY_FOR_REVIEW
-
-Resume packaged clean-profile workflow
-- Reused the isolated B3 profile/workspace and the rebuilt dist\ICP Renov - Contrats\ICP Renov - Contrats.exe; ordinary workflow actions used the packaged executable only.
-- The user explicitly confirmed the external-validation decisions. All controlled gate rows and the global state were saved as Confirmed, with synthetic B3 review metadata; the checklist displayed "Validation externe" as satisfied.
-- Synthetic Company fixture data was entered through Paramètres > Société only. A first decimal-format rejection for "10 000 EUR" was corrected to "10000"; a subsequent unchanged-profile save displayed "Informations société enregistrées." No SQLite manipulation occurred.
-- The normal Diagnostic génération page found DOCX available and LibreOffice 26.2.5.2. The selected model's confirmed non-official test completed with "Résultat → Test réussi..." and exposed its DOCX/PDF open actions.
-- Before the remaining visual-control, external-content confirmation, AVAILABLE transition, contract journey, and restart checks, the packaged application lost its titled main window: its remaining process was responsive but exposed only an empty 181x150 window, with no shutdown or traceback in the isolated application.log. No further UI input or restart was attempted.
-
-Resume verdict
-C3_B3_CORRECTIONS_REQUIRED
+C3_B3_CANONICAL_RECONCILIATION_READY_FOR_REVIEW

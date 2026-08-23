@@ -13,6 +13,7 @@ from PySide6.QtWidgets import QDialog
 from icp_renov_contracts.app import create_application
 from icp_renov_contracts.bootstrap import build_application_context
 from icp_renov_contracts.config import BootstrapConfig, MachineConfigStore
+from icp_renov_contracts.documents.converter import LibreOfficeConverter
 from icp_renov_contracts.domain import (
     ContractConditions, ControlledOption, PaymentTermOption, ReviewBlockId, ReviewState,
     TemplateOptionCatalogs, TemplateValidationMetadata, TemplateVersionStatus,
@@ -293,6 +294,25 @@ class ReadinessAndProbeTests(ReviewCase):
         self.assertFalse(DocumentCapabilityProbe().probe().pdf_available)
         run.side_effect = OSError("probe")
         self.assertEqual(DocumentCapabilityProbe().probe().pdf_detail, "Conversion PDF à vérifier")
+
+    @patch.object(DocumentCapabilityProbe, "_find_soffice", return_value=Path("C:/fake/soffice.com"))
+    @patch("icp_renov_contracts.services.capabilities.subprocess.run")
+    def test_capability_probe_caches_navigation_checks_but_diagnostic_refreshes(self, run, find):
+        run.return_value = subprocess.CompletedProcess([], 0, "LibreOffice 26.2.5.2", "")
+        probe = DocumentCapabilityProbe()
+        self.assertTrue(probe.probe().pdf_available); self.assertTrue(probe.probe().pdf_available)
+        self.assertEqual(run.call_count, 1)
+        self.assertEqual(run.call_args.kwargs["creationflags"], getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        self.assertTrue(probe.probe(refresh=True).pdf_available)
+        self.assertEqual(run.call_count, 2)
+
+    @patch("icp_renov_contracts.documents.converter.subprocess.run")
+    def test_converter_version_probe_is_windowless_and_cached(self, run):
+        run.return_value = subprocess.CompletedProcess([], 0, "LibreOffice 26.2.5.2", "")
+        converter = LibreOfficeConverter(Path("C:/fake/soffice.com"))
+        self.assertEqual(converter.version(), "26.2.5.2"); self.assertEqual(converter.version(), "26.2.5.2")
+        self.assertEqual(run.call_count, 1)
+        self.assertEqual(run.call_args.kwargs["creationflags"], getattr(subprocess, "CREATE_NO_WINDOW", 0))
 
 
 class ReviewUiTests(ReviewCase):

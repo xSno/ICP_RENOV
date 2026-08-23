@@ -33,7 +33,7 @@ def prepare_context(raw:dict)->dict:
     company["registered_address"]=company.get("registered_address") or company["full_address"]
     company["insurance_summary"]=join((company.get("insurer_name",""),f"police {company.get('insurance_policy_number')}" if company.get("insurance_policy_number") else "",company.get("insurance_scope","")))
     company["refrigerant_capacity_summary"]=join((company.get("refrigerant_capacity_number",""),company.get("refrigerant_capacity_body","")))
-    client["contract_name"]=(join((client.get("first_name"),client.get("last_name"))) if client.get("party_type")=="PERSON" else client.get("organization_name",""))
+    client["contract_name"]=(" ".join(value.strip() for value in (str(client.get("first_name") or ""),str(client.get("last_name") or "")) if value.strip()) if client.get("party_type")=="PERSON" else client.get("organization_name",""))
     client["representative_summary"]=join((client.get("representative_name"),client.get("representative_role")));client["regime_label"]=REGIMES.get(client.get("regime"),"")
     site["full_address"]=join((site.get("address_line1"),site.get("address_line2"),join((site.get("postal_code"),site.get("city"))),site.get("country")))
     for key in ("issue_date","start_date","initial_end_date"):contract[key]=french_date(contract.get(key))
@@ -44,7 +44,7 @@ def prepare_context(raw:dict)->dict:
     contract["equipment_count"]=len(contract.get("equipment_items",()))
     service["included_options_summary"]=join(OPTIONS.get(value,value) for value in service.get("included_options",()))
     service["travel_summary"]="déplacements inclus" if service.get("travel_included") else "déplacements facturés séparément"
-    service["priority_breakdown_label"]=(f"intervention prioritaire sous {service.get('priority_breakdown_delay')}" if service.get("priority_breakdown") else "non incluse")
+    service["priority_breakdown_label"]="inclus" if service.get("priority_breakdown") else "non inclus"
     service["refrigerant_handling_summary"]={"IN_HOUSE_AUTHORIZED":"Manipulation réalisée en interne dans la limite des habilitations détenues.","PARTNER":"Manipulation confiée à un partenaire habilité lorsque nécessaire.","EXCLUDED":"Manipulation de fluide exclue du forfait."}.get(service.get("refrigerant_handling_mode"),"")
     ht=Decimal(str(pricing.get("annual_ht",0)));rate=Decimal(str(pricing.get("vat_rate",0)));vat=(ht*rate).quantize(Decimal("0.01"));ttc=ht+vat
     pricing["annual_ht"]=french_money(ht);pricing["vat_amount"]=french_money(vat);pricing["annual_ttc"]=french_money(ttc)

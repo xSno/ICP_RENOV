@@ -7,7 +7,7 @@ import sqlite3
 import unittest
 import uuid
 
-from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QTableWidget
+from PySide6.QtWidgets import QApplication, QCheckBox, QLabel, QLineEdit, QPushButton, QTableWidget
 
 from icp_renov_contracts.database import DatabaseService
 from icp_renov_contracts.database.service import MIGRATIONS
@@ -15,7 +15,7 @@ from icp_renov_contracts.documents import (
     NonOfficialModelValidationRunner, ProductionDocxRenderer,
     StaticCompanyDocumentDataProvider, TemplateSourceStore,
 )
-from icp_renov_contracts.documents.registry import FIELDS
+from icp_renov_contracts.documents.registry import FIELD_FILE, FIELDS
 from icp_renov_contracts.documents.ooxml import read_package, write_package
 from icp_renov_contracts.documents.validation import DocumentGenerationError
 from icp_renov_contracts.domain import (
@@ -93,6 +93,12 @@ class ModelCatalogS12Tests(unittest.TestCase):
         self.service.set_visual_review(version_id, ReviewEvidenceStatus.CONFIRMED)
         return render
 
+    def test_frozen_field_registry_matches_the_canonical_baseline(self):
+        canonical = FIELD_FILE.read_text(encoding="utf-8").replace("\r\n", "\n").encode("utf-8")
+        self.assertEqual(hashlib.sha256(canonical).hexdigest(), "11542d5ec835a774232ba00e2ffb588f1c4ef204a4403bb4a112db38b189ce49")
+        for forbidden in ("contract.visits_label", "contract.breach_cure_period_clause", "contract.special_terms_display"):
+            self.assertNotIn(forbidden, FIELDS)
+
     def test_migration_eleven_over_ten_preserves_versions_and_has_one_authority(self):
         legacy_path = self.root / "legacy-v10.db"
         connection = sqlite3.connect(legacy_path)
@@ -122,6 +128,35 @@ class ModelCatalogS12Tests(unittest.TestCase):
         with self.database.connection() as connection: counts = tuple(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] for table in ("contract_templates", "contract_template_versions"))
         with self.assertRaises(Exception): self.service.add_model("Cassé", "CONTRACT", "1", invalid)
         with self.database.connection() as connection: self.assertEqual(tuple(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] for table in ("contract_templates", "contract_template_versions")), counts)
+
+    def test_vat_catalog_defaults_to_twenty_and_stays_administrable_when_available(self):
+        version = self.add_contract("TVA administrable", "1")
+        self.assertEqual(version.catalogs.vat_rates, ("20",))
+        self.assertEqual(tuple(item.code for item in version.catalogs.payment_terms), ("DUE", "CUSTOM"))
+        self.assertEqual(tuple(item.code for item in version.catalogs.payment_methods), ("TRANSFER", "CHEQUE"))
+        saved = self.service.set_vat_rates(version.id, ("5,5", "20.0", "20"))
+        self.assertEqual(saved.catalogs.vat_rates, ("5.5", "20"))
+        self.make_ready(version.id); self.service.make_available(version.id)
+        updated = self.service.set_vat_rates(version.id, ("10", "20"))
+        self.assertEqual(updated.catalogs.vat_rates, ("10", "20"))
+        with self.assertRaises(ContractValidationError): self.service.set_vat_rates(version.id, ())
+        with self.assertRaises(ContractValidationError): self.service.set_vat_rates(version.id, ("invalid",))
+
+        page = ModelsSettingsPage(self.service); page.open_version(version.id); self.application.processEvents()
+        detail = page.stack.currentWidget(); field = detail.findChild(QLineEdit, "templateVatRates")
+        self.assertIsNotNone(field); self.assertTrue(field.isEnabled()); self.assertEqual(field.text(), "10 ; 20")
+        field.setText("5,5 ; 20"); detail._save_vat_rates(); self.application.processEvents()
+        self.assertEqual(self.service.get_version(version.id).catalogs.vat_rates, ("5.5", "20"))
+        self.assertEqual(detail.feedback.text(), "Taux de TVA enregistrés.")
+        self.service.set_payment_options(version.id, ("DUE",), ("TRANSFER", "CHEQUE"))
+        self.assertEqual(tuple(item.code for item in self.service.get_version(version.id).catalogs.payment_terms), ("DUE",))
+        self.assertEqual(tuple(item.code for item in self.service.get_version(version.id).catalogs.payment_methods), ("TRANSFER", "CHEQUE"))
+        with self.assertRaises(ContractValidationError): self.service.set_payment_options(version.id, (), ("TRANSFER",))
+        with self.assertRaises(ContractValidationError): self.service.set_payment_options(version.id, ("DUE",), ("UNKNOWN",))
+        page.open_version(version.id); self.application.processEvents(); detail = page.stack.currentWidget()
+        self.assertTrue(detail.findChild(QCheckBox, "templatePaymentTerm_DUE").isChecked())
+        self.assertTrue(detail.findChild(QCheckBox, "templatePaymentMethod_TRANSFER").isChecked())
+        page.close()
 
     def test_external_validation_qt_string_statuses_are_normalized_and_reopen_as_primitives(self):
         version = self.add_contract("Validation Qt", "1")
@@ -265,6 +300,15 @@ class ModelCatalogS12Tests(unittest.TestCase):
         self.assertFalse(next(item for item in self.service.evaluate_availability(version.id).items if item.code == "external_gates").passed)
         with self.assertRaises(Exception): self.service.set_external_gate(version.id, "LEGAL_PRICE_INDEXATION", ExternalGateStatus.CONFIRMED)
 
+    def test_review_statuses_normalize_controlled_ui_strings(self):
+        version = self.add_contract(); self.service.confirm_regime(version.id, "CONSUMER", "preuve")
+        self.service.set_context_review(version.id, "CONFIRMED")
+        self.assertIs(self.service.validation_record(version.id).context_review_status, ReviewEvidenceStatus.CONFIRMED)
+        self.assertTrue(self.service.control_structure(version.id).passed); self.service.test_generation(version.id)
+        self.service.set_visual_review(version.id, "CONFIRMED")
+        self.assertIs(self.service.validation_record(version.id).visual_review_status, ReviewEvidenceStatus.CONFIRMED)
+        with self.assertRaises(ContractValidationError): self.service.set_visual_review(version.id, "UNCONTROLLED")
+
     def test_company_requiredness_is_version_specific_and_unrelated_fields_do_not_block(self):
         provider = StaticCompanyDocumentDataProvider({"phone": "0102030405", "insurer_name": ""})
         service = TemplateCatalogService(
@@ -350,7 +394,7 @@ class ModelCatalogS12Tests(unittest.TestCase):
         add = AddModelDialog(); new = NewVersionDialog("Famille"); self.assertNotEqual(add.objectName(), new.objectName()); add.close(); new.close()
         page.open_version(pending.id)
         labels = [label.text() for label in page.findChildren(QLabel)]
-        for title in ("Identité & source", "Utilisation / régimes", "Données requises", "Blocs de contexte", "Contrôle de structure", "Test de génération", "Validation externe", "Conditions de mise à disposition"):
+        for title in ("Identité & source", "Utilisation / régimes", "Données requises", "Blocs de contexte", "Tarification", "Contrôle de structure", "Test de génération", "Validation externe", "Conditions de mise à disposition"):
             self.assertIn(title, labels)
         page.close()
 

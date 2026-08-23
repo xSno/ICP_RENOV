@@ -8,7 +8,8 @@ import uuid
 
 from ..domain import (
     AvailabilityEvaluation, AvailabilityItem, ContextAuthorization, ContractTemplate,
-    ContractTemplateVersion, EXTERNAL_GATE_CODES, ExternalGateStatus,
+    ContractTemplateVersion, ControlledOption, EXTERNAL_GATE_CODES, ExternalGateStatus,
+    PaymentTermOption,
     ReviewEvidenceStatus, TemplateDefaults, TemplateOptionCatalogs,
     TemplateValidationMetadata, TemplateVersionStatus, ValidationCheckStatus,
 )
@@ -36,8 +37,29 @@ def _external_gate_status(value: ExternalGateStatus | str) -> ExternalGateStatus
     raise ContractValidationError("external validation status")
 
 
+def _review_evidence_status(value: ReviewEvidenceStatus | str) -> ReviewEvidenceStatus:
+    """Normalize the primitive review status sent by UI boundaries to its domain enum."""
+    if isinstance(value, ReviewEvidenceStatus):
+        return value
+    if isinstance(value, str):
+        try:
+            return ReviewEvidenceStatus(value)
+        except ValueError as exc:
+            raise ContractValidationError("review status") from exc
+    raise ContractValidationError("review status")
+
+
 class TemplateCatalogService:
     """Governed model/version catalog with explicit, non-legal validation evidence."""
+
+    PAYMENT_TERM_OPTIONS = (
+        PaymentTermOption("DUE", "À échéance", True, False),
+        PaymentTermOption("CUSTOM", "Modalité personnalisée", False, True),
+    )
+    PAYMENT_METHOD_OPTIONS = (
+        ControlledOption("TRANSFER", "Virement"),
+        ControlledOption("CHEQUE", "Chèque"),
+    )
 
     def __init__(self, repository: TemplateCatalogRepository,
                  source_store: TemplateSourceStore | None = None,
@@ -123,10 +145,14 @@ class TemplateCatalogService:
         relpath = ""
         try:
             relpath, digest = self.source_store.import_source(source, version_id)
+            catalogs = (TemplateOptionCatalogs(
+                vat_rates=("20",), payment_terms=self.PAYMENT_TERM_OPTIONS,
+                payment_methods=self.PAYMENT_METHOD_OPTIONS,
+            ) if kind == "CONTRACT" else TemplateOptionCatalogs())
             item = ContractTemplateVersion(
                 version_id, template.id, template.functional_name, template.contract_type_code,
                 version.strip(), TemplateVersionStatus.TO_VALIDATE, (), TemplateValidationMetadata(),
-                TemplateDefaults(), TemplateOptionCatalogs(), now, now, relpath, digest,
+                TemplateDefaults(), catalogs, now, now, relpath, digest,
                 document_kind=kind, target_client_regimes=targets,
             )
             self.repository.create_template_with_version(template, item)
@@ -218,6 +244,35 @@ class TemplateCatalogService:
         self.repository.update_target_regimes(version_id, values, _now())
         return self.get_version(version_id)
 
+    def set_vat_rates(self, version_id: str, rates: tuple[str, ...]) -> ContractTemplateVersion:
+        """Update the controlled VAT catalog used for future contract-condition saves.
+
+        VAT is a governed operational setting: existing contracts retain their
+        persisted rate and generated documents remain untouched.  The catalog is
+        therefore editable on active model versions, including AVAILABLE ones.
+        """
+        version = self.get_version(version_id)
+        if version.document_kind != "CONTRACT" or version.status is TemplateVersionStatus.ARCHIVED:
+            raise ContractValidationError("template VAT catalog")
+        values = self._vat_rates(rates)
+        self.repository.update_vat_rates(version_id, values, _now())
+        return self.get_version(version_id)
+
+    def set_payment_options(self, version_id: str, term_codes: tuple[str, ...], method_codes: tuple[str, ...]) -> ContractTemplateVersion:
+        """Persist selected payment options from the closed model vocabulary."""
+        version = self.get_version(version_id)
+        if version.document_kind != "CONTRACT" or version.status is TemplateVersionStatus.ARCHIVED:
+            raise ContractValidationError("template payment catalog")
+        terms_by_code = {item.code: item for item in self.PAYMENT_TERM_OPTIONS}
+        methods_by_code = {item.code: item for item in self.PAYMENT_METHOD_OPTIONS}
+        terms = tuple(terms_by_code[code] for code in term_codes if code in terms_by_code)
+        methods = tuple(methods_by_code[code] for code in method_codes if code in methods_by_code)
+        if (not terms or not methods or len(term_codes) != len(set(term_codes)) or len(method_codes) != len(set(method_codes))
+                or any(code not in terms_by_code for code in term_codes) or any(code not in methods_by_code for code in method_codes)):
+            raise ContractValidationError("template payment catalog")
+        self.repository.update_payment_options(version_id, terms, methods, _now())
+        return self.get_version(version_id)
+
     def confirm_regime(self, version_id: str, regime: str, reference: str,
                        confirmed_at: str | None = None) -> ContractTemplateVersion:
         version = self._editable(version_id); value = regime.strip()
@@ -241,10 +296,11 @@ class TemplateCatalogService:
         self.repository.update_requiredness(version_id, normalized, intervention, _now())
         return self.get_version(version_id)
 
-    def set_context_review(self, version_id: str, status: ReviewEvidenceStatus,
+    def set_context_review(self, version_id: str, status: ReviewEvidenceStatus | str,
                            authorizations: tuple[ContextAuthorization, ...] = (),
                            conclusion_required_regimes: tuple[str, ...] = ()) -> None:
         version = self._editable(version_id)
+        status = _review_evidence_status(status)
         if version.document_kind == "INTERVENTION_SHEET":
             if status is not ReviewEvidenceStatus.NOT_APPLICABLE or authorizations or conclusion_required_regimes:
                 raise ContractValidationError("sheet context is not applicable")
@@ -292,8 +348,9 @@ class TemplateCatalogService:
             version_id, status, validator.strip(), validation_date, scope.strip(), reference.strip(), reservations.strip(), _now(),
         )
 
-    def set_visual_review(self, version_id: str, status: ReviewEvidenceStatus) -> None:
+    def set_visual_review(self, version_id: str, status: ReviewEvidenceStatus | str) -> None:
         self._editable(version_id)
+        status = _review_evidence_status(status)
         if status is ReviewEvidenceStatus.CONFIRMED:
             record = self.validation_record(version_id)
             if record.render_status is not ValidationCheckStatus.PASS:
@@ -412,6 +469,26 @@ class TemplateCatalogService:
         if any(value not in {"CONSUMER", "NON_PROFESSIONAL", "PROFESSIONAL"} for value in values):
             raise ContractValidationError("client regime")
         return values
+
+    @staticmethod
+    def _vat_rates(rates: tuple[str, ...]) -> tuple[str, ...]:
+        values: list[str] = []
+        try:
+            for raw in rates:
+                value = str(raw).strip().replace(",", ".")
+                if not value:
+                    raise InvalidOperation
+                rate = Decimal(value)
+                if not rate.is_finite() or rate < 0:
+                    raise InvalidOperation
+                normalized = format(rate.normalize(), "f")
+                if normalized not in values:
+                    values.append(normalized)
+        except (InvalidOperation, ValueError) as exc:
+            raise ContractValidationError("template VAT catalog") from exc
+        if not values:
+            raise ContractValidationError("template VAT catalog")
+        return tuple(values)
 
     @staticmethod
     def _persist(operation, *args) -> None:

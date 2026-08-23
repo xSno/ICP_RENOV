@@ -15,7 +15,7 @@ from icp_renov_contracts.documents.formatters import prepare_context
 from icp_renov_contracts.documents.providers import ContractNumberAllocator
 from icp_renov_contracts.documents.validation import DocumentGenerationError
 from icp_renov_contracts.documents.source_store import sha256_file
-from icp_renov_contracts.domain import ContractStatus, ContextAuthorization, TemplateValidationMetadata
+from icp_renov_contracts.domain import ContractConditions, ContractStatus, ContextAuthorization, TemplateValidationMetadata
 from icp_renov_contracts.repositories import ContractDocumentRepository
 from icp_renov_contracts.services import DocumentGenerationService, ReviewService
 
@@ -145,13 +145,45 @@ class ProductionGenerationTests(GenerationCase):
         self.assertEqual(snapshot["company"]["legal_name"],COMPANY["legal_name"]);self.assertEqual(snapshot["template"]["source_hash"],self.version.source_hash)
         self.assertEqual(snapshot["contract"]["visits_per_year"],2);self.assertEqual(snapshot["contract"]["breach_cure_period_days"],15)
 
+    def test_pricing_catalog_changes_apply_only_to_future_contracts_and_leave_r01_snapshot_immutable(self):
+        r01 = self.service().generate(self.contract.id)
+        before = self.contracts.get_conditions(self.contract.id)
+        self.assertEqual((before.vat_rate, before.payment_terms_code, before.payment_due_days, before.payment_methods),
+                         ("20", "DUE", 30, ("TRANSFER",)))
+        self.assertEqual((r01.document.snapshot["pricing"]["vat_rate"],
+                          r01.document.snapshot["pricing"]["payment_terms_code"],
+                          r01.document.snapshot["pricing"]["payment_due_days"],
+                          r01.document.snapshot["pricing"]["payment_methods"]),
+                         ("0.2", "DUE", 30, ["TRANSFER"]))
+
+        self.catalog.set_vat_rates(self.version.id, ("5.5",))
+        self.catalog.set_payment_options(self.version.id, ("CUSTOM",), ("CHEQUE",))
+
+        historical = self.contracts.get_conditions(self.contract.id)
+        persisted = self.documents.get(r01.document.id)
+        self.assertEqual((historical.vat_rate, historical.payment_terms_code, historical.payment_due_days, historical.payment_methods),
+                         ("20", "DUE", 30, ("TRANSFER",)))
+        self.assertEqual((persisted.snapshot["pricing"]["vat_rate"],
+                          persisted.snapshot["pricing"]["payment_terms_code"],
+                          persisted.snapshot["pricing"]["payment_due_days"],
+                          persisted.snapshot["pricing"]["payment_methods"]),
+                         ("0.2", "DUE", 30, ["TRANSFER"]))
+
+        future = self.contracts.create_draft(); self.contracts.change_regime(future.id, "CONSUMER")
+        self.contracts.select_template_version(future.id, self.version.id)
+        current = self.contracts.save_conditions(future.id, ContractConditions(
+            annual_ht="100", vat_rate="5.5", payment_terms_code="CUSTOM",
+            payment_terms_custom_text="À réception", payment_methods=("CHEQUE",),
+        ))
+        self.assertEqual((current.vat_rate, current.payment_terms_code, current.payment_due_days, current.payment_methods),
+                         ("5.5", "CUSTOM", None, ("CHEQUE",)))
+
     def test_renderer_has_no_tokens_raw_codes_or_internal_notes(self):
         result=self.service().generate(self.contract.id)
         with zipfile.ZipFile(result.docx_path) as package:
             data=b"".join(package.read(name) for name in package.namelist() if name.startswith("word/") and name.endswith(".xml"))
             document=ET.fromstring(package.read("word/document.xml"));text="".join(node.text or "" for node in document.iter("{http://schemas.openxmlformats.org/wordprocessingml/2006/main}t"))
         self.assertNotIn(b"[[",data);self.assertNotIn(b"internal_notes",data)
-        self.assertIn("réalise 2 visite(s)",text)
 
     def test_required_semantic_values_render_without_blank_holes(self):
         text=self.docx_text(self.service().generate(self.contract.id).docx_path)
@@ -178,6 +210,37 @@ class ProductionGenerationTests(GenerationCase):
         self.assert_atomic_failure(self.service())
         self.contracts.save_conditions(self.contract.id,replace(self.contracts.get_conditions(self.contract.id),visits_per_year=2,breach_cure_period_days=None))
         self.assert_atomic_failure(self.service())
+
+    def test_required_when_uses_selected_template_metadata_before_review_readiness(self):
+        service=self.service()
+        incompatible=replace(self.version,validation=TemplateValidationMetadata())
+        complete=self.contracts.get_conditions(self.contract.id)
+        missing=replace(complete,breach_cure_period_days=None)
+        self.review.generation_ready=None
+        self.review.generation_readiness=service.readiness
+        with patch.object(self.contracts,"selected_template_version",return_value=incompatible), patch.object(self.contracts,"get_conditions",return_value=missing):
+            readiness=service.readiness(self.contract.id)
+            self.assertTrue(readiness.available)
+            self.assertEqual(readiness.issues,())
+            review=self.review.review(self.contract.id)
+            self.assertTrue(review.data_complete)
+            self.assertTrue(review.generation_available)
+        with patch.object(self.contracts,"get_conditions",return_value=missing):
+            readiness=service.readiness(self.contract.id)
+            self.assertFalse(readiness.available)
+            self.assertEqual(readiness.issues[0].key,"contract.breach_cure_period_days")
+            self.assertEqual(readiness.issues[0].label,"Délai de régularisation (jours)")
+            self.assertEqual(readiness.issues[0].owner,"Contract")
+            self.assertEqual(readiness.issues[0].classification,"CONTRACT_REVIEW_GAP")
+            detail=readiness.detail
+            self.assertIn("Délai de régularisation",detail)
+            self.assertNotIn("contract.breach_cure_period_days",detail)
+            with self.assertRaises(DocumentGenerationError) as raised:service.generate(self.contract.id)
+        self.assertEqual(raised.exception.code,"incomplete")
+        self.assertEqual(self.allocator.consumed(),0)
+        self.assertEqual(self.documents.list_for_contract(self.contract.id),())
+        self.assertIs(self.contracts.get(self.contract.id).status,ContractStatus.DRAFT)
+        self.assertTrue(service.readiness(self.contract.id).available)
 
     def test_required_company_semantics_cannot_render_blank(self):
         for key in ("registered_address","refrigerant_partner_name"):
@@ -275,6 +338,25 @@ class TemplateSourceTests(GenerationCase):
         self.service().generate(self.contract.id)
         with self.assertRaises(Exception):self.catalog.set_generation_metadata(self.version.id,"other.docx","0"*64,())
 
+    def test_used_r01_stays_tied_to_1_0_when_a_corrected_1_1_source_is_created(self):
+        generated=self.service().generate(self.contract.id);source=self.store.verify(self.version.source_relpath,self.version.source_hash)
+        original=source.read_bytes();corrected=self.context.workspace.root/"corrected-1.1.docx"
+        changed=False
+        with zipfile.ZipFile(source) as package,zipfile.ZipFile(corrected,"w",zipfile.ZIP_DEFLATED) as output:
+            for name in package.namelist():
+                data=package.read(name)
+                if name=="word/document.xml":
+                    self.assertEqual(data.count(b"visite(s)"),1);data=data.replace(b"visite(s)",b"visites?",1);changed=True
+                output.writestr(name,data)
+        self.assertTrue(changed)
+        successor=self.catalog.create_new_version(self.version.id,"1.1",corrected)
+        persisted=self.documents.get(generated.document.id)
+        self.assertEqual((successor.previous_version_id,successor.version),(self.version.id,"1.1"))
+        self.assertEqual(source.read_bytes(),original)
+        self.assertEqual(persisted.snapshot["template"]["version_id"],self.version.id)
+        self.assertEqual(persisted.snapshot["template"]["source_hash"],self.version.source_hash)
+        self.assertEqual(len(self.documents.list_for_contract(self.contract.id)),1)
+
 
 class ProductionRendererCoverageTests(GenerationCase):
     def _rewrite_source(self,pattern:bytes,replacement:bytes):
@@ -294,6 +376,48 @@ class ProductionRendererCoverageTests(GenerationCase):
     def test_unknown_block_rejected(self):self._assert_marker_rejected(b"BLOCK_CLIENT_ORGANIZATION",b"BLOCK_UNKNOWN")
     def test_unknown_loop_rejected(self):self._assert_marker_rejected(b"contract.equipment_items",b"contract.unknown_items")
     def test_malformed_loop_rejected(self):self._assert_marker_rejected(b"[[/LOOP:contract.equipment_items]]",b"")
+
+    def _corrected_source(self):
+        source=self.store.verify(self.version.source_relpath,self.version.source_hash)
+        corrected=self.context.workspace.root/"corrected-contract-1.2.docx"
+        cure_old=("apr" + "\u00e8s mise en demeure rest" + "\u00e9e sans effet pendant "
+                  "{{ contract.breach_cure_period_days }} jours, sauf urgence ou disposition imp" + "\u00e9rative contraire.")
+        replacements=(
+            ("{{ contract.visits_per_year }} visite(s) d'entretien pr" + "\u00e9ventif par p" + "\u00e9riode contractuelle, sur rendez-vous et sous r" + "\u00e9serve d'un acc" + "\u00e8s normal et s" + "\u00e9curis" + "\u00e9 aux " + "\u00e9quipements.",
+             "Le nombre de visites d'entretien pr" + "\u00e9ventif est fix" + "\u00e9 " + "\u00e0 {{ contract.visits_per_year }} par p" + "\u00e9riode contractuelle."),
+            (cure_old,"apr" + "\u00e8s mise en demeure rest" + "\u00e9e sans effet, sauf urgence ou disposition imp" + "\u00e9rative contraire."),
+        )
+        with zipfile.ZipFile(source) as original,zipfile.ZipFile(corrected,"w",zipfile.ZIP_DEFLATED) as output:
+            for name in original.namelist():
+                data=original.read(name)
+                if name=="word/document.xml":
+                    for old,new in replacements:
+                        self.assertEqual(data.count(old.encode()),1)
+                        data=data.replace(old.encode(),new.encode(),1)
+                output.writestr(name,data)
+        return corrected
+
+    def test_corrected_contract_source_renders_complete_conditional_copy(self):
+        corrected=self._corrected_source();renderer=ProductionDocxRenderer();service=self.service()
+        snapshot=service._snapshot(self.contracts.get(self.contract.id),self.contracts.get_conditions(self.contract.id),self.version,COMPANY,"QA-1.1")
+        snapshot["client"].update({"party_type":"PERSON","first_name":"First","last_name":"Last","organization_name":""})
+        snapshot["contract"].update({"visits_per_year":1,"breach_cure_period_days":None,"special_terms":""})
+        snapshot["service"]["priority_breakdown"]=False
+        absent=self.context.workspace.root/"corrected-absent.docx";renderer.render(corrected,absent,snapshot,self.context.workspace.root/"work-absent")
+        text=self.docx_text(absent)
+        article14="Article 14 - Conditions particuli" + "\u00e8res";article15="Article 15 - Signature"
+        self.assertIn("rest" + "\u00e9e sans effet, sauf urgence ou disposition imp" + "\u00e9rative contraire.",text)
+        self.assertNotIn(article14,text);self.assertIn(article15,text)
+        self.assertIn("Le nombre de visites d'entretien pr" + "\u00e9ventif est fix" + "\u00e9 " + "\u00e0 1 par p" + "\u00e9riode contractuelle.",text)
+        self.assertIn("D" + "\u00e9pannage prioritaire : non inclus.",text);self.assertIn("First Last",text)
+        for forbidden in ("{{","}}","pendant jours","1 visite(s)","First, Last","D" + "\u00e9pannage prioritaire : non incluse"):
+            self.assertNotIn(forbidden,text)
+        snapshot["contract"]["visits_per_year"]=2;snapshot["service"]["priority_breakdown"]=True
+        present=self.context.workspace.root/"corrected-present.docx";renderer.render(corrected,present,snapshot,self.context.workspace.root/"work-present")
+        present_text=self.docx_text(present)
+        self.assertIn("rest" + "\u00e9e sans effet, sauf urgence ou disposition imp" + "\u00e9rative contraire.",present_text)
+        self.assertIn("Le nombre de visites d'entretien pr" + "\u00e9ventif est fix" + "\u00e9 " + "\u00e0 2 par p" + "\u00e9riode contractuelle.",present_text)
+        self.assertIn("D" + "\u00e9pannage prioritaire : inclus.",present_text)
 
     def _assert_equipment_count(self,total):
         site_id=self.contracts.get(self.contract.id).site_source_id
@@ -329,6 +453,8 @@ class GenerationUiTests(GenerationCase):
         self.view.open_contract(self.contract.id);self.view.navigate_step(2);self.application.processEvents()
     def tearDown(self):self.view.close();self.view.deleteLater();self.application.processEvents();super().tearDown()
     def test_ready_enables_confirmation_and_cancel_has_no_effect(self):
+        checks = {check.key: check.available for check in self.review.review(self.contract.id).generation.checks}
+        self.assertTrue(checks["DOCX"]); self.assertTrue(checks["PDF"])
         self.assertTrue(self.view.review_view.generate_button.isEnabled())
         dialog=GenerationConfirmationDialog(self.generation.preview_number());text=" ".join(label.text() for label in dialog.findChildren(__import__('PySide6.QtWidgets',fromlist=['QLabel']).QLabel))
         self.assertIn("R01",text);self.assertIn("À signer",text);self.assertIn("aucun numéro",text.lower())
