@@ -1,40 +1,42 @@
-C3-B3-R4.1 review diff against current HEAD
+NEW WORK EXECUTED IN THIS RUN
 
-Modified production files
-- bootstrap/context.py
-- documents/adapter.py, converter.py, formatters.py, renderer.py
-- repositories/template_catalog.py
-- services/capabilities.py, document_generation.py, generation_diagnostic.py, review.py, template_catalog.py
-- ui/models_settings_view.py, ui/web_host.py, ui_web/contract-workspace.js
+C3-B5-R2 installer delta against C3-B3 baseline d00b61a
 
-Modified tests
-- test_conditions.py
-- test_document_generation.py
-- test_model_catalog_s12.py
-- test_review.py
-- test_web_contract_conditions_w3b2.py
-- test_web_contract_generation_w3c2.py
+Files created
+- packaging/installer/icp_renov_contrats.iss
+- packaging/build_windows_installer.ps1
+- tests/test_packaging_installer_c3b5.py
 
-Review artifacts
+Files modified
 - recap.txt
 - diff.txt
 
-R4.1 reconciliation
-- FIELD_TEMPLATE_CONTRACT_V1_1.txt is intentionally unchanged from HEAD and its canonical normalized SHA-256 is asserted by regression coverage.
-- Existing document formatter fields are used for canonical rendering: client.contract_name and service.priority_breakdown_label; no presentation-only registry keys remain.
-- The renderer regression derives a successor source using only canonical keys, validates static Article 8 text, clean visits wording and conditional removal of Article 14.
-- Existing version immutability and catalog archival coverage remains in the reviewed delta.
+Files removed
+- None.
+
+Installer implementation
+- The Inno Setup script installs the complete existing one-dir bundle to C:\Program Files\ICP Renov\Contrats, creates direct Start-menu and public-desktop shortcuts, and preserves LOCALAPPDATA/workspace data at uninstall.
+- LibreOffice prerequisite guidance is a FileExists-only preflight; it does not execute, install, download or configure LibreOffice.
+- The build helper invokes the existing bundle build, resolves the local Inno Setup compiler, compiles the setup and verifies the expected setup artifact.
+- The static regression tests cover installer locality, direct shortcut targets, absence of shell/network/security-changing behavior and uninstaller-data preservation intent.
 
 Accepted/frozen areas intentionally unchanged
-- TemplateVersion 1.0 and 1.1 historical source content and ContractDocuments.
-- Contract lifecycle, document generation transaction, LibreOffice authority, WebEngine sandbox and installer scope.
-- No tracked file was created or removed.
+- All production Python/domain/UI behavior.
+- WebEngine sandbox and bridge architecture.
+- Contract lifecycle, document generation, template-validation authority and LibreOffice capability authority.
+- Existing packaging launcher behavior and all B3 runtime behavior.
 
-Final validation
-- canonical registry/resource: 20/20 PASS
-- document rendering/version immutability: 45/45 PASS
-- full suite: 402/402 PASS in 224.596 s
-- git diff --check: PASS (line-ending advisories only)
-- clean PyInstaller one-dir rebuild and isolated packaged launch smoke: PASS
+R2 technical lifecycle evidence
+- Clean setup artifact produced: installer-output\ICP-Renov-Contrats-Setup-0.1.0.exe (SHA-256 8F43795B23746BCEA09BFB5F6558C212FE38B198064340BB475D09B8DD6EBE2F; NotSigned).
+- Installed root, direct shortcuts, bundled WebEngine assets and local UI assets verified.
+- Fresh/restarted/final installed launches used isolated TEMP LOCALAPPDATA only; Program Files remained free of mutable application state.
+- Same-version reinstall, silent uninstall (exit code 0) and final reinstall all preserved the isolated QA state. Uninstall removed only the installed root and application shortcuts.
 
-No commit performed.
+Final validation summary
+- installer packaging tests: 2/2 PASS
+- inherited B5 source suite: 404/404 PASS
+- git diff --check: PASS (only Git LF-to-CRLF informational warnings for the two handoff files)
+- No commit performed. Build/dist/installer-output remain ignored.
+
+External-distribution release gate
+- R1 Defender false-positive evidence remains open: submit the local Trojan:Win32/Ludicrouz.P compiler-temporary-file detection for review and sign the release with trusted Authenticode before external distribution.

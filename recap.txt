@@ -1,37 +1,54 @@
-C3-B3-R4.1 — Canonical field registry reconciliation
+NEW WORK EXECUTED IN THIS RUN
 
-1. Canonical authority restored
-- FIELD_TEMPLATE_CONTRACT_V1_1.txt is restored to the accepted frozen baseline.
-- Normalized SHA-256: 11542d5ec835a774232ba00e2ffb588f1c4ef204a4403bb4a112db38b189ce49.
-- The registry remains closed: contract.visits_label, contract.breach_cure_period_clause and contract.special_terms_display are not canonical fields.
-- Empty OPTIONAL content removes its containing output; BLOCK_SPECIAL_TERMS remains conditional on contract.special_terms.
+C3-B5-R2 — Installer build and full technical lifecycle QA
 
-2. Historical preservation and archival
-- B3-QA-0001 / R01 remains tied to TemplateVersion 1.0 (id 9cc006fa-0f62-49bc-a7fa-45e6965a06cd).
-- B3-QA-0002 / R01 remains tied to TemplateVersion 1.1 (id 559e7f2b-d8d2-4e53-80fc-81232026a442).
-- Neither historical source, hash, ContractDocument nor revision was edited.
-- After 1.2 became AVAILABLE, 1.0 and 1.1 were archived through TemplateCatalogService. Existing documents remain readable.
+Baseline and scope
+- Baseline HEAD: d00b61afb455759a620cf5677e2d188c75c11a47 (C3-B3 close packaged V1 workflow).
+- Scope: conventional Windows one-dir installer only; no production source, test, WebEngine, sandbox, LibreOffice-authority or workflow behavior change during R2.
+- Inno Setup compiler: 7.1.0.
 
-3. Corrected normal successor
-- TemplateVersion 1.2 id: 26a39209-6daf-4e1e-af91-b8289f6b2953; status AVAILABLE.
-- Its normal source uses only existing fields and blocks: static Article 8 wording, contract.visits_per_year, service.priority_breakdown_label, client.contract_name and BLOCK_SPECIAL_TERMS.
-- Empty special terms remove Article 14 completely while Article 15 retains its stable number.
-- PERSON contract identity is first name + space + last name; priority output is inclus / non inclus.
+Installer publication
+- After the user manually allowed the previously diagnosed local Defender detection, the clean one-dir build and Inno compilation completed.
+- Setup: installer-output\ICP-Renov-Contrats-Setup-0.1.0.exe.
+- Size: 149,232,472 bytes.
+- SHA-256: 8F43795B23746BCEA09BFB5F6558C212FE38B198064340BB475D09B8DD6EBE2F.
+- Authenticode: NotSigned; no signer or timestamp.
+- No fresh Defender threat event was observed during this allowed rebuild; only normal Defender health events followed it.
 
-4. Real official proof
-- New disposable Contract: 276bb473-4bb5-4aff-82df-3441b4bbdc8b / B3-QA-0003 / R01.
-- DOCX: C:\Users\xSn\AppData\Local\Temp\icp-renov-c3-b3-20260822-013120\Documents\ICP Renov\Contrats\documents\contracts\276bb473-4bb5-4aff-82df-3441b4bbdc8b\R01\B3-QA-0003_R01.docx
-- PDF: C:\Users\xSn\AppData\Local\Temp\icp-renov-c3-b3-20260822-013120\Documents\ICP Renov\Contrats\documents\contracts\276bb473-4bb5-4aff-82df-3441b4bbdc8b\R01\B3-QA-0003_R01.pdf
-- Verified: exact 1.2 reference, no "pendant jours", no "visite(s)", priority grammar, no PERSON comma, Article 14 absent, Article 15 present, no unresolved markers and readable five-page PDF.
+Installed content and shortcuts
+- Installed root: C:\Program Files\ICP Renov\Contrats.
+- Installed executable and uninstaller present: ICP Renov - Contrats.exe and unins000.exe.
+- Complete bundled WebEngine runtime present under _internal\PySide6 (QtWebEngineProcess.exe, resources, locales) and local ui_web assets present (index.html and app.js).
+- Application resource FIELD_TEMPLATE_CONTRACT_V1_1.txt is present.
+- Start-menu and public-desktop shortcuts both target C:\Program Files\ICP Renov\Contrats\ICP Renov - Contrats.exe directly; no wrapper is used.
+- No application log, SQLite database, backup archive or machine-config file was found in Program Files.
 
-5. Regression and package evidence
-- Canonical registry/resource targeted suite: 20/20 PASS.
-- Document rendering and version immutability targeted suite: 45/45 PASS.
-- Full source suite: 402/402 PASS in 224.596 s.
-- Clean PyInstaller one-dir rebuild: PASS.
-- Isolated packaged startup smoke: PASS (LOCALAPPDATA C:\Users\xSn\AppData\Local\Temp\icp-r41-packaged-smoke-20260823).
-- git diff --check: PASS (line-ending advisories only).
+Installed runtime and data locality
+- Fresh isolated QA profile: C:\Users\xSn\AppData\Local\Temp\icp-renov-c3-b5-r2-installed-qa-20260823.
+- First installed launch remained alive after 15 seconds; its only initial state was written under that QA LOCALAPPDATA profile. The install tree was byte/metadata unchanged.
+- Restart with the same QA profile remained alive after 12 seconds; the install tree remained unchanged.
+- Final launch after uninstall/reinstall remained alive after 15 seconds from C:\Program Files\ICP Renov\Contrats\ICP Renov - Contrats.exe, with the same isolated profile and no install-tree mutation.
+- A non-interactive launch against the previously validated B3 profile also remained alive from the installed executable. No GUI workflow action was performed.
 
-No commit was created.
+LibreOffice and application boundary
+- LibreOffice detected at C:\Program Files\LibreOffice\program\soffice.com, version 26.2.5.2.
+- Conversion PDF capability is available. DOCX opening remains a separate workstation capability and was not treated as a bundled dependency.
+- Installer prerequisite guidance is FileExists-only. It does not launch, install, download, configure or modify LibreOffice.
 
-C3_B3_CANONICAL_RECONCILIATION_READY_FOR_REVIEW
+Maintenance lifecycle
+- Same-version silent reinstall completed with the installed executable and uninstaller still present; the QA profile was unchanged.
+- Silent uninstall returned exit code 0, removed the Program Files root and both shortcuts, and preserved the QA profile unchanged.
+- Final silent reinstall returned exit code 0, restored the executable, uninstaller and both shortcuts, and again preserved the QA profile unchanged.
+- The installer is intentionally per-machine/admin, x64, complete one-dir, French, with no [Run], [UninstallRun], URL/download, PowerShell/cmd, service, task, startup, registry security change or custom native helper.
+
+Validation
+- Installer packaging static tests: 2/2 PASS.
+- Source regression suite: 404/404 PASS (B5 baseline; no source/test change after that run).
+- git diff --check: PASS (Git reports only existing LF-to-CRLF informational warnings for recap.txt and diff.txt).
+
+Security release gate retained
+- The R1 diagnosis remains applicable: Defender classified an earlier compiler temporary file as Trojan:Win32/Ludicrouz.P. That was a concrete local real-time detection, not SmartScreen or PUA.
+- Before external distribution: perform a Microsoft Defender false-positive review and apply trusted Authenticode signing. Neither action was simulated or bypassed here.
+- No commit has been created.
+
+C3_B5_INSTALLER_READY_FOR_REVIEW
