@@ -1,44 +1,48 @@
-NEW WORK EXECUTED IN RELEASE R2.1
+NEW WORK EXECUTED IN RELEASE R2.2 + DEPLOYMENT SEED V1.2.1
 
-Baseline
-- HEAD: 1369528930f4eee5e310829d83ca27b2c1a6d700 (Release R1 freeze V1.0.0 metadata).
-- No product, workflow, template, database, UI, WebEngine, LibreOffice or installer UX behavior changed.
+1. Authorized source correction
+- Exactly one production fixture input changed: src/icp_renov_contracts/documents/model_validation.py now supplies non-official `pricing.vat_rate` as `"0.20"`, the fractional convention required by the existing formatter.
+- No Contract pricing, VAT catalog, formatter arithmetic, version metadata or VAT inference behavior changed. Controlled user choices remain 10 and 20.
+- Added deterministic regression in tests/test_model_catalog_s12.py. It verifies the prepared non-official scenario renders 100,00 HT; 20 %; 20,00 VAT; 120,00 TTC and contains no `2000` output.
 
-Local Authenticode authority
-- Certificate: CN=ICP Renov.
-- Thumbprint: 890CF0C7225A0523B413B9F4AEA974D51DA418E3.
-- Validity: 28/09/2026 11:28:15 to 28/09/2031 11:38:15.
-- EKU: Code Signing.
-- Private key: Cert:\CurrentUser\My only.
-- Public certificate: D:\Documents\ICP Renov\Release Support\ICP-Renov-Code-Signing.cer.
-- Build-machine trust is present in Cert:\CurrentUser\Root. Target-PC trust was not started.
+2. Source validation
+- Targeted model-validation regression: PASS (21 model catalog tests, including the new VAT regression).
+- Conditions pricing regression: PASS (22 tests).
+- Document-generation regression: PASS (45 tests).
+- Installer packaging regression: PASS (3 tests).
+- Complete application suite: 396/396 PASS (one new regression over the accepted 395 baseline).
 
-Tracked signing pipeline
-- packaging/build_windows_installer.ps1 requires an exact certificate thumbprint, validates the local Code Signing certificate, locates SignTool, signs the PyInstaller primary EXE with SHA-256/RFC3161, and fails closed on signing or verification failure.
-- The script independently verifies the primary EXE and final setup with SignTool and Get-AuthenticodeSignature.
-- Inno Setup uses its official compiler --signtool integration; SignedUninstaller=yes signs the generated uninstaller through that authority.
-- Corrected two material runtime boundaries: SignTool certificate selector is /sha1, and Inno SignTool registration is supplied via --signtool rather than an invalid .iss section.
-
-Final signed V1.0.0 artifact
-- Setup: C:\Users\xSn\Desktop\ICP_RENOV_CONTRACTS\installer-output\ICP-Renov-Contrats-Setup-1.0.0.exe.
-- Size: 149,268,584 bytes.
-- SHA-256: 175FA7652A55A9490302A85C19E7F2031C5CC18B650E227F017478068A3C12AF.
-- ProductVersion: 1.0.0.
+3. Rebuilt signed V1.0.0 release
+- Canonical setup: C:\Users\xSn\Desktop\ICP_RENOV_CONTRACTS\installer-output\ICP-Renov-Contrats-Setup-1.0.0.exe.
+- Size: 149,233,488 bytes. SHA-256: 933D6C6921E07EB36A3A77CDD805739ABC954B2DF25B02B3564A34B4C214A8A9.
 - Authenticode: Valid; signer CN=ICP Renov; thumbprint 890CF0C7225A0523B413B9F4AEA974D51DA418E3.
-- Timestamp: DigiCert SHA256 RSA4096 Timestamp Responder 2026 1; RFC3161 verification PASS.
-- The signed hash differs from the unsigned RC hash E045DE26E955036934C5C8A796C0BA5836FC2B8F91F3A215A22B2E9274C6C6FD.
-- Primary EXE: Valid, signer CN=ICP Renov, same thumbprint, DigiCert RFC3161 timestamp.
-- Inno compiler output confirms its temporary generated uninstaller was signed. No standalone uninstaller binary is exposed in installer-output for a separate inspection.
+- RFC3161 timestamp: valid DigiCert SHA256 RSA4096 Timestamp Responder 2026 1.
+- The first rebuild correctly failed closed because the timestamp server was unavailable. One identical retry succeeded; no untimestamped fallback was published.
+- Defender normal-mode scan completed with no ICP Renov setup detection. Existing Defender detections are historical unrelated D:\Downloads paths only; no exclusion or manual allow was used.
 
-Validation and hygiene
-- Release/signing and installer packaging tests: 3/3 PASS.
-- Clean signed release script build: PASS.
-- Defender normal-mode custom scan of the final signed setup: PASS, no detection.
-- No PFX, password, private key or public certificate is tracked. The public CER remains outside the repository.
-- build/, dist/ and installer-output/ remain ignored; no generated signed EXE/setup, QA database, document or backup is tracked.
-- No commit created in R2.1.
+4. Company contact updates and Unicode proof
+- Seed V1.2.1 CompanySettings persisted complaints_contact and privacy_contact as icprenov83@gmail.com.
+- Saint-Raphaël and Pascal Romano — Gérant survived save, fresh context recreation, backup and RestoreService rehearsal as exact Unicode values.
+- Mediator name, address and website remain blank. No mediation NOT_APPLICABLE decision, external confirmation or AVAILABLE transition was made.
 
-SmartScreen boundary
-- This self-signed certificate establishes controlled local trust only. It does not create public SmartScreen reputation.
+5. Corrected non-official Consumer evidence
+- DOCX: C:\Users\xSn\AppData\Local\Temp\icp-renov-deployment-seed-v1-2-1-ekhd8m0p\workspace\validation\models\6c479511-c037-45a3-a159-0f0ddba29175\27cf47ba99284b7ca96e418701d9ad31\equipment-1\validation.docx.
+- PDF: C:\Users\xSn\AppData\Local\Temp\icp-renov-deployment-seed-v1-2-1-ekhd8m0p\workspace\validation\models\6c479511-c037-45a3-a159-0f0ddba29175\27cf47ba99284b7ca96e418701d9ad31\equipment-1\validation.pdf.
+- Normal runner produced equipment-1, equipment-10 and equipment-30; equipment-1 is the prepared human-review pair.
+- DOCX/PDF inspection confirms ICP Renov, Pascal Romano, Saint-Raphaël, phone/e-mail, no demo/test/B3-QA/unresolved marker/official ICP number, and coherent arithmetic: 100,00 HT; 20 %; 20,00 VAT; 120,00 TTC.
+- Synthetic Client/Site/Equipment data remains legitimate only inside SYNTH-VALIDATION-NON-OFFICIELLE. Company mapping contains both confirmed contact values and blank mediator values.
 
-V1_0_0_SIGNED_LOCAL_RELEASE_READY_FOR_REVIEW
+6. Corrected portable seed
+- Archive: C:\Users\xSn\Documents\ICP Renov\Deployment Seed V1.2.1\ICP-RENOV-DEPLOYMENT-SEED-V1.2.1.icprenovbackup.
+- SHA-256: 2AB2A908C99C876AF7FCF454633D3BC5EDEF47326F2B6969C7946816AE9F10D8.
+- Real Backup authority created it without residual .icp-backup-* staging directory.
+- RestoreService rehearsal passed: Company/contact/Unicode persisted; mediator blank; numbering ICP / width 4 / next 1 and preview ICP-0001; VAT 10/20; DUE/CUSTOM; TRANSFER/CHEQUE; Consumer source hash unchanged and TO_VALIDATE.
+- Operational counts after restore: clients 0; sites 0; equipment 0; contracts 0; contract_documents 0; contract_events 0.
+
+7. Preserved boundaries and hygiene
+- Consumer remains TO_VALIDATE. Regime, context, visual, external-gate, external-content and mediator-related human evidence remain pending and were not fabricated.
+- No backlog UX item was changed: Settings sidebar, DOCX source CTA, Step 2/4 feedback, post-generation navigation and header/footer consolidation remain backlog only.
+- Generated build/dist/installer-output artifacts and the V1.2.1 backup are outside Git tracking. No private key/PFX/password is stored.
+- Only recap.txt, diff.txt, the one-line fixture correction and its regression test are modified. No commit created.
+
+V1_0_0_RELEASE_BLOCKER_FIXED_AND_SEED_READY_FOR_REVIEW

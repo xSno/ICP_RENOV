@@ -18,6 +18,7 @@ from icp_renov_contracts.documents import (
 from icp_renov_contracts.documents.registry import FIELD_FILE, FIELDS
 from icp_renov_contracts.documents.ooxml import read_package, write_package
 from icp_renov_contracts.documents.validation import DocumentGenerationError
+from icp_renov_contracts.documents.formatters import prepare_context
 from icp_renov_contracts.domain import (
     EXTERNAL_GATE_CODES, ExternalGateStatus, ReviewEvidenceStatus,
     TemplateVersionStatus, ValidationCheckStatus,
@@ -157,6 +158,16 @@ class ModelCatalogS12Tests(unittest.TestCase):
         self.assertTrue(detail.findChild(QCheckBox, "templatePaymentTerm_DUE").isChecked())
         self.assertTrue(detail.findChild(QCheckBox, "templatePaymentMethod_TRANSFER").isChecked())
         page.close()
+
+    def test_non_official_validation_fixture_uses_a_twenty_percent_decimal_rate(self):
+        version = self.add_contract("TVA validation non officielle", "1")
+        context = self.service.validation_runner._context(version, 1, observations=False)
+        pricing = prepare_context(context)["pricing"]
+        self.assertEqual(
+            (pricing["annual_ht"], pricing["vat_rate"], pricing["vat_amount"], pricing["annual_ttc"]),
+            ("100,00", "20", "20,00", "120,00"),
+        )
+        self.assertNotIn("2000", " ".join(str(pricing[key]) for key in ("vat_rate", "vat_amount", "annual_ttc")))
 
     def test_external_validation_qt_string_statuses_are_normalized_and_reopen_as_primitives(self):
         version = self.add_contract("Validation Qt", "1")

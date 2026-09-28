@@ -162,7 +162,7 @@ class NonOfficialModelValidationRunner:
                 "additional_exclusions": "Aucune", "refrigerant_handling_mode": "EXCLUDED",
             },
             "pricing": {
-                "annual_ht": "100.00", "vat_rate": "20", "payment_due_days": 30,
+                "annual_ht": "100.00", "vat_rate": "0.20", "payment_due_days": 30,
                 "payment_terms_custom_text": "", "payment_methods": ("BANK_TRANSFER",),
                 "missed_appointment_fee": "25.00", "renewal_price_rule": "FIXED",
             },

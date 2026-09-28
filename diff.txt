@@ -1,41 +1,33 @@
-RELEASE R2.1 — LOCAL AUTHENTICODE PIPELINE
+RELEASE R2.2 + DEPLOYMENT SEED V1.2.1 — HANDOFF
 
 Baseline
-- 1369528930f4eee5e310829d83ca27b2c1a6d700 (Release R1 freeze V1.0.0 metadata).
+- HEAD: a84ec9dc25177584e9ceafcdcd6c282b1f9a0d9c.
+- V1.0.0 remains the release version; stable installer identity and signing pipeline are unchanged.
 
 Files modified
-- packaging/build_windows_installer.ps1
-  - Exact thumbprint certificate selection, Code Signing validation, SignTool discovery, SHA-256/RFC3161 primary EXE signing and independent verification.
-  - Inno official --signtool integration, setup verification and fail-closed errors.
-  - Corrected SignTool thumbprint selector to /sha1.
-- packaging/installer/icp_renov_contrats.iss
-  - SignTool=icp-renov and SignedUninstaller=yes for compiler-provided signing.
-- tests/test_packaging_installer_c3b5.py
-  - Regression coverage for tracked signing pipeline and Inno integration.
+- src/icp_renov_contracts/documents/model_validation.py
+- tests/test_model_catalog_s12.py
 - recap.txt
 - diff.txt
 
-Files created
+Exact product correction
+- The non-official validation fixture rate changed from `"20"` to `"0.20"` because the existing document formatter consumes a fractional VAT rate.
+- One deterministic regression locks 100,00 / 20 / 20,00 / 120,00 and rejects 2000-scale evidence.
+
+Files created / removed in Git
 - None.
 
-Files removed
-- None.
-
-Intentionally unchanged
-- Product behavior, release version 1.0.0, AppId, application identity, executable name, publisher, templates, database schema, UI, WebEngine, LibreOffice, installer locality and backup behavior.
-
-Generated outputs and secrets
-- installer-output/ICP-Renov-Contrats-Setup-1.0.0.exe is signed but ignored/untracked.
-- build/, dist/ and installer-output/ are ignored.
-- No private key, PFX, password, CER, generated executable, setup, QA database, document or backup is tracked.
+Generated outside Git
+- Signed setup: installer-output\ICP-Renov-Contrats-Setup-1.0.0.exe; SHA-256 933D6C6921E07EB36A3A77CDD805739ABC954B2DF25B02B3564A34B4C214A8A9.
+- Deployment seed: C:\Users\xSn\Documents\ICP Renov\Deployment Seed V1.2.1\ICP-RENOV-DEPLOYMENT-SEED-V1.2.1.icprenovbackup; SHA-256 2AB2A908C99C876AF7FCF454633D3BC5EDEF47326F2B6969C7946816AE9F10D8.
+- No generated binary, backup, QA database, document, PFX, private key or password is tracked.
 
 Validation
-- Targeted release/signing and packaging tests: 3/3 PASS.
-- Clean signed build: PASS.
-- Primary EXE and setup Authenticode: Valid, CN=ICP Renov, thumbprint 890CF0C7225A0523B413B9F4AEA974D51DA418E3, DigiCert RFC3161 timestamp.
-- Inno output confirms generated uninstaller signing.
-- Defender custom scan: PASS, no detection.
+- Model-validation / conditions / document-generation / installer package targeted tests: PASS.
+- Full application suite: 396/396 PASS.
+- Clean PyInstaller rebuild, EXE signing/verification, signed Inno setup/uninstaller configuration and setup signature verification: PASS.
+- Setup signer: CN=ICP Renov; RFC3161 DigiCert timestamp valid; Defender normal-mode scan has no ICP Renov detection.
+- V1.2.1 real backup/restore rehearsal: PASS; model remains TO_VALIDATE and all operational counts zero.
+- git diff --check: pending final command.
 
-No commit performed.
-
-V1_0_0_SIGNED_LOCAL_RELEASE_READY_FOR_REVIEW
+V1_0_0_RELEASE_BLOCKER_FIXED_AND_SEED_READY_FOR_REVIEW
