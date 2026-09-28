@@ -6,16 +6,6 @@
 #define AppVersion "1.0.0"
 #define AppExeName "ICP Renov - Contrats.exe"
 
-#ifndef SignToolPath
-  #error "SignToolPath is required for the signed release build."
-#endif
-#ifndef CertificateThumbprint
-  #error "CertificateThumbprint is required for the signed release build."
-#endif
-#ifndef TimestampUrl
-  #error "TimestampUrl is required for the signed release build."
-#endif
-
 [Setup]
 AppId={{D0A5EB7C-5F81-46F1-91E5-D3780ADFB071}
 AppName={#AppName}
@@ -41,9 +31,6 @@ Name: "fr"; MessagesFile: "compiler:Languages\French.isl"
 
 [Files]
 Source: "..\..\dist\ICP Renov - Contrats\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-
-[SignTools]
-Name: "icp-renov"; Command: """{#SignToolPath}"" sign /sha {#CertificateThumbprint} /fd SHA256 /tr {#TimestampUrl} /td SHA256 ""$f"""
 
 [Icons]
 Name: "{autoprograms}\ICP Renov"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"

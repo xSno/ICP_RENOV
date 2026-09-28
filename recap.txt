@@ -1,45 +1,44 @@
-RELEASE R1 — V1.0.0 UNSIGNED RELEASE CANDIDATE
+NEW WORK EXECUTED IN RELEASE R2.1
 
 Baseline
-- HEAD: 89b6d1dc734b0a454fe981829b37bb572c10707a (C3-B6 close final installed V1 QA).
-- This pass is release metadata only; no functional, UX, template, domain, schema, WebEngine, LibreOffice, backup or installer-locality behavior changed.
+- HEAD: 1369528930f4eee5e310829d83ca27b2c1a6d700 (Release R1 freeze V1.0.0 metadata).
+- No product, workflow, template, database, UI, WebEngine, LibreOffice or installer UX behavior changed.
 
-Version authorities updated to 1.0.0
-- pyproject.toml: project version.
-- src/icp_renov_contracts/__init__.py: application __version__.
-- packaging/installer/icp_renov_contrats.iss: AppVersion and installer output base filename.
-- packaging/build_windows_installer.ps1: expected setup filename.
-- The packaging regression now asserts all above authorities are aligned to 1.0.0.
+Local Authenticode authority
+- Certificate: CN=ICP Renov.
+- Thumbprint: 890CF0C7225A0523B413B9F4AEA974D51DA418E3.
+- Validity: 28/09/2026 11:28:15 to 28/09/2031 11:38:15.
+- EKU: Code Signing.
+- Private key: Cert:\CurrentUser\My only.
+- Public certificate: D:\Documents\ICP Renov\Release Support\ICP-Renov-Code-Signing.cer.
+- Build-machine trust is present in Cert:\CurrentUser\Root. Target-PC trust was not started.
 
-Stable identities preserved
-- AppId: {D0A5EB7C-5F81-46F1-91E5-D3780ADFB071}.
-- Application: ICP Renov — Contrats.
-- Executable: ICP Renov - Contrats.exe.
-- Publisher: ICP Renov.
+Tracked signing pipeline
+- packaging/build_windows_installer.ps1 requires an exact certificate thumbprint, validates the local Code Signing certificate, locates SignTool, signs the PyInstaller primary EXE with SHA-256/RFC3161, and fails closed on signing or verification failure.
+- The script independently verifies the primary EXE and final setup with SignTool and Get-AuthenticodeSignature.
+- Inno Setup uses its official compiler --signtool integration; SignedUninstaller=yes signs the generated uninstaller through that authority.
+- Corrected two material runtime boundaries: SignTool certificate selector is /sha1, and Inno SignTool registration is supplied via --signtool rather than an invalid .iss section.
 
-Unsigned release candidate
-- Setup: installer-output/ICP-Renov-Contrats-Setup-1.0.0.exe.
-- Size: 149,192,477 bytes.
-- SHA-256: E045DE26E955036934C5C8A796C0BA5836FC2B8F91F3A215A22B2E9274C6C6FD.
-- Authenticode: NotSigned (intentional for this pass).
-- Setup ProductVersion / installer DisplayVersion: 1.0.0.
-- No Windows FileVersion resource was previously configured; none was introduced.
+Final signed V1.0.0 artifact
+- Setup: C:\Users\xSn\Desktop\ICP_RENOV_CONTRACTS\installer-output\ICP-Renov-Contrats-Setup-1.0.0.exe.
+- Size: 149,268,584 bytes.
+- SHA-256: 175FA7652A55A9490302A85C19E7F2031C5CC18B650E227F017478068A3C12AF.
+- ProductVersion: 1.0.0.
+- Authenticode: Valid; signer CN=ICP Renov; thumbprint 890CF0C7225A0523B413B9F4AEA974D51DA418E3.
+- Timestamp: DigiCert SHA256 RSA4096 Timestamp Responder 2026 1; RFC3161 verification PASS.
+- The signed hash differs from the unsigned RC hash E045DE26E955036934C5C8A796C0BA5836FC2B8F91F3A215A22B2E9274C6C6FD.
+- Primary EXE: Valid, signer CN=ICP Renov, same thumbprint, DigiCert RFC3161 timestamp.
+- Inno compiler output confirms its temporary generated uninstaller was signed. No standalone uninstaller binary is exposed in installer-output for a separate inspection.
 
-Validation
-- Release/version and installer packaging tests: 3/3 PASS.
-- Clean PyInstaller one-dir build: PASS.
-- Inno Setup compilation: PASS.
-- No 0.1.0 remains in release metadata authorities.
-- build/, dist/ and installer-output/ remain ignored; no QA database, generated document or backup is tracked.
-- git diff --check: PASS.
+Validation and hygiene
+- Release/signing and installer packaging tests: 3/3 PASS.
+- Clean signed release script build: PASS.
+- Defender normal-mode custom scan of the final signed setup: PASS, no detection.
+- No PFX, password, private key or public certificate is tracked. The public CER remains outside the repository.
+- build/, dist/ and installer-output/ remain ignored; no generated signed EXE/setup, QA database, document or backup is tracked.
+- No commit created in R2.1.
 
-Defender observation
-- Defender normal mode, real-time protection enabled.
-- Explicit custom scan of the final setup: PASS, no detection.
-- No Defender exclusion or manual allow action was used.
+SmartScreen boundary
+- This self-signed certificate establishes controlled local trust only. It does not create public SmartScreen reputation.
 
-Distribution gate
-- The candidate remains unsigned. Authenticode signing and final signed-artifact/SmartScreen verification remain required before external distribution.
-- No commit created in this release-metadata pass.
-
-V1_0_0_UNSIGNED_RELEASE_CANDIDATE_READY
+V1_0_0_SIGNED_LOCAL_RELEASE_READY_FOR_REVIEW

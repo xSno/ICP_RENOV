@@ -61,7 +61,7 @@ if (!(Test-Path -LiteralPath $installerScript -PathType Leaf)) { throw "Script I
 $certificate = Get-Item -LiteralPath "Cert:\CurrentUser\My\$CertificateThumbprint" -ErrorAction SilentlyContinue
 if (!$certificate -or !$certificate.HasPrivateKey) { throw "Certificat de signature introuvable ou sans cle privee dans Cert:\CurrentUser\My." }
 if ($certificate.Subject -ne "CN=ICP Renov") { throw "Le certificat de signature doit identifier ICP Renov." }
-if (!($certificate.EnhancedKeyUsageList | Where-Object { $_.ObjectId.Value -eq "1.3.6.1.5.5.7.3.3" })) { throw "Le certificat selectionne ne possede pas l'EKU Code Signing." }
+if (!($certificate.EnhancedKeyUsageList | Where-Object { $_.ObjectId -eq "1.3.6.1.5.5.7.3.3" })) { throw "Le certificat selectionne ne possede pas l'EKU Code Signing." }
 if ($certificate.NotAfter -le (Get-Date)) { throw "Le certificat de signature est expire." }
 
 $resolvedSignTool = Resolve-SignTool -RequestedPath $SignTool
@@ -70,7 +70,7 @@ $resolvedSignTool = Resolve-SignTool -RequestedPath $SignTool
 if ($LASTEXITCODE -ne 0) { throw "La construction du bundle a echoue (code $LASTEXITCODE)." }
 if (!(Test-Path -LiteralPath $bundleExecutable -PathType Leaf)) { throw "Bundle one-dir incomplet : $bundleExecutable" }
 
-Invoke-SignTool -Arguments @("sign", "/sha", $CertificateThumbprint, "/fd", "SHA256", "/tr", $TimestampUrl, "/td", "SHA256", $bundleExecutable) -Action "Signature de l'executable principal"
+Invoke-SignTool -Arguments @("sign", "/sha1", $CertificateThumbprint, "/fd", "SHA256", "/tr", $TimestampUrl, "/td", "SHA256", $bundleExecutable) -Action "Signature de l'executable principal"
 Assert-AuthenticodeSignature -Artifact $bundleExecutable -Label "l'executable principal"
 
 if (!$InnoCompiler) {
@@ -84,7 +84,8 @@ if (!$InnoCompiler) {
 }
 if (!$InnoCompiler) { throw "Inno Setup 7 est requis pour construire l'installeur Windows." }
 
-& $InnoCompiler "/DSignToolPath=$resolvedSignTool" "/DCertificateThumbprint=$CertificateThumbprint" "/DTimestampUrl=$TimestampUrl" $installerScript
+$innoSignToolCommand = '$q' + $resolvedSignTool + '$q sign /sha1 ' + $CertificateThumbprint + ' /fd SHA256 /tr ' + $TimestampUrl + ' /td SHA256 $f'
+& $InnoCompiler "--signtool=icp-renov=$innoSignToolCommand" $installerScript
 if ($LASTEXITCODE -ne 0) { throw "La compilation Inno Setup a echoue (code $LASTEXITCODE)." }
 if (!(Test-Path -LiteralPath $installer -PathType Leaf)) { throw "Installeur attendu introuvable : $installer" }
 

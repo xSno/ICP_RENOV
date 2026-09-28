@@ -1,14 +1,17 @@
-RELEASE R1 — V1.0.0 METADATA-ONLY DIFF
+RELEASE R2.1 — LOCAL AUTHENTICODE PIPELINE
 
 Baseline
-- 89b6d1dc734b0a454fe981829b37bb572c10707a (C3-B6 close final installed V1 QA).
+- 1369528930f4eee5e310829d83ca27b2c1a6d700 (Release R1 freeze V1.0.0 metadata).
 
 Files modified
-- pyproject.toml — project version 1.0.0.
-- src/icp_renov_contracts/__init__.py — application version 1.0.0.
-- packaging/installer/icp_renov_contrats.iss — AppVersion and setup output filename 1.0.0.
-- packaging/build_windows_installer.ps1 — expected setup filename 1.0.0.
-- tests/test_packaging_installer_c3b5.py — aligned release-version authority regression.
+- packaging/build_windows_installer.ps1
+  - Exact thumbprint certificate selection, Code Signing validation, SignTool discovery, SHA-256/RFC3161 primary EXE signing and independent verification.
+  - Inno official --signtool integration, setup verification and fail-closed errors.
+  - Corrected SignTool thumbprint selector to /sha1.
+- packaging/installer/icp_renov_contrats.iss
+  - SignTool=icp-renov and SignedUninstaller=yes for compiler-provided signing.
+- tests/test_packaging_installer_c3b5.py
+  - Regression coverage for tracked signing pipeline and Inno integration.
 - recap.txt
 - diff.txt
 
@@ -19,22 +22,20 @@ Files removed
 - None.
 
 Intentionally unchanged
-- Inno Setup AppId {D0A5EB7C-5F81-46F1-91E5-D3780ADFB071}, application identity, executable name and publisher.
-- Production behavior, database schema, contracts, templates, web UI, Qt/WebEngine, LibreOffice, backup, installer locality and user-data rules.
-- No Windows file-version resource existed previously; none was added.
+- Product behavior, release version 1.0.0, AppId, application identity, executable name, publisher, templates, database schema, UI, WebEngine, LibreOffice, installer locality and backup behavior.
 
-Generated outputs
-- installer-output/ICP-Renov-Contrats-Setup-1.0.0.exe is ignored and untracked.
-- build/, dist/ and installer-output/ are ignored. No QA database, document or backup is tracked.
+Generated outputs and secrets
+- installer-output/ICP-Renov-Contrats-Setup-1.0.0.exe is signed but ignored/untracked.
+- build/, dist/ and installer-output/ are ignored.
+- No private key, PFX, password, CER, generated executable, setup, QA database, document or backup is tracked.
 
 Validation
-- Release/version and packaging tests: 3/3 PASS.
-- Clean PyInstaller build and Inno Setup compiler: PASS.
-- Final setup SHA-256: E045DE26E955036934C5C8A796C0BA5836FC2B8F91F3A215A22B2E9274C6C6FD.
-- Authenticode: NotSigned (intentional).
-- Defender custom scan: no detection.
-- git diff --check: PASS.
+- Targeted release/signing and packaging tests: 3/3 PASS.
+- Clean signed build: PASS.
+- Primary EXE and setup Authenticode: Valid, CN=ICP Renov, thumbprint 890CF0C7225A0523B413B9F4AEA974D51DA418E3, DigiCert RFC3161 timestamp.
+- Inno output confirms generated uninstaller signing.
+- Defender custom scan: PASS, no detection.
 
 No commit performed.
 
-V1_0_0_UNSIGNED_RELEASE_CANDIDATE_READY
+V1_0_0_SIGNED_LOCAL_RELEASE_READY_FOR_REVIEW
