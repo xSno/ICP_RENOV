@@ -31,6 +31,6 @@ if (!$InnoCompiler) { throw "Inno Setup 7 est requis pour construire l'installeu
 & $InnoCompiler $installerScript
 if ($LASTEXITCODE -ne 0) { throw "La compilation Inno Setup a échoué (code $LASTEXITCODE)." }
 
-$installer = Join-Path $repositoryRoot "installer-output\ICP-Renov-Contrats-Setup-0.1.0.exe"
+$installer = Join-Path $repositoryRoot "installer-output\ICP-Renov-Contrats-Setup-1.0.0.exe"
 if (!(Test-Path -LiteralPath $installer -PathType Leaf)) { throw "Installeur attendu introuvable : $installer" }
 Write-Output "Installeur construit : $installer"

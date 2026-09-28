@@ -1,8 +1,14 @@
-NEW WORK EXECUTED IN C3-B6 FINAL CLOSURE
+RELEASE R1 — V1.0.0 METADATA-ONLY DIFF
 
-Closure review against B5 HEAD c9d0012
+Baseline
+- 89b6d1dc734b0a454fe981829b37bb572c10707a (C3-B6 close final installed V1 QA).
 
 Files modified
+- pyproject.toml — project version 1.0.0.
+- src/icp_renov_contracts/__init__.py — application version 1.0.0.
+- packaging/installer/icp_renov_contrats.iss — AppVersion and setup output filename 1.0.0.
+- packaging/build_windows_installer.ps1 — expected setup filename 1.0.0.
+- tests/test_packaging_installer_c3b5.py — aligned release-version authority regression.
 - recap.txt
 - diff.txt
 
@@ -13,24 +19,22 @@ Files removed
 - None.
 
 Intentionally unchanged
-- Production source, document templates, installer behavior, packaging, WebEngine sandbox and version 0.1.0.
-- No QA database, generated Contract document, backup archive, build, dist or installer output is tracked.
+- Inno Setup AppId {D0A5EB7C-5F81-46F1-91E5-D3780ADFB071}, application identity, executable name and publisher.
+- Production behavior, database schema, contracts, templates, web UI, Qt/WebEngine, LibreOffice, backup, installer locality and user-data rules.
+- No Windows file-version resource existed previously; none was added.
 
-Final manual evidence recorded
-- Installed application QA PASS: B3-QA-0004 / R01, TemplateVersion 1.2, official generation, TO_SIGN, Step 4, DOCX/PDF opening, content inspection, restart durability and backup.
-
-Technical status
-- C2, C3-B1, C3-B2, C3-B3, C3-B5 and C3-B6 are CLOSED.
-- V1_TECHNICALLY_READY.
-- C3-B4 was not required.
-
-Remaining external-distribution gate
-- INSTALLER_SECURITY_REVIEW_PENDING: unsigned setup and prior Defender Trojan:Win32/Ludicrouz.P compilation-time detection require false-positive review, trusted signing and final signed-artifact verification before external distribution.
-
-V1.01 backlog
-- Step 2 local save feedback / saved-state hierarchy.
-- Approved final Windows icon, if supplied.
+Generated outputs
+- installer-output/ICP-Renov-Contrats-Setup-1.0.0.exe is ignored and untracked.
+- build/, dist/ and installer-output/ are ignored. No QA database, document or backup is tracked.
 
 Validation
+- Release/version and packaging tests: 3/3 PASS.
+- Clean PyInstaller build and Inno Setup compiler: PASS.
+- Final setup SHA-256: E045DE26E955036934C5C8A796C0BA5836FC2B8F91F3A215A22B2E9274C6C6FD.
+- Authenticode: NotSigned (intentional).
+- Defender custom scan: no detection.
 - git diff --check: PASS.
-- No commit performed.
+
+No commit performed.
+
+V1_0_0_UNSIGNED_RELEASE_CANDIDATE_READY

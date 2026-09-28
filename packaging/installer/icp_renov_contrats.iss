@@ -1,9 +1,9 @@
-; ICP Renov — Contrats 0.1.0
+; ICP Renov — Contrats 1.0.0
 ; Stable installer identity. User data is deliberately outside {app}.
 
 #define AppName "ICP Renov — Contrats"
 #define AppPublisher "ICP Renov"
-#define AppVersion "0.1.0"
+#define AppVersion "1.0.0"
 #define AppExeName "ICP Renov - Contrats.exe"
 
 [Setup]
@@ -15,7 +15,7 @@ DefaultDirName={autopf}\ICP Renov\Contrats
 DefaultGroupName=ICP Renov
 DisableProgramGroupPage=yes
 OutputDir=..\..\installer-output
-OutputBaseFilename=ICP-Renov-Contrats-Setup-0.1.0
+OutputBaseFilename=ICP-Renov-Contrats-Setup-1.0.0
 UninstallDisplayIcon={app}\{#AppExeName}
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
@@ -52,4 +52,3 @@ begin
       'La génération des PDF nécessite LibreOffice. Veuillez demander à l''administrateur de l''installer, puis relancez l''installation d''ICP Renov.',
       mbInformation, MB_OK);
 end;
-

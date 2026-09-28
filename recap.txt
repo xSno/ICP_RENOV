@@ -1,42 +1,45 @@
-NEW WORK EXECUTED IN C3-B6 FINAL CLOSURE
+RELEASE R1 — V1.0.0 UNSIGNED RELEASE CANDIDATE
 
 Baseline
-- HEAD: c9d00123be3999221a281c21e2f108a4ddca26c9 (C3-B5 Windows installer lifecycle).
-- B6 introduced no production source change.
+- HEAD: 89b6d1dc734b0a454fe981829b37bb572c10707a (C3-B6 close final installed V1 QA).
+- This pass is release metadata only; no functional, UX, template, domain, schema, WebEngine, LibreOffice, backup or installer-locality behavior changed.
 
-Final installed manual QA
-- PASS: installed Windows launch, no console flash, TemplateVersion Contrat habitation B3 · 1.2, Step 3 readiness, official generation, TO_SIGN and Step 4.
-- Evidence: B3-QA-0004 / R01 created from the installed application.
-- DOCX and PDF opening: PASS.
-- Five-page PDF inspection: PASS; no unresolved marker, no “pendant jours”, no “visite(s)”, correct PERSON name and priority wording, and correct Article 14 conditional behavior.
-- Close/relaunch durability: PASS; R01, History and documents persisted.
-- Installed UI backup: PASS.
-- User simplicity: PASS; no technical/user-simplicity blocker observed.
+Version authorities updated to 1.0.0
+- pyproject.toml: project version.
+- src/icp_renov_contracts/__init__.py: application __version__.
+- packaging/installer/icp_renov_contrats.iss: AppVersion and installer output base filename.
+- packaging/build_windows_installer.ps1: expected setup filename.
+- The packaging regression now asserts all above authorities are aligned to 1.0.0.
 
-Technical V1 status
-- C2: CLOSED.
-- C3-B1: CLOSED.
-- C3-B2: CLOSED.
-- C3-B3: CLOSED.
-- C3-B5: CLOSED.
-- C3-B6: CLOSED.
-- C3-B4 was not required: its packaging/runtime corrections were absorbed and validated during B2/B3.
-- V1_TECHNICALLY_READY.
+Stable identities preserved
+- AppId: {D0A5EB7C-5F81-46F1-91E5-D3780ADFB071}.
+- Application: ICP Renov — Contrats.
+- Executable: ICP Renov - Contrats.exe.
+- Publisher: ICP Renov.
 
-Separate external-distribution gate
-- INSTALLER_SECURITY_REVIEW_PENDING.
-- Current setup is unsigned and the prior Defender compilation-time detection was Trojan:Win32/Ludicrouz.P.
-- Before external distribution: submit the false-positive evidence, use trusted Authenticode signing if approved, rebuild/sign the final setup, verify Defender/SmartScreen behavior, and perform a target-PC smoke if it differs from the QA machine.
+Unsigned release candidate
+- Setup: installer-output/ICP-Renov-Contrats-Setup-1.0.0.exe.
+- Size: 149,192,477 bytes.
+- SHA-256: E045DE26E955036934C5C8A796C0BA5836FC2B8F91F3A215A22B2E9274C6C6FD.
+- Authenticode: NotSigned (intentional for this pass).
+- Setup ProductVersion / installer DisplayVersion: 1.0.0.
+- No Windows FileVersion resource was previously configured; none was introduced.
 
-V1.01 backlog (non-blocking; no project backlog file exists)
-- Step 2 local save feedback / saved state: consider feedback in the saved block, CTA state after persistence, explicit saved-versus-modified state, and avoiding reliance on a page-top banner.
-- Final Windows icon: release polish only; no approved .ico exists and no placeholder was generated.
-
-Versioning and hygiene
-- Project/package version remains 0.1.0. A future externally shipped 1.0.0 name requires an explicit product decision; no installer rename was made.
-- Only recap.txt and diff.txt differ from HEAD. No QA database, generated document, backup archive, build, dist or installer-output is tracked.
+Validation
+- Release/version and installer packaging tests: 3/3 PASS.
+- Clean PyInstaller one-dir build: PASS.
+- Inno Setup compilation: PASS.
+- No 0.1.0 remains in release metadata authorities.
+- build/, dist/ and installer-output/ remain ignored; no QA database, generated document or backup is tracked.
 - git diff --check: PASS.
-- No commit created in this closure pass.
 
-V1_TECHNICALLY_READY
-INSTALLER_SECURITY_REVIEW_PENDING
+Defender observation
+- Defender normal mode, real-time protection enabled.
+- Explicit custom scan of the final setup: PASS, no detection.
+- No Defender exclusion or manual allow action was used.
+
+Distribution gate
+- The candidate remains unsigned. Authenticode signing and final signed-artifact/SmartScreen verification remain required before external distribution.
+- No commit created in this release-metadata pass.
+
+V1_0_0_UNSIGNED_RELEASE_CANDIDATE_READY
