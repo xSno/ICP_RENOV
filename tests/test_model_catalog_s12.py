@@ -169,6 +169,24 @@ class ModelCatalogS12Tests(unittest.TestCase):
         )
         self.assertNotIn("2000", " ".join(str(pricing[key]) for key in ("vat_rate", "vat_amount", "annual_ttc")))
 
+    def test_non_official_validation_preserves_company_unicode_in_rendered_docx(self):
+        provider = StaticCompanyDocumentDataProvider({
+            **COMPANY,
+            "registered_address": "1138 boulevard Jean Moulin, 83700 Saint-Rapha\u00ebl, France",
+            "city": "Saint-Rapha\u00ebl",
+            "signatory_name": "Pascal Romano",
+            "signatory_role": "G\u00e9rant",
+        })
+        runner = NonOfficialModelValidationRunner(self.workspace.root, ProductionDocxRenderer(), self.converter, provider)
+        version = self.add_contract("Unicode validation non officielle", "1")
+        result = runner.run(version, self.store.verify(version.source_relpath, version.source_hash))
+        rendered = self.workspace.root / result.evidence_paths[0]
+        payload = b"".join(read_package(rendered).values())
+        self.assertIn("Saint-Rapha\u00ebl".encode("utf-8"), payload)
+        self.assertIn("G\u00e9rant".encode("utf-8"), payload)
+        self.assertNotIn(b"Saint-Rapha?l", payload)
+        self.assertNotIn(b"G?rant", payload)
+
     def test_external_validation_qt_string_statuses_are_normalized_and_reopen_as_primitives(self):
         version = self.add_contract("Validation Qt", "1")
         page = ModelsSettingsPage(self.service); page.open_version(version.id); self.application.processEvents()

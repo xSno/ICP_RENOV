@@ -1,33 +1,22 @@
-RELEASE R2.2 + DEPLOYMENT SEED V1.2.1 — HANDOFF
+UX AUDIT WORKSPACE V1 — HANDOFF
 
 Baseline
-- HEAD: a84ec9dc25177584e9ceafcdcd6c282b1f9a0d9c.
-- V1.0.0 remains the release version; stable installer identity and signing pipeline are unchanged.
+- HEAD remains a84ec9dc25177584e9ceafcdcd6c282b1f9a0d9c (Release R2 add local Authenticode signing).
 
-Files modified
-- src/icp_renov_contracts/documents/model_validation.py
-- tests/test_model_catalog_s12.py
-- recap.txt
-- diff.txt
+Current Git worktree
+- recap.txt modified: refreshed for UX Audit Workspace V1.
+- diff.txt modified: refreshed for UX Audit Workspace V1.
+- tests/test_model_catalog_s12.py modified: pre-existing Unicode validation regression from the preceding Deployment Seed V1.3-R2 work; not changed in this audit pass.
 
-Exact product correction
-- The non-official validation fixture rate changed from `"20"` to `"0.20"` because the existing document formatter consumes a fractional VAT rate.
-- One deterministic regression locks 100,00 / 20 / 20,00 / 120,00 and rejects 2000-scale evidence.
+Audit data outside Git
+- C:\Users\xSn\Documents\ICP Renov\UX Audit Workspace V1\ICP-RENOV-UX-AUDIT-WORKSPACE-V1.icprenovbackup.
+- SHA-256 E32FCBBD3C7E02E8F72192965DA4F69BF997B9229A6969E5C55B6C632FE9D7EA.
+- Temporary authoring and restore workspaces under LocalAppData\Temp.
 
-Files created / removed in Git
-- None.
-
-Generated outside Git
-- Signed setup: installer-output\ICP-Renov-Contrats-Setup-1.0.0.exe; SHA-256 933D6C6921E07EB36A3A77CDD805739ABC954B2DF25B02B3564A34B4C214A8A9.
-- Deployment seed: C:\Users\xSn\Documents\ICP Renov\Deployment Seed V1.2.1\ICP-RENOV-DEPLOYMENT-SEED-V1.2.1.icprenovbackup; SHA-256 2AB2A908C99C876AF7FCF454633D3BC5EDEF47326F2B6969C7946816AE9F10D8.
-- No generated binary, backup, QA database, document, PFX, private key or password is tracked.
+Intentionally unchanged
+- Product source, templates, canonical field registry, signed installer, production V1.2.2 seed, release metadata, and production model availability.
 
 Validation
-- Model-validation / conditions / document-generation / installer package targeted tests: PASS.
-- Full application suite: 396/396 PASS.
-- Clean PyInstaller rebuild, EXE signing/verification, signed Inno setup/uninstaller configuration and setup signature verification: PASS.
-- Setup signer: CN=ICP Renov; RFC3161 DigiCert timestamp valid; Defender normal-mode scan has no ICP Renov detection.
-- V1.2.1 real backup/restore rehearsal: PASS; model remains TO_VALIDATE and all operational counts zero.
-- git diff --check: pending final command.
-
-V1_0_0_RELEASE_BLOCKER_FIXED_AND_SEED_READY_FOR_REVIEW
+- Fresh RestoreService rehearsal: PASS.
+- Consumer AVAILABLE / AUD-0001 / VAT-payment catalogs / fictional master data / zero-contract counts: PASS.
+- Intervention sheet: INTERVENTION_SHEET_AUDIT_MODEL_NOT_AVAILABLE.
