@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
 
 from .styles import SPACING
 from .surfaces import build_surfaces
-from ..services import AlertSettingsService, BackupService, CompanySettingsService, ContractLifecycleService, ContractService, DocumentGenerationService, InterventionSheetGenerationService, MasterDataService, NumberingSettingsService, RestoreService, ReviewService, TemplateCatalogService
+from ..services import AlertSettingsService, BackupService, BackupSummaryProvider, CompanySettingsService, ContractLifecycleService, ContractService, DocumentGenerationService, InterventionSheetGenerationService, MasterDataService, NumberingSettingsService, RealBackupSummaryProvider, RestoreService, ReviewService, TemplateCatalogService
 
 
 NAVIGATION_LABELS = ("Contrats", "Clients & installations", "Paramètres")
@@ -39,7 +39,8 @@ class ApplicationShell(QWidget):
 
         sidebar = QWidget()
         sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(250)
+        sidebar.setFixedWidth(232)
+        self.sidebar = sidebar
         sidebar_layout = QVBoxLayout(sidebar)
         sidebar_layout.setContentsMargins(SPACING["lg"], SPACING["xl"], SPACING["lg"], SPACING["lg"])
         sidebar_layout.setSpacing(SPACING["sm"])
@@ -65,6 +66,15 @@ class ApplicationShell(QWidget):
             self._buttons[label] = button
             sidebar_layout.addWidget(button)
         sidebar_layout.addStretch(1)
+        local_indicator = QLabel("Application locale")
+        local_indicator.setObjectName("localApplicationIndicator")
+        self.local_indicator = local_indicator
+        sidebar_layout.addWidget(local_indicator)
+        backup_indicator = QLabel(self._backup_summary_label(backup, alerts))
+        backup_indicator.setObjectName("backupStatusIndicator")
+        backup_indicator.setWordWrap(True)
+        self.backup_indicator = backup_indicator
+        sidebar_layout.addWidget(backup_indicator)
 
         self._contracts_landing: Callable[[], None] | None = None
         self.stack = QStackedWidget()
@@ -74,6 +84,7 @@ class ApplicationShell(QWidget):
             self._indices[label] = self.stack.addWidget(self._surfaces[label])
 
         content = QWidget()
+        content.setObjectName("contentRoot")
         content_layout = QVBoxLayout(content)
         content_layout.setContentsMargins(SPACING["xl"], SPACING["xl"], SPACING["xl"], SPACING["xl"])
         content_layout.addWidget(self.stack)
@@ -81,6 +92,12 @@ class ApplicationShell(QWidget):
         root.addWidget(sidebar)
         root.addWidget(content, 1)
         self.navigate("Contrats")
+
+    @staticmethod
+    def _backup_summary_label(backup: BackupService | None, alerts: AlertSettingsService | None) -> str:
+        if backup is None:
+            return BackupSummaryProvider().summary().label
+        return RealBackupSummaryProvider(backup, alerts).summary().label
 
     def set_contracts_landing(self, callback: Callable[[], None]) -> None:
         """Keep the legacy contract workflow available without making it a landing screen."""

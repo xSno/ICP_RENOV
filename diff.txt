@@ -1,22 +1,512 @@
-UX AUDIT WORKSPACE V1 — HANDOFF
+IMP-DS-01A CURRENT WORKTREE REVIEW DIFF
 
-Baseline
-- HEAD remains a84ec9dc25177584e9ceafcdcd6c282b1f9a0d9c (Release R2 add local Authenticode signing).
+NOTE: diff.txt is excluded from its own literal patch to avoid infinite self-recursion. Its modified status is included below. All other tracked changes are represented in full.
 
-Current Git worktree
-- recap.txt modified: refreshed for UX Audit Workspace V1.
-- diff.txt modified: refreshed for UX Audit Workspace V1.
-- tests/test_model_catalog_s12.py modified: pre-existing Unicode validation regression from the preceding Deployment Seed V1.3-R2 work; not changed in this audit pass.
+WORKTREE_STATUS
+ M diff.txt
+ M recap.txt
+ M src/icp_renov_contracts/app.py
+ M src/icp_renov_contracts/ui/shell.py
+ M src/icp_renov_contracts/ui/styles.py
+ M src/icp_renov_contracts/ui_web/app.css
+ M src/icp_renov_contracts/ui_web/app.js
+ M src/icp_renov_contracts/ui_web/contract-workspace.js
+ M src/icp_renov_contracts/ui_web/index.html
+ M tests/test_foundation.py
 
-Audit data outside Git
-- C:\Users\xSn\Documents\ICP Renov\UX Audit Workspace V1\ICP-RENOV-UX-AUDIT-WORKSPACE-V1.icprenovbackup.
-- SHA-256 E32FCBBD3C7E02E8F72192965DA4F69BF997B9229A6969E5C55B6C632FE9D7EA.
-- Temporary authoring and restore workspaces under LocalAppData\Temp.
+UNTRACKED_FILES
+(none)
 
-Intentionally unchanged
-- Product source, templates, canonical field registry, signed installer, production V1.2.2 seed, release metadata, and production model availability.
+TRACKED_DIFF_EXCLUDING_DIFF_TXT
+diff --git a/recap.txt b/recap.txt
+index a21bbd6..040c617 100644
+--- a/recap.txt
++++ b/recap.txt
+@@ -1,38 +1,41 @@
+-NEW WORK EXECUTED IN UX AUDIT WORKSPACE V1
+-
+-Scope
+-- Created audit data only from a clean RestoreService copy of Deployment Seed V1.2.2.
+-- Production source, signed installer, release metadata, canonical template source, and Deployment Seed V1.2.2 were not modified.
+-
+-Portable audit workspace
+-- Authoring workspace: C:\Users\xSn\AppData\Local\Temp\icp-renov-ux-audit-v1-rrvp0to6\audit-workspace.
+-- Portable backup: C:\Users\xSn\Documents\ICP Renov\UX Audit Workspace V1\ICP-RENOV-UX-AUDIT-WORKSPACE-V1.icprenovbackup.
+-- SHA-256: E32FCBBD3C7E02E8F72192965DA4F69BF997B9229A6969E5C55B6C632FE9D7EA.
+-- Real BackupService creation and fresh RestoreService rehearsal passed.
+-
+-Audit-only configuration
+-- Numbering: PREFIX_COUNTER / AUD / width 4 / next counter 1; preview AUD-0001.
+-- The inherited ICP Renov company identity remains intact.
+-- Audit-only mediator values: MEDIATEK AUDIT — NE PAS UTILISER EN PRODUCTION; 1 rue Audit, 00000 Test; https://audit.invalid.
+-- Every audit external gate and external-content reference uses UX-AUDIT-V1 or explicit audit-only reservations.
+-
+-Consumer model authority
+-- Contrat habitation · 1.0 source/hash were preserved.
+-- The Consumer regime was confirmed through TemplateCatalog authority.
+-- Structure, DOCX, PDF, post-render, context, visual, external gates and external-content confirmation ran through the normal validation authority.
+-- Consumer model is AVAILABLE only in this audit workspace; no production seed was changed.
+-- VAT remains 10/20; payment terms DUE/CUSTOM; payment methods TRANSFER/CHEQUE.
+-
+-Fictional master data
+-- Client: Jean Dupont (id 5aad32fe-62de-4142-9a49-a2371f2791ef).
+-- Site: Maison principale (id 1174794a-07b0-4e67-85e4-f9ab9b2c8e73).
+-- Equipment: Unité murale / Daikin / Perfera / Salon (id e40cf8f3-b1d6-4a69-a682-1a6bb843c554).
+-- Restore rehearsal counts: clients 1; sites 1; equipment 1; contracts 0; contract_documents 0; contract_events 0.
+-
+-Intervention sheet
+-- INTERVENTION_SHEET_AUDIT_MODEL_NOT_AVAILABLE: no existing governed intervention-sheet version was present in the clean seed. This does not block the audit workspace.
+-
+-Hygiene
+-- No official AUD number, Contract, document, event, B3 QA history, or production operational data was generated.
+-- No product source change was made in this pass. Existing uncommitted Unicode-regression and prior handoff artifacts remain separate worktree changes.
+-- No commit created.
++NEW WORK EXECUTED IN IMP-DS-01A CLOSURE PATCH
++
++Baseline
++- Starting and current HEAD: 589eeab95d32e33e9d4f1fc5e864ef14a41eeb7d (UX_AUDIT_WORKSPACE_V1_READY).
++- No commit was created.
++
++DS-01A foundation
++- Qt sets a deterministic light palette before widgets are created; QSS and WebEngine use aligned light DS tokens.
++- The permanent native and Web shell remain 232 px / full-height with independently scrolling main Web content.
++
++Closure corrections
++- Active navigation uses the shared accent token #E9A23B in Qt and Web; primary hover is #115B90.
++- Every relevant disabled QPalette role is explicitly set. Light surfaces remain light under a Windows dark platform palette; disabled foregrounds remain muted.
++- Contracts landing, Clients & installations, and Contract workspace render permanent navigation as semantic focusable button controls, with identical labels and existing routes.
++- The native sidebar bottom region retains Application locale and now projects the existing backup summary through RealBackupSummaryProvider (or the existing neutral default authority when unavailable).
++
++Behavior intentionally preserved
++- No domain, persistence, backup behavior, WebChannel route, template, document-generation, contract workflow, or product IA change.
++- No IMP-DS-01B/C/D work started.
++
++Validation
++- QT_QPA_PLATFORM=offscreen python -W error::ResourceWarning -m unittest discover -s tests -p test_foundation.py -q: PASS (19/19, exit 0).
++- QT_QPA_PLATFORM=offscreen python -W error::ResourceWarning -m unittest discover -s tests -p test_model_catalog_s12.py -q: PASS (22/22, exit 0).
++- QT_QPA_PLATFORM=offscreen python -W error::ResourceWarning -m unittest discover -s tests -p test_web_bridge_c2w1.py -v: PASS (3/3).
++- QT_QPA_PLATFORM=offscreen python -W error::ResourceWarning -m unittest discover -s tests -p test_web_contract_workspace_w3a.py -v: PASS (10/10).
++- py_compile on changed native foundation modules: PASS.
++- Complete suite: Ran 410 tests in 311.634s — OK; exit code 0.
++- git diff --check: PASS.
++
++Visual/manual validation
++- Offscreen native validation passed.
++- No production WebEngine screenshot was captured in this closure pass.
++- Windows light-theme and dark-theme launch proof remains final QA-DS-01 work; no dark-theme visual claim is made.
++
++Deviations
++- None.
++
++Remaining debt
++- IMP-DS-01B: Contracts and Clients visual migration.
++- IMP-DS-01C: Settings visual migration.
++- IMP-DS-01D: remaining contract/detail/document visual migration and cross-screen QA.
+diff --git a/src/icp_renov_contracts/app.py b/src/icp_renov_contracts/app.py
+index 0828377..caf3f80 100644
+--- a/src/icp_renov_contracts/app.py
++++ b/src/icp_renov_contracts/app.py
+@@ -3,12 +3,43 @@ from __future__ import annotations
+ import logging
+ import sys
 
-Validation
-- Fresh RestoreService rehearsal: PASS.
-- Consumer AVAILABLE / AUD-0001 / VAT-payment catalogs / fictional master data / zero-contract counts: PASS.
-- Intervention sheet: INTERVENTION_SHEET_AUDIT_MODEL_NOT_AVAILABLE.
++from PySide6.QtGui import QColor, QPalette
+ from PySide6.QtWidgets import QApplication, QMessageBox
+
+ from .bootstrap import build_application_context
+ from .errors import ApplicationError
+ from .logging_setup import configure_logging
+ from .ui import MainWindow
++from .ui.styles import application_stylesheet
++
++
++def _light_palette() -> QPalette:
++    """Provide deterministic light native colors before any widget is created."""
++    palette = QPalette()
++    colors = {
++        QPalette.ColorRole.Window: "#EEF3F6",
++        QPalette.ColorRole.WindowText: "#1F303A",
++        QPalette.ColorRole.Base: "#FFFFFF",
++        QPalette.ColorRole.AlternateBase: "#F7F9FA",
++        QPalette.ColorRole.ToolTipBase: "#FFFFFF",
++        QPalette.ColorRole.ToolTipText: "#1F303A",
++        QPalette.ColorRole.Text: "#1F303A",
++        QPalette.ColorRole.Button: "#F7F9FA",
++        QPalette.ColorRole.ButtonText: "#1F303A",
++        QPalette.ColorRole.BrightText: "#FFFFFF",
++        QPalette.ColorRole.Highlight: "#176CA8",
++        QPalette.ColorRole.HighlightedText: "#FFFFFF",
++        QPalette.ColorRole.Link: "#176CA8",
++    }
++    for role, value in colors.items():
++        color = QColor(value)
++        palette.setColor(QPalette.ColorGroup.Active, role, color)
++        palette.setColor(QPalette.ColorGroup.Inactive, role, color)
++        palette.setColor(QPalette.ColorGroup.Disabled, role, color)
++    for role in (QPalette.ColorRole.WindowText, QPalette.ColorRole.Text, QPalette.ColorRole.ButtonText):
++        palette.setColor(QPalette.ColorGroup.Disabled, role, QColor("#5D6C75"))
++    palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Button, QColor("#E7EDF0"))
++    return palette
+
+
+ def create_application(argv: list[str] | None = None) -> QApplication:
+@@ -18,6 +49,8 @@ def create_application(argv: list[str] | None = None) -> QApplication:
+     application = QApplication(argv if argv is not None else sys.argv)
+     application.setApplicationName("ICP Renov — Contrats")
+     application.setOrganizationName("ICP Renov")
++    application.setPalette(_light_palette())
++    application.setStyleSheet(application_stylesheet())
+     return application
+
+
+diff --git a/src/icp_renov_contracts/ui/shell.py b/src/icp_renov_contracts/ui/shell.py
+index 790769a..7ceadd1 100644
+--- a/src/icp_renov_contracts/ui/shell.py
++++ b/src/icp_renov_contracts/ui/shell.py
+@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
+
+ from .styles import SPACING
+ from .surfaces import build_surfaces
+-from ..services import AlertSettingsService, BackupService, CompanySettingsService, ContractLifecycleService, ContractService, DocumentGenerationService, InterventionSheetGenerationService, MasterDataService, NumberingSettingsService, RestoreService, ReviewService, TemplateCatalogService
++from ..services import AlertSettingsService, BackupService, BackupSummaryProvider, CompanySettingsService, ContractLifecycleService, ContractService, DocumentGenerationService, InterventionSheetGenerationService, MasterDataService, NumberingSettingsService, RealBackupSummaryProvider, RestoreService, ReviewService, TemplateCatalogService
+
+
+ NAVIGATION_LABELS = ("Contrats", "Clients & installations", "Paramètres")
+@@ -39,7 +39,8 @@ class ApplicationShell(QWidget):
+
+         sidebar = QWidget()
+         sidebar.setObjectName("sidebar")
+-        sidebar.setFixedWidth(250)
++        sidebar.setFixedWidth(232)
++        self.sidebar = sidebar
+         sidebar_layout = QVBoxLayout(sidebar)
+         sidebar_layout.setContentsMargins(SPACING["lg"], SPACING["xl"], SPACING["lg"], SPACING["lg"])
+         sidebar_layout.setSpacing(SPACING["sm"])
+@@ -65,6 +66,15 @@ class ApplicationShell(QWidget):
+             self._buttons[label] = button
+             sidebar_layout.addWidget(button)
+         sidebar_layout.addStretch(1)
++        local_indicator = QLabel("Application locale")
++        local_indicator.setObjectName("localApplicationIndicator")
++        self.local_indicator = local_indicator
++        sidebar_layout.addWidget(local_indicator)
++        backup_indicator = QLabel(self._backup_summary_label(backup, alerts))
++        backup_indicator.setObjectName("backupStatusIndicator")
++        backup_indicator.setWordWrap(True)
++        self.backup_indicator = backup_indicator
++        sidebar_layout.addWidget(backup_indicator)
+
+         self._contracts_landing: Callable[[], None] | None = None
+         self.stack = QStackedWidget()
+@@ -74,6 +84,7 @@ class ApplicationShell(QWidget):
+             self._indices[label] = self.stack.addWidget(self._surfaces[label])
+
+         content = QWidget()
++        content.setObjectName("contentRoot")
+         content_layout = QVBoxLayout(content)
+         content_layout.setContentsMargins(SPACING["xl"], SPACING["xl"], SPACING["xl"], SPACING["xl"])
+         content_layout.addWidget(self.stack)
+@@ -82,6 +93,12 @@ class ApplicationShell(QWidget):
+         root.addWidget(content, 1)
+         self.navigate("Contrats")
+
++    @staticmethod
++    def _backup_summary_label(backup: BackupService | None, alerts: AlertSettingsService | None) -> str:
++        if backup is None:
++            return BackupSummaryProvider().summary().label
++        return RealBackupSummaryProvider(backup, alerts).summary().label
++
+     def set_contracts_landing(self, callback: Callable[[], None]) -> None:
+         """Keep the legacy contract workflow available without making it a landing screen."""
+         self._contracts_landing = callback
+diff --git a/src/icp_renov_contracts/ui/styles.py b/src/icp_renov_contracts/ui/styles.py
+index 78fc466..23cadc8 100644
+--- a/src/icp_renov_contracts/ui/styles.py
++++ b/src/icp_renov_contracts/ui/styles.py
+@@ -1,133 +1,60 @@
++"""Shared DS-01 visual foundation for native Qt surfaces."""
++
+ COLORS = {
+-    "app_background": "#F3F6F7",
+-    "surface": "#FFFFFF",
+-    "sidebar": "#172A36",
+-    "sidebar_hover": "#223B49",
+-    "accent": "#167D83",
+-    "accent_hover": "#116B70",
+-    "text": "#20313B",
+-    "muted": "#657680",
+-    "border": "#D8E1E4",
++    "app_background": "#EEF3F6", "surface": "#FFFFFF", "surface_soft": "#F7F9FA",
++    "sidebar": "#192C3A", "sidebar_hover": "#294152", "brand": "#176CA8",
++    "brand_hover": "#115B90", "accent": "#E9A23B", "text": "#1F303A", "muted": "#5D6C75",
++    "border": "#D6DFE4", "success": "#267651", "info": "#246F9D",
++    "warning": "#93620D", "danger": "#B13D3D",
+ }
+
+-SPACING = {"xs": 6, "sm": 10, "md": 16, "lg": 24, "xl": 32}
+-RADII = {"sm": 6, "md": 10}
++# Keep established semantic keys while aligning their values to the shared scale.
++SPACING = {"xs": 4, "sm": 8, "md": 16, "lg": 24, "xl": 32}
++RADII = {"sm": 6, "md": 9, "lg": 12}
+
+
+ def application_stylesheet() -> str:
++    """One light, token-aligned QSS foundation; screens retain their structure."""
+     return f"""
+-    QWidget {{
+-        color: {COLORS['text']};
+-        font-family: "Segoe UI", Arial, sans-serif;
+-        font-size: 14px;
+-    }}
+-    QMainWindow, QWidget#applicationRoot {{ background: {COLORS['app_background']}; }}
++    * {{ font-family: "Segoe UI Variable", "Segoe UI", Arial, sans-serif; font-size: 14px; color: {COLORS['text']}; }}
++    QMainWindow, QWidget#applicationRoot, QWidget#contentRoot, QStackedWidget, QScrollArea {{ background: {COLORS['app_background']}; }}
++    QScrollArea {{ border: 0; }} QScrollArea > QWidget > QWidget {{ background: {COLORS['app_background']}; }}
++    QDialog, QMessageBox {{ background: {COLORS['surface']}; }}
+     QWidget#sidebar {{ background: {COLORS['sidebar']}; }}
+     QLabel#brand {{ color: white; font-size: 20px; font-weight: 700; }}
+-    QLabel#brandSubtitle {{ color: #AAC0CB; font-size: 12px; }}
+-    QPushButton#navButton {{
+-        color: #DCE8ED;
+-        background: transparent;
+-        border: 0;
+-        border-radius: {RADII['sm']}px;
+-        padding: 12px 14px;
+-        text-align: left;
+-        font-weight: 600;
+-    }}
++    QLabel#brandSubtitle, QLabel#localApplicationIndicator, QLabel#backupStatusIndicator {{ color: #B7C8D1; font-size: 12px; }}
++    QLabel#localApplicationIndicator {{ border-top: 1px solid #365060; padding: 12px 4px 0 4px; }}
++    QLabel#backupStatusIndicator {{ padding: 4px 4px 0 4px; color: white; font-weight: 600; }}
++    QPushButton#navButton {{ color: #DCE8ED; background: transparent; border: 0; border-radius: {RADII['sm']}px; padding: 11px 14px; text-align: left; font-weight: 600; }}
+     QPushButton#navButton:hover {{ background: {COLORS['sidebar_hover']}; }}
+-    QPushButton#navButton[active="true"] {{
+-        color: white;
+-        background: {COLORS['accent']};
+-    }}
+-    QWidget#contentSurface {{
+-        background: {COLORS['surface']};
+-        border: 1px solid {COLORS['border']};
+-        border-radius: {RADII['md']}px;
+-    }}
+-    QLabel#screenTitle {{ font-size: 28px; font-weight: 700; }}
+-    QLabel#screenDescription {{ color: {COLORS['muted']}; font-size: 15px; }}
+-    QFrame#panel, QFrame#siteCard {{
+-        background: {COLORS['surface']};
+-        border: 1px solid {COLORS['border']};
+-        border-radius: {RADII['md']}px;
+-    }}
+-    QFrame#companyGroup {{
+-        background: #F7F9FA;
+-        border: 1px solid {COLORS['border']};
+-        border-radius: {RADII['sm']}px;
+-        padding: 10px;
+-    }}
+-    QPushButton#settingsSection {{
+-        color: {COLORS['text']}; background: transparent; border: 0; border-radius: {RADII['sm']}px;
+-        padding: 9px 10px; text-align: left;
+-    }}
+-    QPushButton#settingsSection:checked {{ background: #DDF0EE; color: #0B6758; font-weight: 700; }}
+-    QLabel#companyFeedback[success="true"] {{ color: #0B6758; background: #E4F5F0; padding: 10px; border-radius: 6px; }}
+-    QLabel#companyFeedback[success="false"] {{ color: #9F2D2D; background: #FCE9E9; padding: 10px; border-radius: 6px; }}
+-    QFrame#operationalBanner {{
+-        background: #EEF7F6;
+-        border: 1px solid #B9DCD8;
+-        border-radius: {RADII['md']}px;
+-        padding: 8px;
+-    }}
+-    QLabel#actionCounter {{ color: #0B6758; font-size: 18px; font-weight: 700; }}
+-    QPushButton#registerFilter {{
+-        color: {COLORS['text']}; background: white; border: 1px solid {COLORS['border']};
+-        border-radius: {RADII['sm']}px; padding: 8px 12px; font-weight: 600;
+-    }}
+-    QPushButton#registerFilter:checked {{ color: white; background: {COLORS['accent']}; border-color: {COLORS['accent']}; }}
+-    QTableWidget#contractRegisterTable {{ border: 1px solid {COLORS['border']}; gridline-color: {COLORS['border']}; selection-background-color: #DDF0EE; }}
+-    QTableWidget#contractRegisterTable::item {{ padding: 8px; }}
+-    QTableWidget#contractRegisterTable::item:selected {{ color: {COLORS['text']}; background: #DDF0EE; }}
+-    QTableWidget#contractRegisterTable:focus {{ border: 2px solid {COLORS['accent']}; }}
+-    QHeaderView::section {{ background: #F7F9FA; border: 0; border-bottom: 1px solid {COLORS['border']}; padding: 9px; font-weight: 700; }}
+-    QFrame#masterDataDrawer {{
+-        background: {COLORS['surface']};
+-        border-left: 1px solid {COLORS['border']};
+-        border-radius: {RADII['md']}px 0 0 {RADII['md']}px;
+-    }}
+-    QWidget#contractStepOne {{ background: transparent; }}
+-    QLabel#drawerTitle {{ font-size: 21px; font-weight: 700; }}
+-    QFrame#equipmentRow {{
+-        background: #F7F9FA;
+-        border: 1px solid {COLORS['border']};
+-        border-radius: {RADII['sm']}px;
+-    }}
+-    QFrame#reviewBlock, QFrame#generationAvailability, QFrame#generationCheck {{
+-        background: {COLORS['surface']};
+-        border: 1px solid {COLORS['border']};
+-        border-radius: {RADII['sm']}px;
+-    }}
+-    QLabel#reviewIssue {{ color: #9F2D2D; }}
+-    QLabel#detailTitle {{ font-size: 22px; font-weight: 700; }}
+-    QLabel#sectionTitle, QLabel#siteTitle {{ font-size: 16px; font-weight: 700; }}
+-    QLabel#archivedBadge {{ color: #8A5A14; background: #FFF2D9; padding: 4px 8px; border-radius: 4px; }}
++    QPushButton#navButton[active="true"] {{ color: white; background: #29495C; border-left: 3px solid {COLORS['accent']}; padding-left: 11px; }}
++    QWidget#contentSurface, QFrame#panel, QFrame#siteCard, QFrame#reviewBlock, QFrame#generationAvailability, QFrame#generationCheck {{ background: {COLORS['surface']}; border: 1px solid {COLORS['border']}; border-radius: {RADII['md']}px; }}
++    QFrame#companyGroup, QFrame#equipmentRow {{ background: {COLORS['surface_soft']}; border: 1px solid {COLORS['border']}; border-radius: {RADII['sm']}px; }}
++    QFrame#masterDataDrawer {{ background: {COLORS['surface']}; border-left: 1px solid {COLORS['border']}; border-radius: {RADII['md']}px 0 0 {RADII['md']}px; }}
++    QFrame#operationalBanner {{ background: #EAF3F8; border: 1px solid #B9D5E5; border-radius: {RADII['md']}px; padding: 8px; }}
++    QLabel#screenTitle {{ font-size: 28px; font-weight: 700; }} QLabel#screenDescription {{ color: {COLORS['muted']}; font-size: 15px; }}
++    QLabel#drawerTitle, QLabel#detailTitle {{ font-size: 22px; font-weight: 700; }} QLabel#sectionTitle, QLabel#siteTitle {{ font-size: 16px; font-weight: 700; }}
++    QPushButton#settingsSection {{ color: {COLORS['text']}; background: transparent; border: 0; border-radius: {RADII['sm']}px; padding: 9px 10px; text-align: left; }}
++    QPushButton#settingsSection:hover {{ background: #EAF3F8; }} QPushButton#settingsSection:checked {{ background: #DCECF6; color: #125B90; font-weight: 700; }}
++    QLineEdit, QComboBox, QPlainTextEdit, QTextEdit, QSpinBox, QDateEdit {{ background: {COLORS['surface']}; color: {COLORS['text']}; border: 1px solid {COLORS['border']}; border-radius: {RADII['sm']}px; padding: 7px; selection-background-color: {COLORS['brand']}; selection-color: white; }}
++    QLineEdit:read-only, QPlainTextEdit:read-only, QTextEdit:read-only {{ background: #EAF0F3; color: {COLORS['muted']}; }}
++    QLineEdit:disabled, QComboBox:disabled, QPlainTextEdit:disabled, QTextEdit:disabled, QSpinBox:disabled, QDateEdit:disabled {{ background: #E7EDF0; color: {COLORS['muted']}; border-color: {COLORS['border']}; }}
++    QLineEdit:focus, QComboBox:focus, QPlainTextEdit:focus, QTextEdit:focus, QSpinBox:focus, QDateEdit:focus, QPushButton:focus {{ border: 2px solid {COLORS['brand']}; }}
++    QPushButton#primaryButton {{ color: white; background: {COLORS['brand']}; border: 1px solid {COLORS['brand']}; border-radius: {RADII['sm']}px; padding: 10px 16px; font-weight: 600; }}
++    QPushButton#primaryButton:hover {{ background: {COLORS['brand_hover']}; border-color: {COLORS['brand_hover']}; }}
++    QPushButton#primaryButton:disabled {{ color: {COLORS['muted']}; background: #D8E1E4; border-color: {COLORS['border']}; }}
++    QPushButton#secondaryButton {{ color: {COLORS['text']}; background: {COLORS['surface']}; border: 1px solid {COLORS['border']}; border-radius: {RADII['sm']}px; padding: 10px 16px; font-weight: 600; }}
++    QPushButton#secondaryButton:hover {{ background: {COLORS['surface_soft']}; border-color: #AABCC6; }}
++    QPushButton:disabled {{ color: {COLORS['muted']}; background: #E7EDF0; border: 1px solid {COLORS['border']}; }}
++    QLabel#companyFeedback[success="true"], QLabel#successFeedback {{ color: #1C5C3F; background: #E4F1EA; padding: 10px; border-radius: {RADII['sm']}px; }}
++    QLabel#companyFeedback[success="false"], QLabel#formError {{ color: #8E3030; background: #F9E8E8; padding: 10px; border-radius: {RADII['sm']}px; }}
++    QLabel#reviewIssue {{ color: {COLORS['danger']}; }} QLabel#archivedBadge {{ color: #5D6C75; background: #E7EDF0; padding: 4px 8px; border-radius: 999px; }}
+     QLabel#emptyState, QLabel#emptySites, QLabel#emptyEquipment {{ color: {COLORS['muted']}; padding: 14px; }}
+-    QLabel#successFeedback {{ color: #0B6758; background: #E4F5F0; padding: 10px; border-radius: 6px; }}
+-    QLabel#formError {{ color: #9F2D2D; background: #FCE9E9; padding: 10px; border-radius: 6px; }}
+-    QLineEdit, QComboBox, QPlainTextEdit {{
+-        background: white; border: 1px solid {COLORS['border']}; border-radius: 5px; padding: 7px;
+-    }}
+-    QPushButton#primaryButton {{
+-        color: white;
+-        background: {COLORS['accent']};
+-        border: 0;
+-        border-radius: {RADII['sm']}px;
+-        padding: 10px 16px;
+-        font-weight: 600;
+-    }}
+-    QPushButton#primaryButton:hover {{ background: {COLORS['accent_hover']}; }}
+-    QPushButton#primaryButton:disabled {{
+-        color: {COLORS['muted']};
+-        background: {COLORS['border']};
+-        border: 1px solid {COLORS['border']};
+-    }}
+-    QPushButton#secondaryButton {{
+-        color: {COLORS['text']};
+-        background: white;
+-        border: 1px solid {COLORS['border']};
+-        border-radius: {RADII['sm']}px;
+-        padding: 10px 16px;
+-        font-weight: 600;
+-    }}
++    QLabel#actionCounter {{ color: {COLORS['success']}; font-size: 18px; font-weight: 700; }}
++    QPushButton#registerFilter {{ color: {COLORS['text']}; background: {COLORS['surface']}; border: 1px solid {COLORS['border']}; border-radius: {RADII['sm']}px; padding: 8px 12px; font-weight: 600; }}
++    QPushButton#registerFilter:checked {{ color: white; background: {COLORS['brand']}; border-color: {COLORS['brand']}; }}
++    QWidget#contractStepOne {{ background: transparent; }}
++    QTableWidget#contractRegisterTable {{ background: {COLORS['surface']}; border: 1px solid {COLORS['border']}; gridline-color: {COLORS['border']}; selection-background-color: #DCECF6; }}
++    QTableWidget#contractRegisterTable::item {{ padding: 8px; }} QTableWidget#contractRegisterTable::item:hover {{ background: #F1F7FA; }} QTableWidget#contractRegisterTable::item:selected {{ color: {COLORS['text']}; background: #DCECF6; }}
++    QHeaderView::section {{ background: {COLORS['surface_soft']}; color: {COLORS['muted']}; border: 0; border-bottom: 1px solid {COLORS['border']}; padding: 9px; font-weight: 700; }}
+     """
+diff --git a/src/icp_renov_contracts/ui_web/app.css b/src/icp_renov_contracts/ui_web/app.css
+index c07bfb2..81cf10b 100644
+--- a/src/icp_renov_contracts/ui_web/app.css
++++ b/src/icp_renov_contracts/ui_web/app.css
+@@ -1 +1,2 @@
+-:root{--nav:#162a33;--brand:#1e6670;--ink:#18252f;--muted:#66737d;--line:#dce2e6;--canvas:#edf1f3}*{box-sizing:border-box}body{margin:0;font:14px "Segoe UI",Arial;color:var(--ink);background:var(--canvas)}.ico{width:16px;height:16px;display:inline-flex;vertical-align:-3px;flex:0 0 auto}.app{min-height:100vh;display:grid;grid-template-columns:232px 1fr}.side{display:flex;flex-direction:column;background:var(--nav);color:#becbd0;padding:20px 13px}.brand{display:flex;gap:11px;align-items:center;color:white;margin:2px 9px 22px;font-weight:700}.brand-icon{width:37px;height:37px;display:grid;place-items:center;border-radius:9px;background:#2c7780}.brand-icon .ico{width:20px;height:20px}.nav{height:42px;padding:0 11px;display:flex;align-items:center;gap:10px;border-radius:7px}.nav.active{background:#284650;border-left:3px solid #68aab0;color:white}.side-bottom{margin-top:auto}.local-state{margin:0 2px 12px;padding:12px;border:1px solid #28404a;border-radius:8px;display:grid;grid-template-columns:16px 1fr;gap:6px}.local-state small{grid-column:1/3;color:#9fb0b7}.backup-state{border-top:1px solid #2a424c;padding:10px;display:grid;grid-template-columns:16px 1fr;gap:4px}.backup-state b{grid-column:2;white-space:nowrap;color:#dbe4e7;font-size:11px}.backup-state small{grid-column:2;color:#9fb0b7}.main{padding:28px 30px 42px;max-width:1580px}.head{min-height:76px;display:flex;justify-content:space-between}.eyebrow{font-size:10px;font-weight:720;color:#6c7b83}.head h1{margin:3px 0;font-size:28px;line-height:1.15}.head p,small{color:var(--muted)}button{cursor:pointer}.primary,.ghost{display:inline-flex;align-items:center;gap:7px}.primary{height:36px;background:var(--brand);color:white;border:0;border-radius:6px;padding:0 13px}.attention{height:56px;margin:12px 0 18px;padding:9px 13px;display:flex;align-items:center;gap:9px;background:#eef5f5;border:1px solid #cbd8da;border-radius:8px}.attention .ico{color:var(--brand)}.divider{height:28px;width:1px;background:#cbd8da;margin-left:auto}.ghost{border:0;background:transparent;color:var(--brand)}.toolbar{height:48px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}.search{width:min(410px,38vw);height:38px;border:1px solid #c9d2d8;border-radius:6px;padding:0 11px;display:flex;align-items:center;gap:8px;background:white}.search input{width:100%;border:0;outline:0;background:transparent;font:12px "Segoe UI",Arial}.tabs{padding:3px;border:1px solid var(--line);border-radius:7px;background:#e9edef}.tabs button{height:30px;border:0;background:transparent;color:var(--muted);padding:0 10px}.tabs .active{background:white;border-radius:5px;color:var(--ink);box-shadow:0 1px 3px rgba(20,36,44,.1)}.shell{overflow:hidden;border:1px solid var(--line);border-radius:8px;background:white}table{width:100%;border-collapse:collapse;table-layout:fixed}th{height:39px;padding:0 12px;background:#f2f5f6;color:#6f7d84;font-size:10px;font-weight:720;letter-spacing:.045em;text-transform:uppercase;text-align:left}td{padding:12px;border-top:1px solid #e7ebed;font-size:12px}td strong,td small{display:block}td small{margin-top:4px;font-size:10px;line-height:1.35}.pill{display:inline-flex;align-items:center;min-height:23px;padding:3px 8px;border-radius:999px;font-size:10px;font-weight:700;background:#e4f1ea;color:#2e6d52}.DRAFT{background:#edf0f2;color:#5d6a71}.ABANDONED,.TERMINATED,.EXPIRED{background:#eff1f2;color:#67737a}.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#8b601f;margin-right:7px}@media(max-width:1280px){.app{grid-template-columns:214px 1fr}.main{padding-left:22px;padding-right:22px}.docs{display:none}}
++:root{color-scheme:light;--app-background:#EEF3F6;--surface:#FFFFFF;--surface-soft:#F7F9FA;--text:#1F303A;--text-muted:#5D6C75;--navigation:#192C3A;--brand:#176CA8;--brand-hover:#115B90;--accent:#E9A23B;--success:#267651;--info:#246F9D;--warning:#93620D;--danger:#B13D3D;--border:#D6DFE4;--focus:rgba(23,108,168,.36);--radius-control:6px;--radius-card:9px;--radius-container:12px;--space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:24px;--space-6:32px;--space-7:40px;--space-8:48px;--shadow-1:0 2px 8px rgba(31,48,58,.08);--nav:var(--navigation);--ink:var(--text);--muted:var(--text-muted);--line:var(--border);--canvas:var(--app-background)}
++*{box-sizing:border-box}html,body,#app{width:100%;height:100%;min-height:100%;margin:0;background:var(--app-background);color:var(--text)}body{font:14px/1.45 "Segoe UI Variable","Segoe UI",Arial,sans-serif}button,input,select,textarea{font:inherit;color:var(--text);color-scheme:light}.ico{width:16px;height:16px;display:inline-flex;vertical-align:-3px;flex:0 0 auto}.app{height:100%;min-height:0;display:grid;grid-template-columns:232px minmax(0,1fr);overflow:hidden;background:var(--app-background)}.side{min-height:0;display:flex;flex-direction:column;overflow:hidden;background:var(--navigation);color:#DCE8ED;padding:20px 13px}.brand{display:flex;gap:11px;align-items:center;color:white;margin:2px 9px 30px;font-weight:700}.brand-icon{width:37px;height:37px;display:grid;place-items:center;border-radius:var(--radius-card);background:var(--brand)}.brand-icon .ico{width:20px;height:20px}.nav{width:100%;height:42px;padding:0 11px;display:flex;align-items:center;gap:10px;border:0;border-radius:var(--radius-control);background:transparent;color:#DCE8ED;text-align:left;cursor:pointer}.nav:hover{background:#294152;color:#fff}.nav.active{background:#29495C;border-left:3px solid var(--accent);padding-left:8px;color:#fff}.side-bottom{margin-top:auto}.local-state{margin:0 2px 12px;padding:12px;border:1px solid #365060;border-radius:var(--radius-card);display:grid;grid-template-columns:16px 1fr;gap:6px}.local-state small{grid-column:1/3;color:#B7C8D1}.backup-state{border-top:1px solid #365060;padding:10px;display:grid;grid-template-columns:16px 1fr;gap:4px}.backup-state b{grid-column:2;white-space:nowrap;color:#fff;font-size:11px}.backup-state small{grid-column:2;color:#B7C8D1}.main{min-width:0;min-height:0;overflow-y:auto;padding:28px 30px 42px;max-width:1580px;scrollbar-color:#AABCC6 var(--app-background)}.head{min-height:76px;display:flex;justify-content:space-between;gap:var(--space-4)}.eyebrow{font-size:10px;font-weight:720;letter-spacing:.04em;color:var(--text-muted)}.head h1{margin:3px 0;font-size:28px;line-height:1.15}.head p,small{color:var(--text-muted)}button{cursor:pointer}.primary,.ghost,.button{display:inline-flex;align-items:center;justify-content:center;gap:7px;border-radius:var(--radius-control);font-weight:600}.primary{min-height:36px;background:var(--brand);color:#fff;border:1px solid var(--brand);padding:0 13px}.primary:hover{background:var(--brand-hover);border-color:var(--brand-hover)}.button-secondary{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 12px}.button-secondary:hover{background:var(--surface-soft);border-color:#AABCC6}.ghost{border:0;background:transparent;color:var(--brand);padding:6px}.ghost:hover{background:#EAF3F8}.button-danger{background:var(--danger);border-color:var(--danger);color:#fff}.button-danger-quiet{background:#F9E8E8;border:1px solid #EDC4C4;color:#8E3030}.primary:disabled,.button:disabled,button:disabled{cursor:not-allowed;color:var(--text-muted);background:#E7EDF0;border-color:var(--border)}.is-busy,[aria-busy="true"]{background:var(--brand)!important;border-color:var(--brand)!important;color:#fff!important;cursor:progress!important}.is-busy::before,[aria-busy="true"]::before{content:"";width:12px;height:12px;border:2px solid rgba(255,255,255,.55);border-top-color:#fff;border-radius:50%;animation:ds-spin .7s linear infinite}@keyframes ds-spin{to{transform:rotate(1turn)}}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.nav:focus-visible{outline:3px solid var(--focus);outline-offset:2px}.attention{min-height:56px;margin:12px 0 18px;padding:9px 13px;display:flex;align-items:center;gap:9px;background:#EAF3F8;border:1px solid #B9D5E5;border-radius:var(--radius-card)}.attention .ico{color:var(--info)}.divider{height:28px;width:1px;background:var(--border);margin-left:auto}.toolbar{height:48px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}.search{width:min(410px,38vw);height:38px;border:1px solid var(--border);border-radius:var(--radius-control);padding:0 11px;display:flex;align-items:center;gap:8px;background:var(--surface)}.search:focus-within{border-color:var(--brand);box-shadow:0 0 0 3px var(--focus)}.search input{width:100%;border:0;outline:0;background:transparent;font-size:12px}.tabs{padding:3px;border:1px solid var(--border);border-radius:7px;background:#E7EDF0}.tabs button{height:30px;border:0;background:transparent;color:var(--text-muted);padding:0 10px}.tabs .active{background:var(--surface);border-radius:5px;color:var(--text);box-shadow:var(--shadow-1)}.shell{overflow:hidden;border:1px solid var(--border);border-radius:var(--radius-card);background:var(--surface)}table{width:100%;border-collapse:collapse;table-layout:fixed}th{height:39px;padding:0 12px;background:var(--surface-soft);color:var(--text-muted);font-size:10px;font-weight:720;letter-spacing:.045em;text-transform:uppercase;text-align:left}td{padding:12px;border-top:1px solid #E7EDF0;font-size:12px}tbody tr{transition:background .12s ease}tbody tr:hover{background:#F1F7FA}td strong,td small{display:block}td small{margin-top:4px;font-size:10px;line-height:1.35}.pill{display:inline-flex;align-items:center;min-height:23px;padding:3px 8px;border-radius:999px;font-size:10px;font-weight:700;background:#E4F1EA;color:#1C5C3F}.pill.ACTIVE{background:#E4F1EA;color:#1C5C3F}.pill.TO_SIGN{background:#E4EFF8;color:#185981}.pill.DRAFT,.pill.PREPARATION{background:#FFF1D9;color:#79500B}.pill.ABANDONED{background:#F9E8E8;color:#8E3030}.pill.TERMINATED,.pill.EXPIRED,.pill.ARCHIVED{background:#E7EDF0;color:#5D6C75}.DRAFT{background:#FFF1D9;color:#79500B}.ABANDONED{background:#F9E8E8;color:#8E3030}.TERMINATED,.EXPIRED{background:#E7EDF0;color:#5D6C75}.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--warning);margin-right:7px}.empty-state,.empty-list,.contract-empty{background:var(--surface-soft);border:1px dashed var(--border);border-radius:var(--radius-card);color:var(--text-muted)}@media(max-width:1280px){.app{grid-template-columns:214px minmax(0,1fr)}.main{padding-left:22px;padding-right:22px}.docs{display:none}}
+diff --git a/src/icp_renov_contracts/ui_web/app.js b/src/icp_renov_contracts/ui_web/app.js
+index 50740ac..bc2bff9 100644
+--- a/src/icp_renov_contracts/ui_web/app.js
++++ b/src/icp_renov_contracts/ui_web/app.js
+@@ -436,9 +436,9 @@ function render(state) {
+   const actionLabel = actionCountLabel(state.action_count);
+   document.querySelector('#app').innerHTML = `<div class="app"><aside class="side">
+     <div class="brand"><span class="brand-icon">${icon('air')}</span><span>ICP Renov<br><small>Contrats d’entretien</small></span></div>
+-    <div class="nav active">${icon('file')}Contrats</div>
+-    <div class="nav" onclick="bridge.navigate('CLIENTS')">${icon('users')}Clients & installations</div>
+-    <div class="nav" onclick="bridge.navigate('SETTINGS')">${icon('settings')}Paramètres</div>
++    <button type="button" class="nav active" aria-current="page">${icon('file')}Contrats</button>
++    <button type="button" class="nav" onclick="bridge.navigate('CLIENTS')">${icon('users')}Clients & installations</button>
++    <button type="button" class="nav" onclick="bridge.navigate('SETTINGS')">${icon('settings')}Paramètres</button>
+     <div class="side-bottom"><div class="local-state">${icon('laptop')}<b>Mode local</b><small>Données conservées uniquement sur ce poste.</small></div>
+     <div class="backup-state">${icon('backup')}<small>Sauvegarde</small><b>${esc(backup)}</b></div></div>
+   </aside><main class="main"><header class="head"><div><div class="eyebrow">ACCUEIL OPÉRATIONNEL</div><h1>Contrats</h1><p>Retrouvez vos contrats et les actions à traiter.</p></div>
+@@ -465,7 +465,7 @@ function renderClients(state) {
+   const linked = selected?.linked?.length ? selected.linked.map(contract => `<button class="linked-contract-row" onclick="bridge.openLinkedContract('${contract.id}')">${icon('file')}<span><strong>${esc(contract.number)}</strong><small>${esc(contract.secondary_display)}</small></span><span class="pill ${esc(contract.status_tone)}">${esc(contract.status_label)}</span>${icon('chevron')}</button>`).join('') : '<div class="empty-list">Aucun contrat lié</div>';
+   const clientHeaderAction = selected && !selected.archived ? '<button class="ghost">Modifier</button>' : '';
+   const clientArchiveZone = !selected ? '' : `<div class="archive-zone"><button type="button" class="archive-zone-action">${icon(selected.archived ? 'restore' : 'archive')}<span><b>${selected.archived ? 'Restaurer cette fiche' : 'Archiver cette fiche'}</b><small>${selected.archived ? 'La fiche redeviendra disponible dans les nouvelles sélections.' : 'La fiche sera retirée des nouvelles sélections ; les contrats historiques resteront accessibles.'}</small></span></button></div>`;
+-  document.querySelector('#app').innerHTML = `<div class="app"><aside class="side"><div class="brand"><span class="brand-icon">${icon('air')}</span><span>ICP Renov<br><small>Contrats d’entretien</small></span></div><div class="nav" onclick="bridge.navigate('CONTRACTS')">${icon('file')}Contrats</div><div class="nav active">${icon('users')}Clients & installations</div><div class="nav" onclick="bridge.navigate('SETTINGS')">${icon('settings')}Paramètres</div><div class="side-bottom"><div class="local-state">${icon('laptop')}<b>Mode local</b><small>Données conservées uniquement sur ce poste.</small></div><div class="backup-state">${icon('backup')}<small>Sauvegarde</small><b>${esc(backup)}</b></div></div></aside><main class="main"><header class="head"><div><div class="eyebrow">Données réutilisables</div><h1>Clients & installations</h1><p>Gérez les fiches maîtres sans modifier les snapshots des contrats.</p></div><button class="primary">${icon('plus')}Nouveau client</button></header><section class="client-workspace"><aside class="client-list-panel"><label class="search">${icon('search')}<input value="${esc(state.search)}" placeholder="Rechercher un client" oninput="bridge.setClientSearch(this.value)"></label><div class="archive-filter"><button class="${!state.archived ? 'active' : ''}" onclick="bridge.setClientArchived(false)">Actifs</button><button class="${state.archived ? 'active' : ''}" onclick="bridge.setClientArchived(true)">Archivés</button></div><div class="client-list">${list}</div></aside><section class="client-detail">${selected ? `<header class="client-detail-header"><span class="large-avatar">${esc(selected.name.slice(0,2).toUpperCase())}</span><div><div class="eyebrow">${esc(selected.type)}${selected.archived ? archiveBadge : ''}</div><h2>${esc(selected.name)}</h2><small>${esc(selected.email || selected.phone || '')}</small></div>${clientHeaderAction}</header><div class="notice-info"><b>Effet des modifications maître</b><br><small>Les modifications seront proposées pour les futurs contrats. Les brouillons déjà créés, contrats et révisions existants restent inchangés.</small></div><div class="detail-grid"><section class="detail-block"><h3>Identité & coordonnées</h3><dl>${selected.type ? `<div><dt>Type de fiche</dt><dd>${esc(selected.type === 'ORGANIZATION' ? 'Organisation' : selected.type === 'PERSON' ? 'Personne' : selected.type)}</dd></div>` : ''}${selected.name ? `<div><dt>Raison sociale</dt><dd>${esc(selected.name)}</dd></div>` : ''}${selected.legal_form ? `<div><dt>Forme juridique</dt><dd>${esc(selected.legal_form)}</dd></div>` : ''}${selected.siret ? `<div><dt>SIRET</dt><dd>${esc(selected.siret)}</dd></div>` : ''}${selected.address ? `<div><dt>Adresse</dt><dd>${esc(selected.address)}</dd></div>` : ''}</dl></section><section class="detail-block"><h3>Contact / repères</h3><dl>${selected.phone ? `<div><dt>Téléphone</dt><dd>${esc(selected.phone)}</dd></div>` : ''}${selected.email ? `<div><dt>E-mail</dt><dd>${esc(selected.email)}</dd></div>` : ''}${selected.billing_address ? `<div><dt>Adresse de facturation</dt><dd>${esc(selected.billing_address)}</dd></div>` : ''}${selected.internal_reference ? `<div><dt>Référence interne</dt><dd>${esc(selected.internal_reference)}</dd></div>` : ''}</dl></section></div><section class="installation-section"><h2>Sites & équipements</h2>${sites}</section><section class="linked-contracts"><h2>Contrats liés</h2>${linked}</section>${clientArchiveZone}` : '<div class="empty-list">Sélectionnez un client pour consulter sa fiche.</div>'}</section></section></main></div>`;
++  document.querySelector('#app').innerHTML = `<div class="app"><aside class="side"><div class="brand"><span class="brand-icon">${icon('air')}</span><span>ICP Renov<br><small>Contrats d’entretien</small></span></div><button type="button" class="nav" onclick="bridge.navigate('CONTRACTS')">${icon('file')}Contrats</button><button type="button" class="nav active" aria-current="page">${icon('users')}Clients & installations</button><button type="button" class="nav" onclick="bridge.navigate('SETTINGS')">${icon('settings')}Paramètres</button><div class="side-bottom"><div class="local-state">${icon('laptop')}<b>Mode local</b><small>Données conservées uniquement sur ce poste.</small></div><div class="backup-state">${icon('backup')}<small>Sauvegarde</small><b>${esc(backup)}</b></div></div></aside><main class="main"><header class="head"><div><div class="eyebrow">Données réutilisables</div><h1>Clients & installations</h1><p>Gérez les fiches maîtres sans modifier les snapshots des contrats.</p></div><button class="primary">${icon('plus')}Nouveau client</button></header><section class="client-workspace"><aside class="client-list-panel"><label class="search">${icon('search')}<input value="${esc(state.search)}" placeholder="Rechercher un client" oninput="bridge.setClientSearch(this.value)"></label><div class="archive-filter"><button class="${!state.archived ? 'active' : ''}" onclick="bridge.setClientArchived(false)">Actifs</button><button class="${state.archived ? 'active' : ''}" onclick="bridge.setClientArchived(true)">Archivés</button></div><div class="client-list">${list}</div></aside><section class="client-detail">${selected ? `<header class="client-detail-header"><span class="large-avatar">${esc(selected.name.slice(0,2).toUpperCase())}</span><div><div class="eyebrow">${esc(selected.type)}${selected.archived ? archiveBadge : ''}</div><h2>${esc(selected.name)}</h2><small>${esc(selected.email || selected.phone || '')}</small></div>${clientHeaderAction}</header><div class="notice-info"><b>Effet des modifications maître</b><br><small>Les modifications seront proposées pour les futurs contrats. Les brouillons déjà créés, contrats et révisions existants restent inchangés.</small></div><div class="detail-grid"><section class="detail-block"><h3>Identité & coordonnées</h3><dl>${selected.type ? `<div><dt>Type de fiche</dt><dd>${esc(selected.type === 'ORGANIZATION' ? 'Organisation' : selected.type === 'PERSON' ? 'Personne' : selected.type)}</dd></div>` : ''}${selected.name ? `<div><dt>Raison sociale</dt><dd>${esc(selected.name)}</dd></div>` : ''}${selected.legal_form ? `<div><dt>Forme juridique</dt><dd>${esc(selected.legal_form)}</dd></div>` : ''}${selected.siret ? `<div><dt>SIRET</dt><dd>${esc(selected.siret)}</dd></div>` : ''}${selected.address ? `<div><dt>Adresse</dt><dd>${esc(selected.address)}</dd></div>` : ''}</dl></section><section class="detail-block"><h3>Contact / repères</h3><dl>${selected.phone ? `<div><dt>Téléphone</dt><dd>${esc(selected.phone)}</dd></div>` : ''}${selected.email ? `<div><dt>E-mail</dt><dd>${esc(selected.email)}</dd></div>` : ''}${selected.billing_address ? `<div><dt>Adresse de facturation</dt><dd>${esc(selected.billing_address)}</dd></div>` : ''}${selected.internal_reference ? `<div><dt>Référence interne</dt><dd>${esc(selected.internal_reference)}</dd></div>` : ''}</dl></section></div><section class="installation-section"><h2>Sites & équipements</h2>${sites}</section><section class="linked-contracts"><h2>Contrats liés</h2>${linked}</section>${clientArchiveZone}` : '<div class="empty-list">Sélectionnez un client pour consulter sa fiche.</div>'}</section></section></main></div>`;
+   document.querySelector('.head .primary').addEventListener('click', event => openClientDrawer('create', event.currentTarget));
+   if (!selected?.archived) document.querySelector('.client-detail-header .ghost')?.addEventListener('click', event => openClientDrawer('edit', event.currentTarget));
+   if (selected) {
+diff --git a/src/icp_renov_contracts/ui_web/contract-workspace.js b/src/icp_renov_contracts/ui_web/contract-workspace.js
+index 7c87485..509d5d8 100644
+--- a/src/icp_renov_contracts/ui_web/contract-workspace.js
++++ b/src/icp_renov_contracts/ui_web/contract-workspace.js
+@@ -883,7 +883,7 @@ function renderContractWorkspace(state) {
+   const editClient = c.client_id ? 'Changer le client' : 'Choisir un client';
+   const editSite = c.site_id ? 'Changer le site' : 'Choisir un site';
+   const failure = contractSaveFailure ? `<div class="contract-persistence-error">Les dernières modifications ne sont pas encore enregistrées. ${esc(contractSaveFailure)}</div>` : '';
+-  document.querySelector('#app').innerHTML = `<div class="app"><aside class="side"><div class="brand"><span class="brand-icon">${icon('air')}</span><span>ICP Renov<br><small>Contrats d’entretien</small></span></div><div class="nav active" onclick="bridge.returnToContracts()">${icon('file')}Contrats</div><div class="nav" onclick="bridge.navigate('CLIENTS')">${icon('users')}Clients & installations</div><div class="nav" onclick="bridge.navigate('SETTINGS')">${icon('settings')}Paramètres</div><div class="side-bottom"><div class="local-state">${icon('laptop')}<b>Mode local</b><small>Données conservées uniquement sur ce poste.</small></div><div class="backup-state">${icon('backup')}<small>Sauvegarde</small><b>${esc(backup)}</b></div></div></aside><main class="main contract-main"><header class="contract-header"><button class="ghost contract-back" onclick="bridge.returnToContracts()">← Retour Contrats</button><div class="contract-heading"><span class="pill ${esc(c.status)}">${esc(c.status_label)}</span><h1>${esc(c.number)}</h1><p>${esc(c.client || 'Client à sélectionner')} · ${esc(c.site || 'Site à sélectionner')}</p></div><div class="contract-header-state"><span class="contract-save-state">${esc(c.saved_label)}</span></div></header><div class="contract-shell"><nav class="contract-step-rail" aria-label="Étapes du contrat">${steps.map((label,index) => `<button class="contract-step ${index === (state.active_step || 1) - 1 ? 'active' : ''}" ${index > 2 ? 'disabled' : `onclick="setContractStep(${index + 1})"`}><span>${index + 1}</span><span><strong>${label}</strong>${index === (state.active_step || 1) - 1 ? '<small>Étape en cours</small>' : ''}</span></button>`).join('')}</nav><div class="contract-workspace-body">${failure}<section class="contract-step-panel"><header><span class="eyebrow">Étape 1 sur 4</span><h2>Client, site & équipements</h2><p>Définissez le contexte exact repris dans ce contrat.</p></header><article class="contract-section" data-review-target="client-signatory"><div class="contract-section-head"><div><span class="eyebrow">Client du contrat</span><h3>${esc(c.client || 'Aucun client sélectionné')}</h3></div>${c.editable ? `<div><button class="button button-secondary" onclick="openContractSelector('client',this)">${editClient}</button><button class="ghost" onclick="openClientDrawer('contract-create',this)">Créer un nouveau client</button></div>` : ''}</div>${c.client_id ? `<div class="contract-signatory"><div><span class="eyebrow">Signataire pour ce contrat</span><p>Ces informations ne modifient pas la fiche maître.</p></div><label><span>Nom</span><input id="contract-signatory-name" value="${esc(c.signatory_name)}" ${c.editable ? '' : 'disabled'}></label><label><span>Fonction ou qualité</span><input id="contract-signatory-role" value="${esc(c.signatory_role)}" ${c.editable ? '' : 'disabled'}></label>${c.editable ? '<button class="button button-secondary" onclick="saveContractSignatory()">Enregistrer</button>' : ''}</div>` : '<div class="contract-empty">Choisissez ou créez un client pour continuer.</div>'}</article><article class="contract-section ${!c.client_id ? 'disabled-section' : ''}" data-review-target="site-equipment"><div class="contract-section-head"><div><span class="eyebrow">Site unique du contrat</span><h3>${esc(c.site || 'Aucun site sélectionné')}</h3></div>${c.editable && c.client_id ? `<div><button class="button button-secondary" onclick="openContractSelector('site',this)">${editSite}</button><button class="ghost" onclick="openContractSiteCreator(this)">Ajouter un site</button></div>` : ''}</div>${!c.client_id ? '<div class="contract-empty">Sélectionnez d’abord un client.</div>' : !c.site_id ? '<div class="contract-empty">Choisissez ou ajoutez un site.</div>' : ''}</article><article class="contract-section equipment-contract-section ${!c.site_id ? 'disabled-section' : ''}"><div class="contract-section-head"><div><span class="eyebrow">Équipements du site</span><h3>${selected.length} équipement(s) sélectionné(s)</h3></div>${c.editable && c.site_id ? `<button class="button button-secondary" onclick="openContractEquipmentCreator(this)">${icon('plus')}Ajouter un équipement</button>` : ''}</div>${c.site_id ? `<p class="order-copy">Ordre repris dans l’annexe du contrat</p>${equipmentRows || '<div class="contract-empty">Aucun équipement actif sur ce site.</div>'}${selected.length ? '' : '<div class="step-anomaly">Aucun équipement sélectionné. Le brouillon reste enregistré, mais la génération future sera bloquée.</div>'}` : '<div class="contract-empty">Sélectionnez d’abord un site.</div>'}</article></section></div><aside class="contract-summary"><span class="eyebrow">Résumé du contrat</span><h2>État actuel</h2><dl>${workspaceSummaryRow('Client',state.summary.client)}${workspaceSummaryRow('Signataire',state.summary.signatory)}${workspaceSummaryRow('Site',state.summary.site)}${workspaceSummaryRow('Équipements',summaryEquipment)}${workspaceSummaryRow('Régime',state.summary.regime)}${workspaceSummaryRow('Mode de conclusion',state.summary.conclusion)}${workspaceSummaryRow('Période',state.summary.period)}${workspaceSummaryRow('Prix',state.summary.price)}${workspaceSummaryRow('Renouvellement',state.summary.renewal)}${workspaceSummaryRow('Modèle / version',state.summary.template)}${workspaceSummaryRow('Complétude',state.summary.completion,state.summary.completion.includes('complète') ? 'complete' : 'warning')}</dl></aside></div></main></div>`;
++  document.querySelector('#app').innerHTML = `<div class="app"><aside class="side"><div class="brand"><span class="brand-icon">${icon('air')}</span><span>ICP Renov<br><small>Contrats d’entretien</small></span></div><button type="button" class="nav active" aria-current="page" onclick="bridge.returnToContracts()">${icon('file')}Contrats</button><button type="button" class="nav" onclick="bridge.navigate('CLIENTS')">${icon('users')}Clients & installations</button><button type="button" class="nav" onclick="bridge.navigate('SETTINGS')">${icon('settings')}Paramètres</button><div class="side-bottom"><div class="local-state">${icon('laptop')}<b>Mode local</b><small>Données conservées uniquement sur ce poste.</small></div><div class="backup-state">${icon('backup')}<small>Sauvegarde</small><b>${esc(backup)}</b></div></div></aside><main class="main contract-main"><header class="contract-header"><button class="ghost contract-back" onclick="bridge.returnToContracts()">← Retour Contrats</button><div class="contract-heading"><span class="pill ${esc(c.status)}">${esc(c.status_label)}</span><h1>${esc(c.number)}</h1><p>${esc(c.client || 'Client à sélectionner')} · ${esc(c.site || 'Site à sélectionner')}</p></div><div class="contract-header-state"><span class="contract-save-state">${esc(c.saved_label)}</span></div></header><div class="contract-shell"><nav class="contract-step-rail" aria-label="Étapes du contrat">${steps.map((label,index) => `<button class="contract-step ${index === (state.active_step || 1) - 1 ? 'active' : ''}" ${index > 2 ? 'disabled' : `onclick="setContractStep(${index + 1})"`}><span>${index + 1}</span><span><strong>${label}</strong>${index === (state.active_step || 1) - 1 ? '<small>Étape en cours</small>' : ''}</span></button>`).join('')}</nav><div class="contract-workspace-body">${failure}<section class="contract-step-panel"><header><span class="eyebrow">Étape 1 sur 4</span><h2>Client, site & équipements</h2><p>Définissez le contexte exact repris dans ce contrat.</p></header><article class="contract-section" data-review-target="client-signatory"><div class="contract-section-head"><div><span class="eyebrow">Client du contrat</span><h3>${esc(c.client || 'Aucun client sélectionné')}</h3></div>${c.editable ? `<div><button class="button button-secondary" onclick="openContractSelector('client',this)">${editClient}</button><button class="ghost" onclick="openClientDrawer('contract-create',this)">Créer un nouveau client</button></div>` : ''}</div>${c.client_id ? `<div class="contract-signatory"><div><span class="eyebrow">Signataire pour ce contrat</span><p>Ces informations ne modifient pas la fiche maître.</p></div><label><span>Nom</span><input id="contract-signatory-name" value="${esc(c.signatory_name)}" ${c.editable ? '' : 'disabled'}></label><label><span>Fonction ou qualité</span><input id="contract-signatory-role" value="${esc(c.signatory_role)}" ${c.editable ? '' : 'disabled'}></label>${c.editable ? '<button class="button button-secondary" onclick="saveContractSignatory()">Enregistrer</button>' : ''}</div>` : '<div class="contract-empty">Choisissez ou créez un client pour continuer.</div>'}</article><article class="contract-section ${!c.client_id ? 'disabled-section' : ''}" data-review-target="site-equipment"><div class="contract-section-head"><div><span class="eyebrow">Site unique du contrat</span><h3>${esc(c.site || 'Aucun site sélectionné')}</h3></div>${c.editable && c.client_id ? `<div><button class="button button-secondary" onclick="openContractSelector('site',this)">${editSite}</button><button class="ghost" onclick="openContractSiteCreator(this)">Ajouter un site</button></div>` : ''}</div>${!c.client_id ? '<div class="contract-empty">Sélectionnez d’abord un client.</div>' : !c.site_id ? '<div class="contract-empty">Choisissez ou ajoutez un site.</div>' : ''}</article><article class="contract-section equipment-contract-section ${!c.site_id ? 'disabled-section' : ''}"><div class="contract-section-head"><div><span class="eyebrow">Équipements du site</span><h3>${selected.length} équipement(s) sélectionné(s)</h3></div>${c.editable && c.site_id ? `<button class="button button-secondary" onclick="openContractEquipmentCreator(this)">${icon('plus')}Ajouter un équipement</button>` : ''}</div>${c.site_id ? `<p class="order-copy">Ordre repris dans l’annexe du contrat</p>${equipmentRows || '<div class="contract-empty">Aucun équipement actif sur ce site.</div>'}${selected.length ? '' : '<div class="step-anomaly">Aucun équipement sélectionné. Le brouillon reste enregistré, mais la génération future sera bloquée.</div>'}` : '<div class="contract-empty">Sélectionnez d’abord un site.</div>'}</article></section></div><aside class="contract-summary"><span class="eyebrow">Résumé du contrat</span><h2>État actuel</h2><dl>${workspaceSummaryRow('Client',state.summary.client)}${workspaceSummaryRow('Signataire',state.summary.signatory)}${workspaceSummaryRow('Site',state.summary.site)}${workspaceSummaryRow('Équipements',summaryEquipment)}${workspaceSummaryRow('Régime',state.summary.regime)}${workspaceSummaryRow('Mode de conclusion',state.summary.conclusion)}${workspaceSummaryRow('Période',state.summary.period)}${workspaceSummaryRow('Prix',state.summary.price)}${workspaceSummaryRow('Renouvellement',state.summary.renewal)}${workspaceSummaryRow('Modèle / version',state.summary.template)}${workspaceSummaryRow('Complétude',state.summary.completion,state.summary.completion.includes('complète') ? 'complete' : 'warning')}</dl></aside></div></main></div>`;
+   const documentsStep = document.querySelectorAll('.contract-step')[3];
+   if (documentsStep && (state.documents_d1.available || state.documents_d4?.abandon_allowed || state.documents_d5?.action_available)) {
+     documentsStep.disabled = false;
+diff --git a/src/icp_renov_contracts/ui_web/index.html b/src/icp_renov_contracts/ui_web/index.html
+index 2639d69..3ed594b 100644
+--- a/src/icp_renov_contracts/ui_web/index.html
++++ b/src/icp_renov_contracts/ui_web/index.html
+@@ -1 +1 @@
+-<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="app.css"><link rel="stylesheet" href="clients.css"><link rel="stylesheet" href="contract-workspace.css"><link rel="stylesheet" href="contract-conditions.css"><link rel="stylesheet" href="contract-conditions-b2.css"><link rel="stylesheet" href="contract-conditions-b3.css"><link rel="stylesheet" href="contract-review.css"><link rel="stylesheet" href="contract-documents.css"><script src="qrc:///qtwebchannel/qwebchannel.js"></script><script defer src="app.js"></script><script defer src="contract-workspace.js"></script></head><body><div id="app"><p id="bridge-error" hidden>La surface Contrats ne peut pas être initialisée.</p></div></body></html>
++<!doctype html><html><head><meta charset="utf-8"><meta name="color-scheme" content="light"><meta name="theme-color" content="#EEF3F6"><link rel="stylesheet" href="app.css"><link rel="stylesheet" href="clients.css"><link rel="stylesheet" href="contract-workspace.css"><link rel="stylesheet" href="contract-conditions.css"><link rel="stylesheet" href="contract-conditions-b2.css"><link rel="stylesheet" href="contract-conditions-b3.css"><link rel="stylesheet" href="contract-review.css"><link rel="stylesheet" href="contract-documents.css"><script src="qrc:///qtwebchannel/qwebchannel.js"></script><script defer src="app.js"></script><script defer src="contract-workspace.js"></script></head><body><div id="app"><p id="bridge-error" hidden>La surface Contrats ne peut pas être initialisée.</p></div></body></html>
+diff --git a/tests/test_foundation.py b/tests/test_foundation.py
+index 22731cd..703b274 100644
+--- a/tests/test_foundation.py
++++ b/tests/test_foundation.py
+@@ -10,6 +10,7 @@ from pathlib import Path
+
+ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
++from PySide6.QtGui import QPalette
+ from PySide6.QtWidgets import QApplication
+
+ from icp_renov_contracts.app import create_application
+@@ -160,6 +161,38 @@ class UiShellTests(unittest.TestCase):
+             )
+             window.close()
+
++    def test_shared_light_foundation_has_fixed_palette_and_shell_width(self):
++        palette = self.application.palette()
++        self.assertEqual(palette.color(QPalette.ColorRole.Window).name(), "#eef3f6")
++        self.assertEqual(palette.color(QPalette.ColorRole.Base).name(), "#ffffff")
++        self.assertEqual(palette.color(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Window).name(), "#eef3f6")
++        self.assertEqual(palette.color(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Base).name(), "#ffffff")
++        self.assertEqual(palette.color(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text).name(), "#5d6c75")
++        with scratch() as temporary:
++            window = self.ready_window(temporary)
++            self.assertEqual(window.shell.sidebar.width(), 232)
++            self.assertEqual(window.shell.local_indicator.text(), "Application locale")
++            self.assertEqual(window.shell.backup_indicator.text(), "Sauvegarde non configurée")
++            window.close()
++
++    def test_web_foundation_declares_light_controls_and_viewport_shell(self):
++        index = (ROOT / "src" / "icp_renov_contracts" / "ui_web" / "index.html").read_text(encoding="utf-8")
++        stylesheet = (ROOT / "src" / "icp_renov_contracts" / "ui_web" / "app.css").read_text(encoding="utf-8")
++        self.assertIn('name="color-scheme" content="light"', index)
++        for token in ("--app-background:#EEF3F6", "--brand:#176CA8", "--brand-hover:#115B90", "--accent:#E9A23B", "--border:#D6DFE4", "color-scheme:light"):
++            self.assertIn(token, stylesheet)
++        self.assertIn(".app{height:100%;min-height:0", stylesheet)
++        self.assertIn(".main{min-width:0;min-height:0;overflow-y:auto", stylesheet)
++
++    def test_web_navigation_uses_focusable_buttons(self):
++        sources = [
++            (ROOT / "src" / "icp_renov_contracts" / "ui_web" / "app.js").read_text(encoding="utf-8"),
++            (ROOT / "src" / "icp_renov_contracts" / "ui_web" / "contract-workspace.js").read_text(encoding="utf-8"),
++        ]
++        for source in sources:
++            self.assertNotIn('<div class="nav', source)
++            self.assertIn('<button type="button" class="nav', source)
++
+     def test_navigation_ampersands_are_escaped_for_qt_rendering(self):
+         with scratch() as temporary:
+             window = self.ready_window(temporary)

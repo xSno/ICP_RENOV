@@ -3,12 +3,43 @@ from __future__ import annotations
 import logging
 import sys
 
+from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from .bootstrap import build_application_context
 from .errors import ApplicationError
 from .logging_setup import configure_logging
 from .ui import MainWindow
+from .ui.styles import application_stylesheet
+
+
+def _light_palette() -> QPalette:
+    """Provide deterministic light native colors before any widget is created."""
+    palette = QPalette()
+    colors = {
+        QPalette.ColorRole.Window: "#EEF3F6",
+        QPalette.ColorRole.WindowText: "#1F303A",
+        QPalette.ColorRole.Base: "#FFFFFF",
+        QPalette.ColorRole.AlternateBase: "#F7F9FA",
+        QPalette.ColorRole.ToolTipBase: "#FFFFFF",
+        QPalette.ColorRole.ToolTipText: "#1F303A",
+        QPalette.ColorRole.Text: "#1F303A",
+        QPalette.ColorRole.Button: "#F7F9FA",
+        QPalette.ColorRole.ButtonText: "#1F303A",
+        QPalette.ColorRole.BrightText: "#FFFFFF",
+        QPalette.ColorRole.Highlight: "#176CA8",
+        QPalette.ColorRole.HighlightedText: "#FFFFFF",
+        QPalette.ColorRole.Link: "#176CA8",
+    }
+    for role, value in colors.items():
+        color = QColor(value)
+        palette.setColor(QPalette.ColorGroup.Active, role, color)
+        palette.setColor(QPalette.ColorGroup.Inactive, role, color)
+        palette.setColor(QPalette.ColorGroup.Disabled, role, color)
+    for role in (QPalette.ColorRole.WindowText, QPalette.ColorRole.Text, QPalette.ColorRole.ButtonText):
+        palette.setColor(QPalette.ColorGroup.Disabled, role, QColor("#5D6C75"))
+    palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Button, QColor("#E7EDF0"))
+    return palette
 
 
 def create_application(argv: list[str] | None = None) -> QApplication:
@@ -18,6 +49,8 @@ def create_application(argv: list[str] | None = None) -> QApplication:
     application = QApplication(argv if argv is not None else sys.argv)
     application.setApplicationName("ICP Renov — Contrats")
     application.setOrganizationName("ICP Renov")
+    application.setPalette(_light_palette())
+    application.setStyleSheet(application_stylesheet())
     return application
 
 

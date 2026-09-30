@@ -1,38 +1,41 @@
-NEW WORK EXECUTED IN UX AUDIT WORKSPACE V1
+NEW WORK EXECUTED IN IMP-DS-01A CLOSURE PATCH
 
-Scope
-- Created audit data only from a clean RestoreService copy of Deployment Seed V1.2.2.
-- Production source, signed installer, release metadata, canonical template source, and Deployment Seed V1.2.2 were not modified.
+Baseline
+- Starting and current HEAD: 589eeab95d32e33e9d4f1fc5e864ef14a41eeb7d (UX_AUDIT_WORKSPACE_V1_READY).
+- No commit was created.
 
-Portable audit workspace
-- Authoring workspace: C:\Users\xSn\AppData\Local\Temp\icp-renov-ux-audit-v1-rrvp0to6\audit-workspace.
-- Portable backup: C:\Users\xSn\Documents\ICP Renov\UX Audit Workspace V1\ICP-RENOV-UX-AUDIT-WORKSPACE-V1.icprenovbackup.
-- SHA-256: E32FCBBD3C7E02E8F72192965DA4F69BF997B9229A6969E5C55B6C632FE9D7EA.
-- Real BackupService creation and fresh RestoreService rehearsal passed.
+DS-01A foundation
+- Qt sets a deterministic light palette before widgets are created; QSS and WebEngine use aligned light DS tokens.
+- The permanent native and Web shell remain 232 px / full-height with independently scrolling main Web content.
 
-Audit-only configuration
-- Numbering: PREFIX_COUNTER / AUD / width 4 / next counter 1; preview AUD-0001.
-- The inherited ICP Renov company identity remains intact.
-- Audit-only mediator values: MEDIATEK AUDIT — NE PAS UTILISER EN PRODUCTION; 1 rue Audit, 00000 Test; https://audit.invalid.
-- Every audit external gate and external-content reference uses UX-AUDIT-V1 or explicit audit-only reservations.
+Closure corrections
+- Active navigation uses the shared accent token #E9A23B in Qt and Web; primary hover is #115B90.
+- Every relevant disabled QPalette role is explicitly set. Light surfaces remain light under a Windows dark platform palette; disabled foregrounds remain muted.
+- Contracts landing, Clients & installations, and Contract workspace render permanent navigation as semantic focusable button controls, with identical labels and existing routes.
+- The native sidebar bottom region retains Application locale and now projects the existing backup summary through RealBackupSummaryProvider (or the existing neutral default authority when unavailable).
 
-Consumer model authority
-- Contrat habitation · 1.0 source/hash were preserved.
-- The Consumer regime was confirmed through TemplateCatalog authority.
-- Structure, DOCX, PDF, post-render, context, visual, external gates and external-content confirmation ran through the normal validation authority.
-- Consumer model is AVAILABLE only in this audit workspace; no production seed was changed.
-- VAT remains 10/20; payment terms DUE/CUSTOM; payment methods TRANSFER/CHEQUE.
+Behavior intentionally preserved
+- No domain, persistence, backup behavior, WebChannel route, template, document-generation, contract workflow, or product IA change.
+- No IMP-DS-01B/C/D work started.
 
-Fictional master data
-- Client: Jean Dupont (id 5aad32fe-62de-4142-9a49-a2371f2791ef).
-- Site: Maison principale (id 1174794a-07b0-4e67-85e4-f9ab9b2c8e73).
-- Equipment: Unité murale / Daikin / Perfera / Salon (id e40cf8f3-b1d6-4a69-a682-1a6bb843c554).
-- Restore rehearsal counts: clients 1; sites 1; equipment 1; contracts 0; contract_documents 0; contract_events 0.
+Validation
+- QT_QPA_PLATFORM=offscreen python -W error::ResourceWarning -m unittest discover -s tests -p test_foundation.py -q: PASS (19/19, exit 0).
+- QT_QPA_PLATFORM=offscreen python -W error::ResourceWarning -m unittest discover -s tests -p test_model_catalog_s12.py -q: PASS (22/22, exit 0).
+- QT_QPA_PLATFORM=offscreen python -W error::ResourceWarning -m unittest discover -s tests -p test_web_bridge_c2w1.py -v: PASS (3/3).
+- QT_QPA_PLATFORM=offscreen python -W error::ResourceWarning -m unittest discover -s tests -p test_web_contract_workspace_w3a.py -v: PASS (10/10).
+- py_compile on changed native foundation modules: PASS.
+- Complete suite: Ran 410 tests in 311.634s — OK; exit code 0.
+- git diff --check: PASS.
 
-Intervention sheet
-- INTERVENTION_SHEET_AUDIT_MODEL_NOT_AVAILABLE: no existing governed intervention-sheet version was present in the clean seed. This does not block the audit workspace.
+Visual/manual validation
+- Offscreen native validation passed.
+- No production WebEngine screenshot was captured in this closure pass.
+- Windows light-theme and dark-theme launch proof remains final QA-DS-01 work; no dark-theme visual claim is made.
 
-Hygiene
-- No official AUD number, Contract, document, event, B3 QA history, or production operational data was generated.
-- No product source change was made in this pass. Existing uncommitted Unicode-regression and prior handoff artifacts remain separate worktree changes.
-- No commit created.
+Deviations
+- None.
+
+Remaining debt
+- IMP-DS-01B: Contracts and Clients visual migration.
+- IMP-DS-01C: Settings visual migration.
+- IMP-DS-01D: remaining contract/detail/document visual migration and cross-screen QA.

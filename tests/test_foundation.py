@@ -10,6 +10,7 @@ from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtGui import QPalette
 from PySide6.QtWidgets import QApplication
 
 from icp_renov_contracts.app import create_application
@@ -159,6 +160,38 @@ class UiShellTests(unittest.TestCase):
                 ("Contrats", "Clients & installations", "Paramètres"),
             )
             window.close()
+
+    def test_shared_light_foundation_has_fixed_palette_and_shell_width(self):
+        palette = self.application.palette()
+        self.assertEqual(palette.color(QPalette.ColorRole.Window).name(), "#eef3f6")
+        self.assertEqual(palette.color(QPalette.ColorRole.Base).name(), "#ffffff")
+        self.assertEqual(palette.color(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Window).name(), "#eef3f6")
+        self.assertEqual(palette.color(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Base).name(), "#ffffff")
+        self.assertEqual(palette.color(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text).name(), "#5d6c75")
+        with scratch() as temporary:
+            window = self.ready_window(temporary)
+            self.assertEqual(window.shell.sidebar.width(), 232)
+            self.assertEqual(window.shell.local_indicator.text(), "Application locale")
+            self.assertEqual(window.shell.backup_indicator.text(), "Sauvegarde non configurée")
+            window.close()
+
+    def test_web_foundation_declares_light_controls_and_viewport_shell(self):
+        index = (ROOT / "src" / "icp_renov_contracts" / "ui_web" / "index.html").read_text(encoding="utf-8")
+        stylesheet = (ROOT / "src" / "icp_renov_contracts" / "ui_web" / "app.css").read_text(encoding="utf-8")
+        self.assertIn('name="color-scheme" content="light"', index)
+        for token in ("--app-background:#EEF3F6", "--brand:#176CA8", "--brand-hover:#115B90", "--accent:#E9A23B", "--border:#D6DFE4", "color-scheme:light"):
+            self.assertIn(token, stylesheet)
+        self.assertIn(".app{height:100%;min-height:0", stylesheet)
+        self.assertIn(".main{min-width:0;min-height:0;overflow-y:auto", stylesheet)
+
+    def test_web_navigation_uses_focusable_buttons(self):
+        sources = [
+            (ROOT / "src" / "icp_renov_contracts" / "ui_web" / "app.js").read_text(encoding="utf-8"),
+            (ROOT / "src" / "icp_renov_contracts" / "ui_web" / "contract-workspace.js").read_text(encoding="utf-8"),
+        ]
+        for source in sources:
+            self.assertNotIn('<div class="nav', source)
+            self.assertIn('<button type="button" class="nav', source)
 
     def test_navigation_ampersands_are_escaped_for_qt_rendering(self):
         with scratch() as temporary:
