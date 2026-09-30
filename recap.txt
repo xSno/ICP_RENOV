@@ -1,33 +1,58 @@
-IMP-DS-01A.1 — Shell Routing and Native Sidebar Parity
+IMP-DS-01B — Contracts + Clients Visual Migration
 
 Baseline
-- Starting and current HEAD: cee93024117510e2da066ed3eea259765856de72 (IMP-DS-01A establish design system foundation).
-- The worktree was clean before this patch. No commit was created.
+- Starting and current HEAD: ff728f0b9f165cfb01e41fd2235871748cb98f0c (IMP-DS-01A.1 fix hybrid shell routing).
+- Initial worktree: clean. No commit was created.
 
-Root cause and routing correction
-- ApplicationShell only registered an external Web landing for Contrats. The permanent Clients navigation therefore selected the hidden legacy Qt Client surface after native Settings.
-- Returning to the WebHost only refreshed the bridge, so it preserved its stale CLIENTS page rather than receiving an explicit destination.
-- ApplicationShell now owns a bounded external-landing map. Normal permanent Contrats and Clients navigation invokes the registered landing; workflow=True continues to select the legacy Qt workflow surface.
-- MainWindow registers Contrats → Web bridge CONTRACTS and Clients & installations → Web bridge CLIENTS. The helper activates WebHost then calls UiBridge.navigate(page), which refreshes the authoritative destination snapshot.
-- Paramètres remains the native Qt Settings surface.
+Files changed
+- src/icp_renov_contracts/ui_web/app.css
+- src/icp_renov_contracts/ui_web/app.js
+- src/icp_renov_contracts/ui_web/clients.css
+- tests/test_foundation.py
 
-Native sidebar parity
-- The fixed 232 px sidebar now has a compact ICP product-mark/brand row and secondary Contrats d’entretien text.
-- Navigation stays lower in the upper region; existing dark background and orange active marker are preserved.
-- Application locale and the authoritative backup summary are grouped in the stretch-anchored bottom status area.
+Contracts migration
+- Retained the operational hierarchy, single Nouveau contrat CTA, action/reminder content, filters, search, backup control, register columns and exact row routing.
+- Applied DS surface, spacing, compact table header, restrained light-blue row hover, left brand marker, opening affordance and DS focus treatment.
+- Statuses remain textual. ACTIVE and SIGNED use the green established-success family; TO_SIGN blue, DRAFT amber, ABANDONED red, TERMINATED/EXPIRED neutral.
+- Added a compact 1366px layout adjustment without modifying filters, search semantics or lifecycle signals.
 
-Behavior intentionally preserved
-- Legacy Qt views remain available for bounded workflow, fallback and test paths.
-- No domain, persistence, backup behavior, service, WebChannel contract, Settings content, or business workflow changed.
-- No IMP-DS-01B/C/D work started.
+Clients migration
+- Client list now uses distinct hover, focus and selected treatments with shared DS tokens.
+- Selected-client header, master-data notice, definition-list cards, site cards, equipment rows, linked-contract rows and archive zone use the DS surface/border/feedback families.
+- Client/Site/Equipment drawers and archive dialog were visually normalized only: headers, fields, focus, messages, footer actions and overlays.
+- No Client, Site, Equipment, archive, restore, drawer, snapshot or exact-ID behavior changed.
+
+Behavior preservation
+- No domain, service, persistence, WebChannel DTO, hybrid routing, filtering, search, lifecycle or contract-workspace behavior changed.
+- No IMP-DS-01C or IMP-DS-01D work started.
 
 Validation
-- QT_QPA_PLATFORM=offscreen python -W error::ResourceWarning -m unittest discover -s tests -p test_foundation.py -v: PASS (20/20, exit 0).
-- QT_QPA_PLATFORM=offscreen python -W error::ResourceWarning -m unittest discover -s tests -p test_web_bridge_c2w1.py -v: PASS (3/3, exit 0).
-- py_compile of modified native modules: PASS.
-- Complete suite: Ran 411 tests in 267.220s — OK; exit code 0.
+- QT_QPA_PLATFORM=offscreen python -W error::ResourceWarning -m unittest discover -s tests -p test_foundation.py -q: PASS (21/21, exit 0).
+- test_web_bridge_c2w1.py: PASS (3/3, exit 0).
+- test_web_clients_d1.py: PASS (8/8, exit 0).
+- test_web_site_equipment_d2a.py: PASS (8/8, exit 0).
+- test_web_site_management_d2b.py: PASS (6/6, exit 0).
+- test_web_master_archive_d3.py: PASS (8/8, exit 0).
+- test_contract_register_s10.py: PASS (7/7, exit 0).
+- test_web_contract_workspace_w3a.py: PASS (10/10, exit 0).
+- Full suite: Ran 412 tests in 235.889s — OK; exit code 0.
 - git diff --check: PASS.
 
-Manual QA limitation
-- QWebEngine deliberately does not start under QT_QPA_PLATFORM=offscreen, so the actual hybrid WebHost/Qt transition is not fabricated in automation.
-- The required desktop sequence remains: Contracts → Clients → Paramètres → Clients → Contrats → Paramètres → Contrats; every Contracts/Clients destination must be Web and Settings must be Qt.
+Visual validation
+- No graphical QWebEngine capture was available in this environment; no screenshot validation is claimed.
+- Final manual QA remains required for Contracts, selected Clients, client/site-or-equipment drawer, and the approximately 1366×768 layout.
+
+Deviations
+- None.
+
+Remaining debt
+- IMP-DS-01C: native Settings content visual migration.
+- IMP-DS-01D: contract workspace, Conditions, Review and Documents visual migration.
+- V1.0.1 backlog intentionally untouched: search-focus, semantic copy cleanup, linked-contract list bounds, workflow redesign and all non-visual product work.
+
+IMP-DS-01B closure patch — register opening action
+- Each Contract row remains fully mouse-clickable and routes to the same exact persisted Contract id.
+- The final cell now supplies a native, keyboard-focusable `Ouvrir` button with the existing chevron. Its click stops propagation before invoking the existing bridge route, preventing duplicate opening.
+- The existing `.contract-row:focus-within` treatment now applies naturally when the action receives keyboard focus; the compact secondary action has its own token-based visible focus ring.
+- Expanded source-level coverage verifies semantic button markup, visible label, stopped propagation, existing bridge route, and focus primitives.
+- Rerun after the patch: test_foundation.py 21/21, test_web_bridge_c2w1.py 3/3, test_contract_register_s10.py 7/7, test_web_contract_workspace_w3a.py 10/10; full suite 412/412 in 233.757s, all exit 0.

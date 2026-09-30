@@ -193,6 +193,19 @@ class UiShellTests(unittest.TestCase):
             self.assertNotIn('<div class="nav', source)
             self.assertIn('<button type="button" class="nav', source)
 
+    def test_web_contracts_and_clients_keep_shared_interaction_primitives(self):
+        app_source = (ROOT / "src" / "icp_renov_contracts" / "ui_web" / "app.js").read_text(encoding="utf-8")
+        contracts = (ROOT / "src" / "icp_renov_contracts" / "ui_web" / "app.css").read_text(encoding="utf-8")
+        clients = (ROOT / "src" / "icp_renov_contracts" / "ui_web" / "clients.css").read_text(encoding="utf-8")
+        self.assertIn('<tr class="contract-row"', app_source)
+        self.assertIn('<button type="button" class="row-open-action"', app_source)
+        self.assertIn('>Ouvrir ${icon(\'chevron\')}</button>', app_source)
+        self.assertIn("event.stopPropagation();bridge.openContract('${row.id}')", app_source)
+        for primitive in (".contract-row:hover", ".contract-row:focus-within", ".row-open-action:focus-visible", ".pill.SIGNED", "var(--surface)"):
+            self.assertIn(primitive, contracts)
+        for primitive in (".client-list-item:hover", ".client-list-item.selected", ".linked-contract-row:hover", ".drawer-overlay"):
+            self.assertIn(primitive, clients)
+
     def test_navigation_ampersands_are_escaped_for_qt_rendering(self):
         with scratch() as temporary:
             window = self.ready_window(temporary)

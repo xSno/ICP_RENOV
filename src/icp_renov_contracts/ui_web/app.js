@@ -425,12 +425,12 @@ document.addEventListener('mousedown', event => {
 function render(state) {
   if (state.page === 'CONTRACT_WORKSPACE') { renderContractWorkspace(state); return; }
   if (state.page === 'CLIENTS') { renderClients(state); return; }
-  const rows = state.rows.map(row => `<tr onclick="bridge.openContract('${row.id}')">
+  const rows = state.rows.map(row => `<tr class="contract-row" onclick="bridge.openContract('${row.id}')">
     <td><strong>${esc(row.number)}</strong>${updateLine(row.updated)}</td>
     <td><strong>${esc(row.client)}</strong>${row.site ? `<small>${icon('pin')}${esc(row.site)}</small>` : ''}</td>
     <td><span class="pill ${row.status_code}">${esc(row.status)}</span></td><td>${esc(row.deadline)}</td>
     <td>${row.needs_action ? '<span class="dot"></span>' : icon('info')} ${esc(row.signal)}</td>
-    <td class="docs">${icon('file')} ${esc(row.document)}</td><td>${icon('chevron')}</td>
+    <td class="docs">${icon('file')} ${esc(row.document)}</td><td><button type="button" class="row-open-action" onclick="event.stopPropagation();bridge.openContract('${row.id}')">Ouvrir ${icon('chevron')}</button></td>
   </tr>`).join('');
   const backup = backupValue(state.backup);
   const actionLabel = actionCountLabel(state.action_count);
