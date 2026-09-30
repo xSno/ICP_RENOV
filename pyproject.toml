@@ -22,6 +22,7 @@ where = ["src"]
 [tool.setuptools.package-data]
 icp_renov_contracts = [
   "resources/FIELD_TEMPLATE_CONTRACT_V1_1.txt",
+  "ui/assets/*.svg",
   "ui_web/*.html",
   "ui_web/*.js",
   "ui_web/*.css",

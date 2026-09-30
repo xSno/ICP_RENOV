@@ -41,8 +41,9 @@ class CompanySettingsView(QWidget):
         root = QHBoxLayout(self)
         root.setContentsMargins(SPACING["xl"], SPACING["xl"], SPACING["xl"], SPACING["xl"])
         root.setSpacing(SPACING["xl"])
-        navigation = QVBoxLayout(); navigation.setSpacing(SPACING["xs"])
-        nav_title = QLabel("Param\u00e8tres"); nav_title.setObjectName("screenTitle"); navigation.addWidget(nav_title)
+        navigation_panel = QFrame(); navigation_panel.setObjectName("settingsNavigationPanel"); navigation_panel.setMinimumWidth(236)
+        navigation = QVBoxLayout(navigation_panel); navigation.setContentsMargins(SPACING["md"], SPACING["md"], SPACING["md"], SPACING["md"]); navigation.setSpacing(SPACING["xs"])
+        nav_title = QLabel("Param\u00e8tres"); nav_title.setObjectName("settingsNavigationTitle"); navigation.addWidget(nav_title)
         navigation.addSpacing(SPACING["lg"])
         self._section_buttons: dict[str, QPushButton] = {}
         group = QButtonGroup(self); group.setExclusive(True)
@@ -50,9 +51,9 @@ class CompanySettingsView(QWidget):
             button = QPushButton(label.replace("&", "&&")); button.setObjectName("settingsSection")
             button.setCheckable(True); button.clicked.connect(lambda checked=False, target=label: self._show_section(target))
             group.addButton(button); self._section_buttons[label] = button; navigation.addWidget(button)
-        navigation.addStretch(1); root.addLayout(navigation, 0)
+        navigation.addStretch(1); root.addWidget(navigation_panel, 0, Qt.AlignmentFlag.AlignTop)
 
-        self.stack = QStackedWidget(); self._indices: dict[str, int] = {}
+        self.stack = QStackedWidget(); self.stack.setObjectName("settingsContentStack"); self._indices: dict[str, int] = {}
         self._indices["Soci\u00e9t\u00e9"] = self.stack.addWidget(self._company_page())
         self.models_page = ModelsSettingsPage(template_catalog, open_diagnostic=self.open_diagnostic) if template_catalog else None
         self._indices["Mod\u00e8les"] = self.stack.addWidget(self.models_page or self._unavailable_page("Mod\u00e8les"))
@@ -112,12 +113,13 @@ class CompanySettingsView(QWidget):
     def _storage_page(self) -> QWidget:
         page=QWidget(); root=QVBoxLayout(page); root.setContentsMargins(0,0,0,0); root.setSpacing(SPACING["md"])
         title=QLabel("Stockage & sauvegarde"); title.setObjectName("screenTitle"); root.addWidget(title)
-        self.storage_feedback=QLabel(); self.storage_feedback.setWordWrap(True); self.storage_feedback.hide(); root.addWidget(self.storage_feedback)
-        workspace=self._group("Dossier de travail", ()); workspace.layout().addWidget(QLabel(str(self.service.workspace_root)))
-        open_workspace=QPushButton("Ouvrir le dossier"); open_workspace.clicked.connect(lambda: self._open_path(self.service.workspace_root)); workspace.layout().addWidget(open_workspace); root.addWidget(workspace)
+        self.storage_feedback=QLabel(); self.storage_feedback.setObjectName("companyFeedback"); self.storage_feedback.setWordWrap(True); self.storage_feedback.hide(); root.addWidget(self.storage_feedback)
+        workspace=self._group("Dossier de travail", ()); workspace_path = QLabel(str(self.service.workspace_root)); workspace_path.setObjectName("readOnlyValue"); workspace_path.setWordWrap(True); workspace.layout().addWidget(workspace_path)
+        open_workspace=QPushButton("Ouvrir le dossier"); open_workspace.setObjectName("tertiaryButton"); open_workspace.clicked.connect(lambda: self._open_path(self.service.workspace_root)); workspace.layout().addWidget(open_workspace); root.addWidget(workspace)
         backup=self._group("Sauvegardes", ()); self.backup_folder=QLabel(); self.backup_latest=QLabel(); self.backup_state=QLabel(); backup.layout().addWidget(self.backup_folder); backup.layout().addWidget(self.backup_latest); backup.layout().addWidget(self.backup_state)
-        actions=QHBoxLayout(); self.choose_backup=QPushButton("Choisir le dossier de sauvegarde"); self.open_backup=QPushButton("Ouvrir le dossier"); self.create_backup=QPushButton("Sauvegarder maintenant"); self.create_backup.setObjectName("primaryButton"); actions.addWidget(self.choose_backup);actions.addWidget(self.open_backup);actions.addWidget(self.create_backup);actions.addStretch(1);backup.layout().addLayout(actions);root.addWidget(backup)
+        actions=QHBoxLayout(); self.choose_backup=QPushButton("Choisir le dossier de sauvegarde"); self.choose_backup.setObjectName("secondaryButton"); self.open_backup=QPushButton("Ouvrir le dossier"); self.open_backup.setObjectName("tertiaryButton"); self.create_backup=QPushButton("Sauvegarder maintenant"); self.create_backup.setObjectName("primaryButton"); actions.addWidget(self.choose_backup);actions.addWidget(self.open_backup);actions.addWidget(self.create_backup);actions.addStretch(1);backup.layout().addLayout(actions);root.addWidget(backup)
         restore=self._group("Restauration", ()); note=QLabel("Les sauvegardes contiennent les contrats, documents et paramètres du dossier de travail. Conservez-les dans un emplacement approprié. La restauration crée un nouveau dossier et ne remplace jamais le dossier courant.");note.setWordWrap(True);restore.layout().addWidget(note);self.restore_backup=QPushButton("Restaurer une sauvegarde");restore.layout().addWidget(self.restore_backup);root.addWidget(restore);root.addStretch(1)
+        self.restore_backup.setObjectName("secondaryButton")
         self.choose_backup.clicked.connect(self._choose_backup);self.open_backup.clicked.connect(lambda:self._open_path(self.backup_service.config_store.load().backup_directory));self.create_backup.clicked.connect(self._create_backup);self.restore_backup.clicked.connect(self._restore_backup);self._refresh_storage();return page
 
     def _refresh_storage(self):

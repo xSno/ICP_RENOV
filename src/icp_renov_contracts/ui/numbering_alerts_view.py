@@ -91,7 +91,7 @@ class NumberingAlertsSettingsPage(QWidget):
     def _numbering_group(self) -> QFrame:
         frame = QFrame(); frame.setObjectName("companyGroup"); root = QVBoxLayout(frame)
         title = QLabel("Numérotation des contrats"); title.setObjectName("sectionTitle"); root.addWidget(title)
-        self.numbering_state = QLabel(); self.numbering_state.setWordWrap(True); root.addWidget(self.numbering_state)
+        self.numbering_state = QLabel(); self.numbering_state.setObjectName("infoFeedback"); self.numbering_state.setWordWrap(True); root.addWidget(self.numbering_state)
         notice = QLabel("Ces réglages s’appliquent uniquement aux futurs contrats. Les numéros existants ne sont jamais modifiés.")
         notice.setObjectName("screenDescription"); notice.setWordWrap(True); root.addWidget(notice)
         form = QFormLayout(); self.format_combo = QComboBox(); self.policy_combo = QComboBox()
@@ -109,9 +109,9 @@ class NumberingAlertsSettingsPage(QWidget):
         form.addRow("Nombre de chiffres du compteur", self.width); form.addRow("Politique annuelle", self.policy_combo)
         form.addRow("Compteur de départ", self.start_counter); form.addRow("Prochain compteur", self.next_host); root.addLayout(form)
         self.preview = QLabel("Numérotation à configurer"); self.preview.setObjectName("numberingPreview"); root.addWidget(QLabel("Aperçu du prochain numéro")); root.addWidget(self.preview)
-        self.numbering_feedback = QLabel(); self.numbering_feedback.setWordWrap(True); self.numbering_feedback.hide(); root.addWidget(self.numbering_feedback)
+        self.numbering_feedback = QLabel(); self.numbering_feedback.setObjectName("companyFeedback"); self.numbering_feedback.setWordWrap(True); self.numbering_feedback.hide(); root.addWidget(self.numbering_feedback)
         actions = QHBoxLayout(); self.save_numbering = QPushButton("Enregistrer la numérotation"); self.save_numbering.setObjectName("primaryButton")
-        self.correct_number = QPushButton("Corriger le prochain numéro"); self.correct_number.setObjectName("secondaryButton")
+        self.correct_number = QPushButton("Corriger le prochain numéro"); self.correct_number.setObjectName("sensitiveButton")
         actions.addStretch(1); actions.addWidget(self.correct_number); actions.addWidget(self.save_numbering); root.addLayout(actions)
         for widget in (self.format_combo, self.prefix, self.width, self.policy_combo, self.start_counter, self.next_counter):
             signal = widget.textChanged if hasattr(widget, "textChanged") else widget.currentIndexChanged if isinstance(widget, QComboBox) else widget.valueChanged
@@ -131,7 +131,7 @@ class NumberingAlertsSettingsPage(QWidget):
             enabled.toggled.connect(value.setEnabled); row.addWidget(enabled); row.addWidget(value); row.addStretch(1); form.addRow(label, host); self.alert_controls[key] = (enabled, value)
         root.addLayout(form); backup = QLabel("Le seuil de sauvegarde est conservé pour le futur module de sauvegarde ; aucune date ou réussite de sauvegarde n’est inventée.")
         backup.setObjectName("screenDescription"); backup.setWordWrap(True); root.addWidget(backup)
-        self.alert_feedback = QLabel(); self.alert_feedback.hide(); root.addWidget(self.alert_feedback)
+        self.alert_feedback = QLabel(); self.alert_feedback.setObjectName("companyFeedback"); self.alert_feedback.hide(); root.addWidget(self.alert_feedback)
         footer = QHBoxLayout(); footer.addStretch(1); self.save_alerts = QPushButton("Enregistrer les alertes"); self.save_alerts.setObjectName("primaryButton"); footer.addWidget(self.save_alerts); root.addLayout(footer)
         self.save_alerts.clicked.connect(self._save_alert_settings); return frame
 

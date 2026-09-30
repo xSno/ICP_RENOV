@@ -3,11 +3,13 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, Qt
+from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout,
     QFrame, QHBoxLayout, QHeaderView, QLabel, QLineEdit, QMessageBox, QPushButton,
-    QScrollArea, QStackedWidget, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
+    QScrollArea, QStackedWidget, QStyledItemDelegate, QStyle, QStyleOptionViewItem,
+    QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
 from ..documents.registry import FIELDS
@@ -151,6 +153,53 @@ class NewVersionDialog(QDialog):
         if filename: self.source.setText(filename)
 
 
+class _ModelsRowHoverDelegate(QStyledItemDelegate):
+    """Apply the transient DS hover background to every cell in one Models row."""
+
+    def __init__(self, table: "_ModelsTableWidget") -> None:
+        super().__init__(table); self.table = table
+
+    def paint(self, painter, option, index):  # type: ignore[override]
+        display = QStyleOptionViewItem(option)
+        if index.row() == self.table.hovered_row and not (display.state & QStyle.StateFlag.State_Selected):
+            display.backgroundBrush = QBrush(QColor("#F1F7FA"))
+        super().paint(painter, display, index)
+
+
+class _ModelsTableWidget(QTableWidget):
+    """Keep whole-row hover visual-only, including embedded Actions controls."""
+
+    def __init__(self, *args) -> None:
+        super().__init__(*args); self.hovered_row = -1
+        self.setMouseTracking(True); self.viewport().setMouseTracking(True); self.viewport().installEventFilter(self)
+        self.setItemDelegate(_ModelsRowHoverDelegate(self))
+
+    def track_hover_widget(self, widget: QWidget) -> None:
+        widget.setMouseTracking(True); widget.installEventFilter(self)
+
+    def eventFilter(self, watched, event):  # type: ignore[override]
+        if event.type() in (QEvent.Type.MouseMove, QEvent.Type.Enter) and hasattr(event, "position"):
+            position = watched.mapTo(self.viewport(), event.position().toPoint())
+            self._set_hovered_row(self.indexAt(position).row())
+        elif watched is self.viewport() and event.type() is QEvent.Type.Leave:
+            self._set_hovered_row(-1)
+        return super().eventFilter(watched, event)
+
+    def leaveEvent(self, event) -> None:  # type: ignore[override]
+        self._set_hovered_row(-1); super().leaveEvent(event)
+
+    def _set_hovered_row(self, row: int) -> None:
+        row = row if 0 <= row < self.rowCount() else -1
+        if row == self.hovered_row:
+            return
+        previous, self.hovered_row = self.hovered_row, row
+        for changed_row in (previous, row):
+            if changed_row >= 0:
+                left = self.visualRect(self.model().index(changed_row, 0))
+                right = self.visualRect(self.model().index(changed_row, self.columnCount() - 1))
+                self.viewport().update(left.united(right))
+
+
 class ModelsSettingsPage(QWidget):
     COLUMNS = ("Modèle", "Régime confirmé", "Version", "État", "Dernière utilisation", "Actions")
 
@@ -161,7 +210,7 @@ class ModelsSettingsPage(QWidget):
         self.refresh()
 
     def _overview(self) -> QWidget:
-        page = QWidget(); root = QVBoxLayout(page); root.setContentsMargins(0, 0, 0, 0); root.setSpacing(SPACING["md"])
+        page = QWidget(); root = QVBoxLayout(page); root.setContentsMargins(0, 0, 0, 0); root.setSpacing(SPACING["md"]); root.setAlignment(Qt.AlignmentFlag.AlignTop)
         top = QHBoxLayout(); title_box = QVBoxLayout(); title = QLabel("Modèles"); title.setObjectName("screenTitle")
         description = QLabel("Catalogue gouverné des familles et versions de documents."); description.setObjectName("screenDescription")
         title_box.addWidget(title); title_box.addWidget(description); top.addLayout(title_box); top.addStretch(1)
@@ -170,16 +219,17 @@ class ModelsSettingsPage(QWidget):
         top.addWidget(self.new_version_button); top.addWidget(self.add_button); root.addLayout(top)
         self.feedback = QLabel(""); self.feedback.setObjectName("formError"); self.feedback.setWordWrap(True); self.feedback.hide(); root.addWidget(self.feedback)
         self.empty = QLabel("Aucun modèle configuré"); self.empty.setObjectName("emptyState"); root.addWidget(self.empty)
-        self.table = QTableWidget(0, len(self.COLUMNS)); self.table.setObjectName("modelsTable"); self.table.setHorizontalHeaderLabels(self.COLUMNS)
+        self.table = _ModelsTableWidget(0, len(self.COLUMNS)); self.table.setObjectName("modelsTable"); self.table.setHorizontalHeaderLabels(self.COLUMNS)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows); self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers); self.table.verticalHeader().hide()
         self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff); self.table.setWordWrap(True)
+        self.table.setMinimumHeight(96); self.table.setMaximumHeight(360)
         header = self.table.horizontalHeader()
         for index in (0, 1, 4): header.setSectionResizeMode(index, QHeaderView.ResizeMode.Stretch)
-        for index, width in ((2, 70), (3, 85), (5, 90)):
+        for index, width in ((2, 75), (3, 120), (5, 110)):
             header.setSectionResizeMode(index, QHeaderView.ResizeMode.Fixed); header.resizeSection(index, width)
         self.table.itemSelectionChanged.connect(self._selection); self.table.cellDoubleClicked.connect(lambda row, column: self.open_version(self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)))
-        root.addWidget(self.table, 1); return page
+        root.addWidget(self.table); root.addStretch(1); return page
 
     def refresh(self) -> None:
         versions = self.service.list_all(); self.table.setRowCount(len(versions)); self.empty.setVisible(not versions); self.table.setVisible(bool(versions))
@@ -189,11 +239,22 @@ class ModelsSettingsPage(QWidget):
             last_label = _format_french_timestamp(self.service.last_use(version.id))
             values = (version.template_name, regimes, version.version, STATUS_LABELS[version.status], last_label)
             for column, value in enumerate(values):
-                item = QTableWidgetItem(value); item.setData(Qt.ItemDataRole.UserRole, version.id); self.table.setItem(row, column, item)
-            actions = QWidget(); layout = QHBoxLayout(actions); layout.setContentsMargins(2, 2, 2, 2)
+                item = QTableWidgetItem(value); item.setData(Qt.ItemDataRole.UserRole, version.id)
+                if column == 3:
+                    foreground, background = {
+                        TemplateVersionStatus.AVAILABLE: ("#1C5C3F", "#E4F1EA"),
+                        TemplateVersionStatus.TO_VALIDATE: ("#79500B", "#FFF8E9"),
+                        TemplateVersionStatus.ARCHIVED: ("#5D6C75", "#E7EDF0"),
+                    }[version.status]
+                    item.setForeground(QColor(foreground)); item.setBackground(QColor(background))
+                self.table.setItem(row, column, item)
+            actions = QWidget(); actions.setAutoFillBackground(False); self.table.track_hover_widget(actions)
+            layout = QHBoxLayout(actions); layout.setContentsMargins(2, 2, 2, 2)
             open_button = QPushButton("Ouvrir"); open_button.setObjectName("secondaryButton"); open_button.clicked.connect(lambda checked=False, item=version.id: self.open_version(item))
-            layout.addWidget(open_button); self.table.setCellWidget(row, 5, actions)
+            self.table.track_hover_widget(open_button); layout.addWidget(open_button); self.table.setCellWidget(row, 5, actions)
         self.table.resizeRowsToContents()
+        content_height = self.table.horizontalHeader().height() + sum(self.table.rowHeight(row) for row in range(self.table.rowCount())) + 4
+        self.table.setFixedHeight(min(360, max(76, content_height)))
         self._selection()
 
     def _selection(self) -> None:
@@ -235,7 +296,7 @@ class ModelVersionDetail(QWidget):
     def __init__(self, service: TemplateCatalogService, version_id: str, close_callback, opener: FileOpener, open_diagnostic=None) -> None:
         super().__init__(); self.service = service; self.version_id = version_id; self.close_callback = close_callback; self.opener = opener; self.open_diagnostic_callback = open_diagnostic
         root = QVBoxLayout(self); root.setContentsMargins(0, 0, 0, 0)
-        back = QPushButton("Retour aux modèles"); back.setObjectName("secondaryButton"); back.clicked.connect(close_callback); root.addWidget(back, 0, Qt.AlignmentFlag.AlignLeft)
+        back = QPushButton("Retour aux modèles"); back.setObjectName("tertiaryButton"); back.clicked.connect(close_callback); root.addWidget(back, 0, Qt.AlignmentFlag.AlignLeft)
         self.feedback = QLabel(""); self.feedback.setWordWrap(True); self.feedback.hide(); root.addWidget(self.feedback)
         scroll = QScrollArea(); scroll.setWidgetResizable(True); self.body = QWidget(); self.layout = QVBoxLayout(self.body); self.layout.setSpacing(SPACING["md"])
         scroll.setWidget(self.body); root.addWidget(scroll, 1); self.refresh()
@@ -257,9 +318,9 @@ class ModelVersionDetail(QWidget):
                              ("Version précédente", previous), ("Fichier source", Path(version.source_relpath or "").name or "Absent"),
                              ("Intégrité source", source_label), ("Dernière validation", _format_french_timestamp(record.last_validation_at_utc)),
                              ("Dernière utilisation", _format_french_timestamp(self.service.last_use(version.id)))):
-            form.addRow(label, QLabel(value))
-        actions = QHBoxLayout(); open_source = QPushButton("Ouvrir le DOCX source"); open_source.setEnabled(source_code == "VALID"); open_source.clicked.connect(self._open_source); actions.addWidget(open_source)
-        restore = QPushButton("Restaurer le fichier source"); restore.setVisible(source_code == "MISSING"); restore.clicked.connect(self._restore_source); actions.addWidget(restore); actions.addStretch(1); identity.layout().addLayout(actions)
+            display = QLabel(value); display.setObjectName("readOnlyValue"); display.setWordWrap(True); form.addRow(label, display)
+        actions = QHBoxLayout(); open_source = QPushButton("Ouvrir le DOCX source"); open_source.setObjectName("secondaryButton"); open_source.setEnabled(source_code == "VALID"); open_source.clicked.connect(self._open_source); actions.addWidget(open_source)
+        restore = QPushButton("Restaurer le fichier source"); restore.setObjectName("secondaryButton"); restore.setVisible(source_code == "MISSING"); restore.clicked.connect(self._restore_source); actions.addWidget(restore); actions.addStretch(1); identity.layout().addLayout(actions)
 
         regimes = self._section("Utilisation / régimes")
         regimes.layout().addWidget(QLabel("Régimes visés · intention de travail"))

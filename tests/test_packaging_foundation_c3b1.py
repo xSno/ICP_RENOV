@@ -19,6 +19,7 @@ WEB_UI_FILES = (
     "contract-workspace.css", "contract-conditions.css", "contract-conditions-b2.css",
     "contract-conditions-b3.css", "contract-review.css", "contract-documents.css",
 )
+UI_CONTROL_ASSETS = ("chevron-down.svg", "chevron-up.svg", "check.svg")
 FORBIDDEN_WEBENGINE_FLAGS = (
     "--no-sandbox", "QTWEBENGINE_DISABLE_SANDBOX", "--disable-gpu", "remote-debugging",
 )
@@ -63,6 +64,10 @@ class PackagingInputTests(unittest.TestCase):
         for name in WEB_UI_FILES:
             self.assertIn(f'"{name}"', source)
         self.assertIn("FIELD_TEMPLATE_CONTRACT_V1_1.txt", source)
+        self.assertIn('UI_ASSETS = PACKAGE / "ui" / "assets"', source)
+        self.assertIn('"icp_renov_contracts/ui/assets"', source)
+        for name in UI_CONTROL_ASSETS:
+            self.assertTrue((ROOT / "src" / "icp_renov_contracts" / "ui" / "assets" / name).is_file(), name)
         self.assertIn("collect_data_files(\"PySide6\"", source)
         self.assertIn("console=False", source)
         self.assertIn("tests", source)
@@ -70,6 +75,10 @@ class PackagingInputTests(unittest.TestCase):
         self.assertNotIn("soffice", source.lower())
         for forbidden in FORBIDDEN_WEBENGINE_FLAGS:
             self.assertNotIn(forbidden, source)
+
+    def test_control_svg_assets_are_declared_as_package_data(self):
+        source = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        self.assertIn('"ui/assets/*.svg"', source)
 
     def test_build_script_uses_the_tracked_spec_without_installer_logic(self):
         source = (ROOT / "packaging" / "build_windows_bundle.ps1").read_text(encoding="utf-8")

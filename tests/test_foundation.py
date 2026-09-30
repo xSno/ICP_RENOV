@@ -171,7 +171,7 @@ class UiShellTests(unittest.TestCase):
         with scratch() as temporary:
             window = self.ready_window(temporary)
             self.assertEqual(window.shell.sidebar.width(), 232)
-            self.assertEqual(window.shell.local_indicator.text(), "Application locale")
+            self.assertEqual(window.shell.local_indicator.text(), "Données conservées uniquement sur ce poste.")
             self.assertEqual(window.shell.backup_indicator.text(), "Sauvegarde non configurée")
             window.close()
 
@@ -205,6 +205,54 @@ class UiShellTests(unittest.TestCase):
             self.assertIn(primitive, contracts)
         for primitive in (".client-list-item:hover", ".client-list-item.selected", ".linked-contract-row:hover", ".drawer-overlay"):
             self.assertIn(primitive, clients)
+
+    def test_native_settings_use_shared_ds01_navigation_and_content_primitives(self):
+        root = ROOT / "src" / "icp_renov_contracts" / "ui"
+        styles = (root / "styles.py").read_text(encoding="utf-8")
+        settings = (root / "settings_view.py").read_text(encoding="utf-8")
+        models = (root / "models_settings_view.py").read_text(encoding="utf-8")
+        numbering = (root / "numbering_alerts_view.py").read_text(encoding="utf-8")
+        diagnostic = (root / "generation_diagnostic_view.py").read_text(encoding="utf-8")
+        for primitive in ("QFrame#settingsNavigationPanel", "QStackedWidget#settingsContentStack", "QTableWidget#modelsTable", "QPushButton#sensitiveButton", "QLabel#infoFeedback", 'QLabel#diagnosticFeedback[tone="success"]', "QFrame#diagnosticCapabilityRow"):
+            self.assertIn(primitive, styles)
+        self.assertIn('setObjectName("settingsNavigationPanel")', settings)
+        self.assertIn('navigation_panel.setMinimumWidth(236)', settings)
+        self.assertIn('root.addWidget(navigation_panel, 0, Qt.AlignmentFlag.AlignTop)', settings)
+        self.assertIn('setObjectName("settingsContentStack")', settings)
+        self.assertIn('root.setAlignment(Qt.AlignmentFlag.AlignTop)', models)
+        self.assertIn('root.addStretch(1); return page', models)
+        self.assertIn('setFixedHeight(min(360', models)
+        self.assertIn('class _ModelsRowHoverDelegate', models)
+        self.assertIn('class _ModelsTableWidget', models)
+        self.assertIn('self.setMouseTracking(True)', models)
+        self.assertNotIn('QTableWidget#modelsTable::item:hover', styles)
+        for forbidden in ('selectRow(', 'setCurrentCell(', 'setCurrentItem('):
+            self.assertNotIn(forbidden, models)
+        self.assertIn('setObjectName("sensitiveButton")', numbering)
+        self.assertIn("setObjectName('diagnosticModelSelector')", diagnostic)
+        for primitive in ("def _set_feedback", "self.feedback.setVisible(bool(text))", "style.unpolish(self.feedback)", "'warning'", "'error'", "'success'", "def _capability_row"):
+            self.assertIn(primitive, diagnostic)
+
+    def test_native_settings_controls_and_shell_use_ds01_parity_primitives(self):
+        root = ROOT / "src" / "icp_renov_contracts" / "ui"
+        styles = (root / "styles.py").read_text(encoding="utf-8")
+        shell = (root / "shell.py").read_text(encoding="utf-8")
+        settings = (root / "settings_view.py").read_text(encoding="utf-8")
+        models = (root / "models_settings_view.py").read_text(encoding="utf-8")
+        diagnostic = (root / "generation_diagnostic_view.py").read_text(encoding="utf-8")
+        for primitive in ("QComboBox::drop-down", "QComboBox QAbstractItemView", "QComboBox::down-arrow", "QAbstractSpinBox::up-button", "QAbstractSpinBox::up-arrow", "QCheckBox::indicator", "QCheckBox::indicator:checked", "QScrollBar:vertical", "QScrollBar::add-line", "image: url", "_control_asset_url"):
+            self.assertIn(primitive, styles)
+        self.assertNotIn("border: solid", styles)
+        for primitive in ("_SIDEBAR_ICON_PATHS", '"air"', "def _sidebar_icon", "button.setIcon(_sidebar_icon", "def _sidebar_status_block", '"Mode local"', '"Données conservées uniquement sur ce poste."', '"Sauvegarde"', "sidebar.setFixedWidth(232)"):
+            self.assertIn(primitive, shell)
+        for primitive in ('QWidget#contentSurface QPushButton#primaryButton:disabled', 'QWidget#contentSurface QPushButton#tertiaryButton', 'QWidget#contentSurface QPushButton#sensitiveButton', 'QPushButton[busy="true"]'):
+            self.assertIn(primitive, styles)
+        self.assertIn('open_workspace.setObjectName("tertiaryButton")', settings)
+        self.assertIn('self.restore_backup.setObjectName("secondaryButton")', settings)
+        self.assertIn("((2, 75), (3, 120), (5, 110))", models)
+        self.assertIn('back.setObjectName("tertiaryButton")', models)
+        self.assertIn('open_source.setObjectName("secondaryButton")', models)
+        self.assertIn("self.test.setObjectName('primaryButton')", diagnostic)
 
     def test_navigation_ampersands_are_escaped_for_qt_rendering(self):
         with scratch() as temporary:
