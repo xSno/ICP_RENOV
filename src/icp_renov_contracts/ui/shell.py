@@ -42,16 +42,32 @@ class ApplicationShell(QWidget):
         sidebar.setFixedWidth(232)
         self.sidebar = sidebar
         sidebar_layout = QVBoxLayout(sidebar)
-        sidebar_layout.setContentsMargins(SPACING["lg"], SPACING["xl"], SPACING["lg"], SPACING["lg"])
+        sidebar_layout.setContentsMargins(SPACING["md"], SPACING["md"], SPACING["md"], SPACING["md"])
         sidebar_layout.setSpacing(SPACING["sm"])
 
+        brand_row = QWidget()
+        brand_row.setObjectName("sidebarBrandRow")
+        brand_layout = QHBoxLayout(brand_row)
+        brand_layout.setContentsMargins(0, 0, 0, 0)
+        brand_layout.setSpacing(SPACING["sm"])
+        brand_mark = QLabel("ICP")
+        brand_mark.setObjectName("sidebarBrandMark")
+        brand_mark.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        brand_mark.setFixedSize(36, 36)
+        brand_words = QWidget()
+        brand_words_layout = QVBoxLayout(brand_words)
+        brand_words_layout.setContentsMargins(0, 0, 0, 0)
+        brand_words_layout.setSpacing(0)
         brand = QLabel("ICP Renov")
         brand.setObjectName("brand")
         subtitle = QLabel("Contrats d’entretien")
         subtitle.setObjectName("brandSubtitle")
-        sidebar_layout.addWidget(brand)
-        sidebar_layout.addWidget(subtitle)
-        sidebar_layout.addSpacing(SPACING["xl"])
+        brand_words_layout.addWidget(brand)
+        brand_words_layout.addWidget(subtitle)
+        brand_layout.addWidget(brand_mark)
+        brand_layout.addWidget(brand_words, 1)
+        sidebar_layout.addWidget(brand_row)
+        sidebar_layout.addSpacing(SPACING["lg"])
 
         self._buttons: dict[str, QPushButton] = {}
         group = QButtonGroup(self)
@@ -66,17 +82,23 @@ class ApplicationShell(QWidget):
             self._buttons[label] = button
             sidebar_layout.addWidget(button)
         sidebar_layout.addStretch(1)
+        status_area = QWidget()
+        status_area.setObjectName("sidebarStatusArea")
+        status_layout = QVBoxLayout(status_area)
+        status_layout.setContentsMargins(0, 0, 0, 0)
+        status_layout.setSpacing(SPACING["xs"])
         local_indicator = QLabel("Application locale")
         local_indicator.setObjectName("localApplicationIndicator")
         self.local_indicator = local_indicator
-        sidebar_layout.addWidget(local_indicator)
+        status_layout.addWidget(local_indicator)
         backup_indicator = QLabel(self._backup_summary_label(backup, alerts))
         backup_indicator.setObjectName("backupStatusIndicator")
         backup_indicator.setWordWrap(True)
         self.backup_indicator = backup_indicator
-        sidebar_layout.addWidget(backup_indicator)
+        status_layout.addWidget(backup_indicator)
+        sidebar_layout.addWidget(status_area)
 
-        self._contracts_landing: Callable[[], None] | None = None
+        self._external_landings: dict[str, Callable[[], None]] = {}
         self.stack = QStackedWidget()
         self._surfaces = build_surfaces(master_data, contracts, review, generation, lifecycle, interventions, company, template_catalog, numbering, alerts, backup, restore, diagnostic)
         self._indices: dict[str, int] = {}
@@ -101,7 +123,12 @@ class ApplicationShell(QWidget):
 
     def set_contracts_landing(self, callback: Callable[[], None]) -> None:
         """Keep the legacy contract workflow available without making it a landing screen."""
-        self._contracts_landing = callback
+        self.set_external_landing("Contrats", callback)
+
+    def set_external_landing(self, destination: str, callback: Callable[[], None]) -> None:
+        if destination not in NAVIGATION_LABELS:
+            raise ValueError(f"Unknown navigation destination: {destination}")
+        self._external_landings[destination] = callback
 
     @property
     def navigation_labels(self) -> tuple[str, ...]:
@@ -117,8 +144,8 @@ class ApplicationShell(QWidget):
     def navigate(self, destination: str, *, workflow: bool = False) -> None:
         if destination not in self._indices:
             raise ValueError(f"Unknown navigation destination: {destination}")
-        if destination == "Contrats" and self._contracts_landing is not None and not workflow:
-            self._contracts_landing()
+        if not workflow and destination in self._external_landings:
+            self._external_landings[destination]()
             return
         self.stack.setCurrentIndex(self._indices[destination])
         for label, button in self._buttons.items():

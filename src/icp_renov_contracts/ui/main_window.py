@@ -33,7 +33,7 @@ class MainWindow(QMainWindow):
                 self.setCentralWidget(self.shell)
             else:
                 self.web_host = WebUiHost(context, self._web_action)
-                self.shell.set_contracts_landing(self._show_web_contracts)
+                self._register_web_landings()
                 self.ready_stack = QStackedWidget()
                 self.ready_stack.addWidget(self.web_host)
                 self.ready_stack.addWidget(self.shell)
@@ -68,11 +68,15 @@ class MainWindow(QMainWindow):
         if self.web_host is None: self.setCentralWidget(self.shell)
         else: self.ready_stack.setCurrentWidget(self.shell)
 
-    def _show_web_contracts(self) -> None:
-        """The WebEngine register is the sole normal Contrats landing surface."""
+    def _register_web_landings(self) -> None:
+        self.shell.set_external_landing("Contrats", lambda: self._show_web_page("CONTRACTS"))
+        self.shell.set_external_landing("Clients & installations", lambda: self._show_web_page("CLIENTS"))
+
+    def _show_web_page(self, page_name: str) -> None:
+        """Route normal permanent navigation through the authoritative Web bridge."""
         if self.web_host is not None:
             self.ready_stack.setCurrentWidget(self.web_host)
-            self.web_host.bridge.refresh()
+            self.web_host.bridge.navigate(page_name)
 
     def _configure_first_use(self) -> None:
         selected = QFileDialog.getExistingDirectory(self, "Choisir le dossier de travail ICP Renov")
@@ -125,7 +129,7 @@ class MainWindow(QMainWindow):
                 self.setCentralWidget(self.shell)
             else:
                 self.web_host = WebUiHost(new_context, self._web_action)
-                self.shell.set_contracts_landing(self._show_web_contracts)
+                self._register_web_landings()
                 self.ready_stack = QStackedWidget()
                 self.ready_stack.addWidget(self.web_host)
                 self.ready_stack.addWidget(self.shell)

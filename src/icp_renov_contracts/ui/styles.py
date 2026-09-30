@@ -21,10 +21,13 @@ def application_stylesheet() -> str:
     QScrollArea {{ border: 0; }} QScrollArea > QWidget > QWidget {{ background: {COLORS['app_background']}; }}
     QDialog, QMessageBox {{ background: {COLORS['surface']}; }}
     QWidget#sidebar {{ background: {COLORS['sidebar']}; }}
-    QLabel#brand {{ color: white; font-size: 20px; font-weight: 700; }}
+    QWidget#sidebarBrandRow {{ margin: 2px 4px 0 4px; }}
+    QLabel#sidebarBrandMark {{ background: {COLORS['brand']}; color: white; border-radius: {RADII['md']}px; font-size: 10px; font-weight: 800; }}
+    QLabel#brand {{ color: white; font-size: 18px; font-weight: 700; }}
     QLabel#brandSubtitle, QLabel#localApplicationIndicator, QLabel#backupStatusIndicator {{ color: #B7C8D1; font-size: 12px; }}
-    QLabel#localApplicationIndicator {{ border-top: 1px solid #365060; padding: 12px 4px 0 4px; }}
-    QLabel#backupStatusIndicator {{ padding: 4px 4px 0 4px; color: white; font-weight: 600; }}
+    QWidget#sidebarStatusArea {{ border-top: 1px solid #365060; padding: 10px 4px 0 4px; }}
+    QLabel#localApplicationIndicator {{ padding: 0; }}
+    QLabel#backupStatusIndicator {{ padding: 2px 0 0 0; color: white; font-weight: 600; }}
     QPushButton#navButton {{ color: #DCE8ED; background: transparent; border: 0; border-radius: {RADII['sm']}px; padding: 11px 14px; text-align: left; font-weight: 600; }}
     QPushButton#navButton:hover {{ background: {COLORS['sidebar_hover']}; }}
     QPushButton#navButton[active="true"] {{ color: white; background: #29495C; border-left: 3px solid {COLORS['accent']}; padding-left: 11px; }}

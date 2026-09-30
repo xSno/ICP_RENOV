@@ -1,41 +1,33 @@
-NEW WORK EXECUTED IN IMP-DS-01A CLOSURE PATCH
+IMP-DS-01A.1 — Shell Routing and Native Sidebar Parity
 
 Baseline
-- Starting and current HEAD: 589eeab95d32e33e9d4f1fc5e864ef14a41eeb7d (UX_AUDIT_WORKSPACE_V1_READY).
-- No commit was created.
+- Starting and current HEAD: cee93024117510e2da066ed3eea259765856de72 (IMP-DS-01A establish design system foundation).
+- The worktree was clean before this patch. No commit was created.
 
-DS-01A foundation
-- Qt sets a deterministic light palette before widgets are created; QSS and WebEngine use aligned light DS tokens.
-- The permanent native and Web shell remain 232 px / full-height with independently scrolling main Web content.
+Root cause and routing correction
+- ApplicationShell only registered an external Web landing for Contrats. The permanent Clients navigation therefore selected the hidden legacy Qt Client surface after native Settings.
+- Returning to the WebHost only refreshed the bridge, so it preserved its stale CLIENTS page rather than receiving an explicit destination.
+- ApplicationShell now owns a bounded external-landing map. Normal permanent Contrats and Clients navigation invokes the registered landing; workflow=True continues to select the legacy Qt workflow surface.
+- MainWindow registers Contrats → Web bridge CONTRACTS and Clients & installations → Web bridge CLIENTS. The helper activates WebHost then calls UiBridge.navigate(page), which refreshes the authoritative destination snapshot.
+- Paramètres remains the native Qt Settings surface.
 
-Closure corrections
-- Active navigation uses the shared accent token #E9A23B in Qt and Web; primary hover is #115B90.
-- Every relevant disabled QPalette role is explicitly set. Light surfaces remain light under a Windows dark platform palette; disabled foregrounds remain muted.
-- Contracts landing, Clients & installations, and Contract workspace render permanent navigation as semantic focusable button controls, with identical labels and existing routes.
-- The native sidebar bottom region retains Application locale and now projects the existing backup summary through RealBackupSummaryProvider (or the existing neutral default authority when unavailable).
+Native sidebar parity
+- The fixed 232 px sidebar now has a compact ICP product-mark/brand row and secondary Contrats d’entretien text.
+- Navigation stays lower in the upper region; existing dark background and orange active marker are preserved.
+- Application locale and the authoritative backup summary are grouped in the stretch-anchored bottom status area.
 
 Behavior intentionally preserved
-- No domain, persistence, backup behavior, WebChannel route, template, document-generation, contract workflow, or product IA change.
+- Legacy Qt views remain available for bounded workflow, fallback and test paths.
+- No domain, persistence, backup behavior, service, WebChannel contract, Settings content, or business workflow changed.
 - No IMP-DS-01B/C/D work started.
 
 Validation
-- QT_QPA_PLATFORM=offscreen python -W error::ResourceWarning -m unittest discover -s tests -p test_foundation.py -q: PASS (19/19, exit 0).
-- QT_QPA_PLATFORM=offscreen python -W error::ResourceWarning -m unittest discover -s tests -p test_model_catalog_s12.py -q: PASS (22/22, exit 0).
-- QT_QPA_PLATFORM=offscreen python -W error::ResourceWarning -m unittest discover -s tests -p test_web_bridge_c2w1.py -v: PASS (3/3).
-- QT_QPA_PLATFORM=offscreen python -W error::ResourceWarning -m unittest discover -s tests -p test_web_contract_workspace_w3a.py -v: PASS (10/10).
-- py_compile on changed native foundation modules: PASS.
-- Complete suite: Ran 410 tests in 311.634s — OK; exit code 0.
+- QT_QPA_PLATFORM=offscreen python -W error::ResourceWarning -m unittest discover -s tests -p test_foundation.py -v: PASS (20/20, exit 0).
+- QT_QPA_PLATFORM=offscreen python -W error::ResourceWarning -m unittest discover -s tests -p test_web_bridge_c2w1.py -v: PASS (3/3, exit 0).
+- py_compile of modified native modules: PASS.
+- Complete suite: Ran 411 tests in 267.220s — OK; exit code 0.
 - git diff --check: PASS.
 
-Visual/manual validation
-- Offscreen native validation passed.
-- No production WebEngine screenshot was captured in this closure pass.
-- Windows light-theme and dark-theme launch proof remains final QA-DS-01 work; no dark-theme visual claim is made.
-
-Deviations
-- None.
-
-Remaining debt
-- IMP-DS-01B: Contracts and Clients visual migration.
-- IMP-DS-01C: Settings visual migration.
-- IMP-DS-01D: remaining contract/detail/document visual migration and cross-screen QA.
+Manual QA limitation
+- QWebEngine deliberately does not start under QT_QPA_PLATFORM=offscreen, so the actual hybrid WebHost/Qt transition is not fabricated in automation.
+- The required desktop sequence remains: Contracts → Clients → Paramètres → Clients → Contrats → Paramètres → Contrats; every Contracts/Clients destination must be Web and Settings must be Qt.

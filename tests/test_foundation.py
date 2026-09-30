@@ -216,6 +216,26 @@ class UiShellTests(unittest.TestCase):
                 self.assertEqual(window.shell.current_surface, destination)
             window.close()
 
+    def test_external_landings_handle_normal_navigation_but_not_workflows(self):
+        with scratch() as temporary:
+            window = self.ready_window(temporary)
+            shell = window.shell
+            landings: list[str] = []
+            shell.set_external_landing("Contrats", lambda: landings.append("CONTRACTS"))
+            shell.set_external_landing("Clients & installations", lambda: landings.append("CLIENTS"))
+            shell.navigate("Contrats")
+            shell.navigate("Clients & installations")
+            self.assertEqual(landings, ["CONTRACTS", "CLIENTS"])
+            shell.navigate("Contrats", workflow=True)
+            self.assertEqual(shell.current_surface, "Contrats")
+            shell.navigate("Clients & installations", workflow=True)
+            self.assertEqual(shell.current_surface, "Clients & installations")
+            self.assertEqual(landings, ["CONTRACTS", "CLIENTS"])
+            shell.navigate("Paramètres")
+            self.assertEqual(shell.current_surface, "Paramètres")
+            self.assertEqual(shell.navigation_labels, NAVIGATION_LABELS)
+            window.close()
+
     def test_bootstrap_view_replaces_permanent_navigation(self):
         with scratch() as temporary:
             context = build_application_context(
