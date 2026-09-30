@@ -180,6 +180,19 @@ class WebContractReviewW3C1Tests(ReviewCase):
         self.assertEqual(html.count('class=\"review-block valid\"'), 9)
         self.assertEqual(html.count('>Modifier</button>'), 9)
         self.assertIn('class=\"primary review-generation-action\" disabled', html)
+        css = (root / "contract-workspace-ds01d.css").read_text(encoding="utf-8")
+        for selector in (
+            ".review-business-state.valid", ".review-business-state.error",
+            ".review-block.valid", ".review-block.error",
+            ".review-generation-action.is-busy",
+        ):
+            self.assertIn(selector, css)
+        for obsolete_selector in (".review-block.complete", ".review-block.warning", ".review-block.blocking"):
+            self.assertNotIn(obsolete_selector, css)
+        engine.evaluate("contractGenerationRunning=true;")
+        busy = engine.evaluate("renderContractReview(" + json.dumps(self.bridge.contract_workspace_snapshot()) + ")").toString()
+        self.assertIn('class=\"primary review-generation-action is-busy\" disabled aria-busy=\"true\"', busy)
+        self.assertIn("Génération en cours…", busy)
         for forbidden in ("INDEXED", "placeholder", "source_hash", "R01", "TO_SIGN"):
             self.assertNotIn(forbidden, html)
 

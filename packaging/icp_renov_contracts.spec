@@ -26,6 +26,7 @@ WEB_UI_FILES = (
     "contract-conditions-b3.css",
     "contract-review.css",
     "contract-documents.css",
+    "contract-workspace-ds01d.css",
 )
 
 if platform.system() != "Windows" or struct.calcsize("P") != 8:

@@ -18,6 +18,7 @@ WEB_UI_FILES = (
     "index.html", "app.js", "contract-workspace.js", "app.css", "clients.css",
     "contract-workspace.css", "contract-conditions.css", "contract-conditions-b2.css",
     "contract-conditions-b3.css", "contract-review.css", "contract-documents.css",
+    "contract-workspace-ds01d.css",
 )
 UI_CONTROL_ASSETS = ("chevron-down.svg", "chevron-up.svg", "check.svg")
 FORBIDDEN_WEBENGINE_FLAGS = (

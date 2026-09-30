@@ -204,5 +204,25 @@ class WebContractWorkspaceW3ATests(unittest.TestCase):
         for forbidden in ("patchContract", "updateEntity", "dispatchContract", "exec(", "eval("):
             self.assertNotIn(forbidden, bridge)
 
+    def test_workspace_consumes_the_ds01d_visual_primitives_without_changing_step_authority(self):
+        root = Path(__file__).parents[1] / "src" / "icp_renov_contracts" / "ui_web"
+        workspace_js = (root / "contract-workspace.js").read_text(encoding="utf-8")
+        workspace_css = (root / "contract-workspace-ds01d.css").read_text(encoding="utf-8")
+        index = (root / "index.html").read_text(encoding="utf-8")
+
+        self.assertIn('href="contract-workspace-ds01d.css"', index)
+        self.assertIn('type="button" class="contract-step', workspace_js)
+        self.assertIn('aria-current="step"', workspace_js)
+        self.assertIn("const disabled = index > 2", workspace_js)
+        self.assertIn("disabled aria-disabled=\"true\"", workspace_js)
+        self.assertIn('documentsStep.removeAttribute("aria-disabled")', workspace_js)
+        for primitive in (
+            "/* IMP-DS-01D: Contract workspace visual migration.",
+            ".contract-step.active", ".contract-step:disabled", ".contract-step:focus-visible",
+            ".review-generation-action:disabled", ".review-generation-action.is-busy",
+            ".abandonment-zone", "var(--brand)", "var(--danger)",
+        ):
+            self.assertIn(primitive, workspace_css)
+
 
 if __name__ == "__main__": unittest.main()

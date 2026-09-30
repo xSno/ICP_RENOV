@@ -1,95 +1,47 @@
-IMP-DS-01C — Settings Visual Normalization
+IMP-DS-01D — Pre-manual-QA closure patch
 
 Baseline
-- Starting HEAD: 510f7215510deae44970415daf1acc8e49119f8f (IMP-DS-01B migrate contracts and clients visuals).
-- Current HEAD: 510f7215510deae44970415daf1acc8e49119f8f.
-- Initial worktree: clean. No commit was created.
+- Starting HEAD: 9d876a84b7d7cff903ac44f60d26514f1c2a1efe (IMP-DS-01C normalize settings visuals).
+- Current HEAD: 9d876a84b7d7cff903ac44f60d26514f1c2a1efe.
+- The accepted uncommitted IMP-DS-01D worktree was preserved. No commit was created.
+
+Closure corrections
+- Review CSS now targets only the renderer’s real semantic classes: review-business-state.valid/error and review-block.valid/error. The unused complete/warning/blocking review-block selectors were removed.
+- Valid uses the DS success family. Error uses a restrained DS error surface and error marker. Review wording, issue text, correction routing and Review authority are unchanged.
+- The existing contractGenerationRunning authority now adds is-busy and aria-busy=true to the active generation confirmation control, while retaining its existing text and blocking behavior. The Step 3 control projects the same busy presentation if rendered during the operation; normal disabled remains neutral.
+- Existing signed-copy markup is mapped directly: signed-copy-notice is attention, signed-copy-valid is success, and signed-copy-missing is error. No signed-PDF policy changed.
+- The existing item.latest boolean now adds revision-card current, enabling the previously defined latest-revision presentation without deriving new state or changing ordering.
+- Correction and abandonment confirmation controls preserve their existing listeners and flows, but now use the shared quiet-danger treatment rather than routine primary blue. Annuler remains secondary.
 
 Files changed
-- src/icp_renov_contracts/ui/styles.py
-- src/icp_renov_contracts/ui/settings_view.py
-- src/icp_renov_contracts/ui/models_settings_view.py
-- src/icp_renov_contracts/ui/numbering_alerts_view.py
-- src/icp_renov_contracts/ui/generation_diagnostic_view.py
-- tests/test_foundation.py
-
-Shared Settings normalization
-- Secondary navigation is a compact DS surface with its accepted five existing sections, selected/hover states and unchanged navigation behavior.
-- Shared QSS now supplies Settings cards, read-only display values, tertiary and sensitive action levels, local info/warning feedback, compact Models table treatment, token-based borders/radii and visible focus inherited from the foundation.
-- The permanent application sidebar and hybrid routing are untouched. Long company/numbering content keeps its existing predictable scroll area.
-
-Société
-- Existing form groups retain their fields, order, requiredness and save behavior while adopting the shared card hierarchy.
-- Logo actions remain unchanged; storage path is presented as a read-only display value and local feedback uses the existing success/error authority.
-
-Modèles
-- The governed table now has compact DS headers/rows, bounded content-driven height (up to 360px) and status colour families: Disponible green, À valider amber, Archivé neutral.
-- Ajouter un modèle remains primary; Nouvelle version remains secondary. Exact version opening, data, availability and archive authority are unchanged.
-
-Numérotation & alertes
-- Numbering, preview/read-only values, alerts and feedback use shared cards and feedback primitives.
-- Corriger le prochain numéro is visibly isolated as a quiet sensitive administrative action; its confirmation and numbering authority are unchanged.
-
-Stockage & sauvegarde
-- Dossier de travail, Sauvegardes and Restauration remain distinct cards.
-- Sauvegarder maintenant remains primary; configuration/open-folder actions are secondary or tertiary; restoration is separated as a non-destructive new-workspace action. BackupService and RestoreService are untouched.
-
-Diagnostic génération
-- Selector widths are bounded for practical desktop density; workstation/source states use compact DS feedback surfaces.
-- Action hierarchy is normalized only. LibreOffice checks, selection behavior, diagnostic ordering and all decision authority are unchanged.
+- diff.txt
+- recap.txt
+- packaging/icp_renov_contracts.spec
+- src/icp_renov_contracts/ui_web/contract-workspace.js
+- src/icp_renov_contracts/ui_web/contract-workspace-ds01d.css (new)
+- src/icp_renov_contracts/ui_web/index.html
+- tests/test_packaging_foundation_c3b1.py
+- tests/test_web_contract_documents_w3d1.py
+- tests/test_web_contract_review_w3c1.py
+- tests/test_web_contract_workspace_w3a.py
 
 Behavior preservation
-- No domain, service, persistence, migration, validation, backup/restore, model/lifecycle, diagnostic authority, WebEngine surface, shell or routing behavior changed.
-- IMP-DS-01D was not started.
+- No Python/domain/service/persistence/WebChannel/route/ID/lifecycle/review/generation/numbering/signature/renewal/correction/abandonment or document-authority behavior changed.
+- No QA-DS-01 work, functional V1.0.1 backlog or IMP-DS-01C scope was started.
 
 Tests
-- QT_QPA_PLATFORM=offscreen python -W error::ResourceWarning -m unittest discover -s tests -p test_company_settings_s11.py -v: PASS (9/9, exit 0).
-- test_model_catalog_s12.py: PASS (22/22, exit 0).
-- test_settings_s13.py: PASS (9/9, exit 0).
-- test_backup_s14.py: PASS (3/3, exit 0).
-- test_generation_diagnostic_s15.py: PASS (3/3, exit 0).
-- test_foundation.py: PASS (22/22, exit 0).
-- Full suite: Ran 413 tests in 252.691s — OK; exit 0.
+- QT_QPA_PLATFORM=offscreen ..\\.venv\\Scripts\\python.exe -W error::ResourceWarning -m unittest -v test_web_contract_workspace_w3a test_web_contract_review_w3c1 test_web_contract_documents_w3d1: Ran 28 tests in 19.160s — OK.
+- Signature/D2, renewal/D3, end/D4, intervention/D5 and lifecycle suites were launched as targeted regression coverage; their exercised output was green.
+- Full suite: QT_QPA_PLATFORM=offscreen .venv\\Scripts\\python.exe -W error::ResourceWarning -m unittest discover -s tests -v: Ran 416 tests in 247.244s — OK (exit 0).
 - git diff --check: PASS.
 
 Visual validation
-- No interactive graphical Qt session or screenshot capture is available in this environment; no visual proof is claimed.
-- Manual QA remains required for the five Settings sections at desktop and approximately 1366×768, including Windows light/dark environment verification.
+- No interactive graphical WebEngine session or screenshot capture was run in this environment; no visual proof is claimed.
+- Manual QA remains required for Steps 1–4, busy generation, signed-copy NONE/VALID/MISSING, latest revision, correction/abandonment confirmations and the 1366×768 desktop layout.
 
 Deviations
 - None.
 
 Remaining debt
-- IMP-DS-01D: Contract workspace, Conditions, Review and Documents visual migration.
-- Unrelated V1.0.1 backlog: functional/copy cleanup, search focus, advanced-admin separation, diagnostics policy changes and non-visual product work.
-
-IMP-DS-01C closure patch
-- Settings secondary navigation remains the same five-section card and is now explicitly top-aligned at its natural content height.
-- Diagnostic feedback is a single reusable, repolished tone primitive: empty feedback is hidden; prerequisites use warning; test failure uses error; success uses success.
-- Workstation capability rows retain their exact diagnostic wording and decision authority while using compact shared DS status rows for available, unavailable and version-mismatch conditions.
-- Closure validation: targeted suites remain 9/9, 22/22, 9/9, 3/3, 3/3 and 22/22 PASS; full suite Ran 413 tests in 236.690s — OK, exit 0.
-
-IMP-DS-01C native Qt parity pass
-
-IMP-DS-01C final manual-QA closure patch
-
-IMP-DS-01C Models whole-row hover micro-patch
-- Models no longer uses the misleading per-cell QSS hover selector. A table-local delegate and mouse-tracking table maintain a transient hovered row without mutating Qt selection.
-- Only the previous and current row rectangles repaint when the pointer changes row; the viewport/table leave clears the state. The embedded `Ouvrir` action also forwards hover tracking so the Actions cell participates.
-- Existing SelectRows / SingleSelection semantics, `Nouvelle version`, double-click opening and the exact `Ouvrir` route are unchanged.
-- Validation: test_model_catalog_s12.py 22/22 PASS; test_foundation.py 23/23 PASS; full suite Ran 415 tests in 236.083s — OK, exit 0.
-- Targeted validation: company 9/9, models 22/22, settings 9/9, backup 3/3, diagnostic 3/3, foundation 23/23 and packaging foundation 7/7 PASS.
-- Final full suite: Ran 415 tests in 231.452s — OK, exit 0.
-- Qt permanent sidebar now follows the accepted Web composition: blue three-line application mark, vector navigation icons, bordered `Mode local` card with `Données conservées uniquement sur ce poste.`, then a separated `Sauvegarde` block retaining the authoritative summary.
-- ComboBox and SpinBox chevrons, and the checked CheckBox glyph, are local offline SVG assets. QSS no longer constructs arrows from borders. The assets are declared in setuptools package data and the PyInstaller spec.
-- The generic Settings button rule is now followed by explicit scoped primary, disabled-primary, secondary, tertiary, sensitive and busy selectors. Disabled primary uses a neutral gray; tertiary and sensitive actions cannot fall back to the generic white control.
-- The Settings navigation card has a 236px natural minimum width so `Numérotation & alertes` remains whole. The Models overview is explicitly top-aligned and keeps free space below its content-sized table.
-- No domain/service/persistence/routing/diagnostic decision behavior changed; IMP-DS-01D was not started.
-- Offscreen Qt raster inspection confirms the local SVG chevrons and explicit check mark render. Interactive Windows light/dark manual validation remains the only outstanding environment-specific evidence.
-
-IMP-DS-01C native Qt parity pass (accepted preceding work)
-- The permanent 232px sidebar now uses local inline-SVG vector icons for its three navigation entries plus local/backup status rows; routing, labels, active marker and bottom anchoring are unchanged.
-- Shared QSS removes the remaining obvious platform chrome from ComboBox popups, AbstractSpinBox controls, CheckBox indicators and scrollbars, while retaining focus, keyboard operation and disabled states.
-- Models list gives the status and action columns enough room for full labels; the detail page now uses compact return/source actions and read-only display values within the existing governed cards.
-- Storage actions and Diagnostic test/selector actions inherit compact secondary/tertiary/primary treatment rather than stretched native controls.
-- Final validation: targeted suites PASS (9/9, 22/22, 9/9, 3/3, 3/3, 23/23); full suite Ran 414 tests in 238.716s — OK, exit 0.
+- QA-DS-01 manual visual review only.
+- Functional V1.0.1 backlog remains intentionally untouched.

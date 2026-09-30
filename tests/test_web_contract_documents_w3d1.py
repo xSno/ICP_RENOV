@@ -180,6 +180,15 @@ class WebContractDocumentsW3D1Tests(GenerationCase):
         correction = js[js.index("function openCorrectionConfirmation"):js.index("function openRecordSentModal")]
         self.assertNotIn("bridge.reopenContractForCorrection", correction.split("addEventListener", 1)[0])
         self.assertIn("bridge.reopenContractForCorrection", correction)
+        abandonment = js[js.index("function openAbandonConfirmation"):js.index("function openGenerationConfirmation")]
+        self.assertIn('button-danger-quiet correction-confirm-action', correction)
+        self.assertIn('button-danger-quiet abandon-confirm-action', abandonment)
+        self.assertIn("bridge.abandonContract", abandonment)
+        self.assertIn("revision-card ${item.latest ? 'current' : ''}", d1)
+        css = (root / "contract-workspace-ds01d.css").read_text(encoding="utf-8")
+        for selector in (".signed-copy-notice", ".signed-copy-valid", ".signed-copy-missing", ".revision-card.current"):
+            self.assertIn(selector, css)
+        self.assertNotIn(".signed-copy-zone", css)
         engine = QJSEngine()
         engine.evaluate("function esc(value){return String(value ?? '');} var contractDocumentsError='';")
         evaluated = engine.evaluate(d1)
