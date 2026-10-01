@@ -140,8 +140,59 @@ class WebContractGenerationW3C2Tests(GenerationCase):
         self.assertIn("finally", confirmation)
         self.assertIn("contractGenerationRunning = false", confirmation)
         self.assertIn("renderContractWorkspace(contractWorkspaceState)", confirmation)
+        self.assertIn("const contractId = contractWorkspaceState.contract.id", confirmation)
+        self.assertIn("confirm.disabled = true", confirmation)
+        self.assertIn("confirm.classList.add('is-busy')", confirmation)
+        self.assertIn("confirm.setAttribute('aria-busy', 'true')", confirmation)
+        self.assertIn("cancel.disabled = true", confirmation)
+        self.assertEqual(confirmation.count("requestAnimationFrame"), 2)
+        self.assertLess(confirmation.index("contractGenerationRunning = true"), confirmation.index("requestAnimationFrame"))
+        self.assertLess(confirmation.index("requestAnimationFrame"), confirmation.index("bridge.generateOfficialContract"))
+        self.assertIn("bridge.generateOfficialContract(contractId", confirmation)
+        self.assertIn("catch (error)", confirmation)
+        self.assertGreaterEqual(confirmation.count("contractGenerationRunning = false"), 2)
+        self.assertIn("if (contractGenerationRunning || !contractWorkspaceState?.official_generation?.allowed) return;", confirmation)
+        self.assertIn("if (!generation?.allowed || contractGenerationRunning) return;", opening)
         for copy in ("Annuler", "Générer le DOCX et le PDF", "Numéro prévu", "À signer", "Si la génération échoue"):
             self.assertIn(copy, opening)
+
+    def test_generation_busy_state_yields_two_frames_before_one_bridge_call_and_recovers(self):
+        application = QCoreApplication.instance() or QCoreApplication([])
+        self.assertIsNotNone(application)
+        js = (Path(__file__).parents[1] / "src" / "icp_renov_contracts" / "ui_web" / "contract-workspace.js").read_text(encoding="utf-8")
+        start = js.index("function closeGenerationConfirmation")
+        end = js.index("function renderContractDocuments", start)
+        engine = QJSEngine()
+        harness = """
+            var contractGenerationRunning=false, contractSaveFailure='', renders=0, removed=0, frames=[];
+            var contractWorkspaceState={contract:{id:'exact-contract'},official_generation:{allowed:true}};
+            var confirm={disabled:false,classList:{add:function(value){this.busy=value;}},setAttribute:function(name,value){this[name]=value;},textContent:''};
+            var cancel={disabled:false}; var overlay={remove:function(){removed++;}};
+            var document={querySelector:function(selector){if(selector==='.generation-confirm-action')return confirm;if(selector==='.generation-cancel-action')return cancel;if(selector==='.generation-modal-overlay')return overlay;return null;}};
+            function requestAnimationFrame(callback){frames.push(callback);}
+            function renderContractWorkspace(){renders++;}
+            var bridge={calls:0,generateOfficialContract:function(id,callback){this.calls++;this.id=id;callback({ok:true});}};
+        """
+        self.assertFalse(engine.evaluate(harness).isError())
+        evaluated = engine.evaluate(js[start:end]); self.assertFalse(evaluated.isError(), evaluated.toString())
+        engine.evaluate("confirmOfficialGeneration();")
+        self.assertTrue(engine.evaluate("contractGenerationRunning").toBool())
+        self.assertEqual(engine.evaluate("frames.length").toInt(), 1)
+        self.assertEqual(engine.evaluate("bridge.calls").toInt(), 0)
+        self.assertTrue(engine.evaluate("confirm.disabled && cancel.disabled && confirm.classList.busy === 'is-busy' && confirm['aria-busy'] === 'true'").toBool())
+        engine.evaluate("frames.shift()();")
+        self.assertEqual(engine.evaluate("frames.length").toInt(), 1)
+        self.assertEqual(engine.evaluate("bridge.calls").toInt(), 0)
+        engine.evaluate("frames.shift()();")
+        self.assertEqual(engine.evaluate("bridge.calls").toInt(), 1)
+        self.assertEqual(engine.evaluate("bridge.id").toString(), "exact-contract")
+        self.assertFalse(engine.evaluate("contractGenerationRunning").toBool())
+        self.assertEqual(engine.evaluate("renders").toInt(), 1)
+
+        engine.evaluate("bridge.generateOfficialContract=function(){throw new Error('bridge failure');}; confirmOfficialGeneration(); frames.shift()(); frames.shift()();")
+        self.assertFalse(engine.evaluate("contractGenerationRunning").toBool())
+        self.assertEqual(engine.evaluate("bridge.calls").toInt(), 1)
+        self.assertEqual(engine.evaluate("contractSaveFailure").toString(), "bridge failure")
 
     def test_complete_success_creates_exact_r01_snapshot_event_number_and_to_sign(self):
         result = self.bridge.generateOfficialContract(self.contract.id)

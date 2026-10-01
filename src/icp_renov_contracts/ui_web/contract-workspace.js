@@ -734,22 +734,32 @@ function closeGenerationConfirmation() {
 
 function confirmOfficialGeneration() {
   if (contractGenerationRunning || !contractWorkspaceState?.official_generation?.allowed) return;
+  const contractId = contractWorkspaceState.contract.id;
   contractGenerationRunning = true;
   const confirm = document.querySelector('.generation-confirm-action');
   const cancel = document.querySelector('.generation-cancel-action');
   if (confirm) { confirm.disabled = true; confirm.classList.add('is-busy'); confirm.setAttribute('aria-busy', 'true'); confirm.textContent = 'Génération en cours…'; }
   if (cancel) cancel.disabled = true;
-  bridge.generateOfficialContract(contractWorkspaceState.contract.id, result => {
+  requestAnimationFrame(() => requestAnimationFrame(() => {
     try {
-      if (!result?.ok && !contractWorkspaceState?.official_generation?.feedback) {
-        contractSaveFailure = result?.message || 'La génération a été interrompue.';
-      }
-    } finally {
+      bridge.generateOfficialContract(contractId, result => {
+        try {
+          if (!result?.ok && !contractWorkspaceState?.official_generation?.feedback) {
+            contractSaveFailure = result?.message || 'La génération a été interrompue.';
+          }
+        } finally {
+          contractGenerationRunning = false;
+          document.querySelector('.generation-modal-overlay')?.remove();
+          if (contractWorkspaceState) renderContractWorkspace(contractWorkspaceState);
+        }
+      });
+    } catch (error) {
+      contractSaveFailure = error?.message || 'La génération a été interrompue.';
       contractGenerationRunning = false;
       document.querySelector('.generation-modal-overlay')?.remove();
       if (contractWorkspaceState) renderContractWorkspace(contractWorkspaceState);
     }
-  });
+  }));
 }
 
 function openGenerationConfirmation() {

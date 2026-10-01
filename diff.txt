@@ -1,214 +1,120 @@
-BUG-SEARCH-01/02 — complete current worktree review diff
-Generated against HEAD 75c8a740cfe096451bd7dbe2f5b0a26c7d3f4e4d.
+GEN-01/02 — complete current worktree review diff
+Generated against HEAD d493fa5b8dbd843a9c6b580007cdbee831f57ba3.
 diff.txt is intentionally excluded from its own patch: including its current diff would recursively change the artifact. No untracked files exist.
 Trailing whitespace within displayed diff lines is represented by U+2420 (space) or U+21E5 (tab), so this artifact remains git-diff --check clean.
 
 Current git status --short
 --------------------------
- M diff.txt
- M recap.txt
- M src/icp_renov_contracts/ui_web/app.js
- M tests/test_web_bridge_c2w1.py
- M tests/test_web_clients_d1.py
+ M src/icp_renov_contracts/ui_web/contract-workspace.js
+ M tests/test_web_contract_generation_w3c2.py
 
 Tracked changes against HEAD (excluding diff.txt)
 -------------------------------------------------
-diff --git a/recap.txt b/recap.txt
-index ae51b82..bd83e6b 100644
---- a/recap.txt
-+++ b/recap.txt
-@@ -1,47 +1,42 @@
--IMP-DS-01D — Pre-manual-QA closure patch
-+BUG-SEARCH-01/02 — Search Focus Preservation
+diff --git a/src/icp_renov_contracts/ui_web/contract-workspace.js b/src/icp_renov_contracts/ui_web/contract-workspace.js
+index 4673dc8..b7f2171 100644
+--- a/src/icp_renov_contracts/ui_web/contract-workspace.js
++++ b/src/icp_renov_contracts/ui_web/contract-workspace.js
+@@ -734,22 +734,32 @@ function closeGenerationConfirmation() {
 ␠
- Baseline
--- Starting HEAD: 9d876a84b7d7cff903ac44f60d26514f1c2a1efe (IMP-DS-01C normalize settings visuals).
--- Current HEAD: 9d876a84b7d7cff903ac44f60d26514f1c2a1efe.
--- The accepted uncommitted IMP-DS-01D worktree was preserved. No commit was created.
--
--Closure corrections
--- Review CSS now targets only the renderer’s real semantic classes: review-business-state.valid/error and review-block.valid/error. The unused complete/warning/blocking review-block selectors were removed.
--- Valid uses the DS success family. Error uses a restrained DS error surface and error marker. Review wording, issue text, correction routing and Review authority are unchanged.
--- The existing contractGenerationRunning authority now adds is-busy and aria-busy=true to the active generation confirmation control, while retaining its existing text and blocking behavior. The Step 3 control projects the same busy presentation if rendered during the operation; normal disabled remains neutral.
--- Existing signed-copy markup is mapped directly: signed-copy-notice is attention, signed-copy-valid is success, and signed-copy-missing is error. No signed-PDF policy changed.
--- The existing item.latest boolean now adds revision-card current, enabling the previously defined latest-revision presentation without deriving new state or changing ordering.
--- Correction and abandonment confirmation controls preserve their existing listeners and flows, but now use the shared quiet-danger treatment rather than routine primary blue. Annuler remains secondary.
-+- Starting HEAD: 75c8a740cfe096451bd7dbe2f5b0a26c7d3f4e4d (IMP-DS-01D migrate contract workspace visuals).
-+- Starting worktree: clean.
-+- Current HEAD: 75c8a740cfe096451bd7dbe2f5b0a26c7d3f4e4d. No commit was created.
-+
-+Root cause
-+- Contracts and Clients shared the same rerender lifecycle: input oninput calls the Python UiBridge, the authoritative snapshot refreshes, then WebEngine replaces #app through innerHTML.
-+- The active search input was destroyed on every character, so browser focus and caret/selection were lost.
-+
-+Implementation
-+- app.js gives the two inputs stable identifiers: contracts-search and clients-search.
-+- Shared captureSearchFocus / restoreSearchFocus helpers capture identity, selectionStart, selectionEnd and selectionDirection only when one of these search inputs is active.
-+- After the ordinary render, focus and selection are restored only to the recreated matching input. Selection boundaries are clamped to the current input value length.
-+- No focus is restored when focus had moved elsewhere; Tab and click-away behavior therefore remain native and no focus trap is introduced.
-+- Python UiBridge filtering, refresh, search matching and routing remain authoritative and unchanged.
-␠
- Files changed
--- diff.txt
-+- src/icp_renov_contracts/ui_web/app.js
-+- tests/test_web_bridge_c2w1.py
-+- tests/test_web_clients_d1.py
- - recap.txt
--- packaging/icp_renov_contracts.spec
--- src/icp_renov_contracts/ui_web/contract-workspace.js
--- src/icp_renov_contracts/ui_web/contract-workspace-ds01d.css (new)
--- src/icp_renov_contracts/ui_web/index.html
--- tests/test_packaging_foundation_c3b1.py
--- tests/test_web_contract_documents_w3d1.py
--- tests/test_web_contract_review_w3c1.py
--- tests/test_web_contract_workspace_w3a.py
--
--Behavior preservation
--- No Python/domain/service/persistence/WebChannel/route/ID/lifecycle/review/generation/numbering/signature/renewal/correction/abandonment or document-authority behavior changed.
--- No QA-DS-01 work, functional V1.0.1 backlog or IMP-DS-01C scope was started.
-+- diff.txt
-␠
- Tests
--- QT_QPA_PLATFORM=offscreen ..\\.venv\\Scripts\\python.exe -W error::ResourceWarning -m unittest -v test_web_contract_workspace_w3a test_web_contract_review_w3c1 test_web_contract_documents_w3d1: Ran 28 tests in 19.160s — OK.
--- Signature/D2, renewal/D3, end/D4, intervention/D5 and lifecycle suites were launched as targeted regression coverage; their exercised output was green.
--- Full suite: QT_QPA_PLATFORM=offscreen .venv\\Scripts\\python.exe -W error::ResourceWarning -m unittest discover -s tests -v: Ran 416 tests in 247.244s — OK (exit 0).
--- git diff --check: PASS.
--
--Visual validation
--- No interactive graphical WebEngine session or screenshot capture was run in this environment; no visual proof is claimed.
--- Manual QA remains required for Steps 1–4, busy generation, signed-copy NONE/VALID/MISSING, latest revision, correction/abandonment confirmations and the 1366×768 desktop layout.
--
--Deviations
--- None.
--
--Remaining debt
--- QA-DS-01 manual visual review only.
--- Functional V1.0.1 backlog remains intentionally untouched.
-+- Combined targeted Web bridge/register/clients/foundation command: 43 tests, with one existing QApplication palette order-sensitive failure (#efefef instead of #eef3f6).
-+- Isolated foundation suite: 23/23 PASS.
-+- Full suite: QT_QPA_PLATFORM=offscreen .venv\\Scripts\\python.exe -W error::ResourceWarning -m unittest discover -s tests -v — 418 tests in 229.651s, OK, exit 0.
-+- git diff --check: PASS before review-artifact refresh; final verification follows this artifact refresh.
-+
-+Manual validation still required
-+- Contracts and Clients: continuously type 8–10 characters; use Backspace/Delete; move caret; insert/delete; select and replace; clear and confirm list restoration; Tab away; then click another control and confirm focus is not stolen.
-+- No interactive WebEngine session or screenshot is claimed by this automated pass.
-+
-+Scope preservation
-+- No search semantics, Design System styling, WebChannel contract, Python authority, routing, filters, status colors or unrelated backlog area changed.
-+
-+Limitations / remaining debt
-+- The repository has no DOM-capable JavaScript test harness, so the focus/caret regression is source-level coverage plus required manual WebEngine QA.
-+- The isolated targeted aggregate showed a Qt QApplication palette test-order sensitivity; the same foundation suite in isolation and the complete standard suite passed.
-+- No commit has been made.
-diff --git a/src/icp_renov_contracts/ui_web/app.js b/src/icp_renov_contracts/ui_web/app.js
-index 42575a5..f607e97 100644
---- a/src/icp_renov_contracts/ui_web/app.js
-+++ b/src/icp_renov_contracts/ui_web/app.js
-@@ -422,9 +422,34 @@ document.addEventListener('mousedown', event => {
-   if (siteMenu && !siteMenu.popover.contains(event.target) && !siteMenu.trigger.contains(event.target)) closeSiteMenu();
- });
-␠
-+const SEARCH_INPUT_IDS = new Set(['contracts-search', 'clients-search']);
-+
-+function captureSearchFocus() {
-+  const input = document.activeElement;
-+  if (!(input instanceof HTMLInputElement) || !SEARCH_INPUT_IDS.has(input.id)) return null;
-+  return {
-+    id: input.id,
-+    start: input.selectionStart ?? input.value.length,
-+    end: input.selectionEnd ?? input.value.length,
-+    direction: input.selectionDirection || 'none',
-+  };
-+}
-+
-+function restoreSearchFocus(focus) {
-+  if (!focus) return;
-+  const input = document.getElementById(focus.id);
-+  if (!(input instanceof HTMLInputElement)) return;
-+  input.focus();
-+  const length = input.value.length;
-+  const start = Math.min(Math.max(0, focus.start), length);
-+  const end = Math.min(Math.max(start, focus.end), length);
-+  input.setSelectionRange(start, end, focus.direction);
-+}
-+
- function render(state) {
--  if (state.page === 'CONTRACT_WORKSPACE') { renderContractWorkspace(state); return; }
--  if (state.page === 'CLIENTS') { renderClients(state); return; }
-+  const searchFocus = captureSearchFocus();
-+  if (state.page === 'CONTRACT_WORKSPACE') { renderContractWorkspace(state); restoreSearchFocus(searchFocus); return; }
-+  if (state.page === 'CLIENTS') { renderClients(state); restoreSearchFocus(searchFocus); return; }
-   const rows = state.rows.map(row => `<tr class="contract-row" onclick="bridge.openContract('${row.id}')">
-     <td><strong>${esc(row.number)}</strong>${updateLine(row.updated)}</td>
-     <td><strong>${esc(row.client)}</strong>${row.site ? `<small>${icon('pin')}${esc(row.site)}</small>` : ''}</td>
-@@ -444,9 +469,10 @@ function render(state) {
-   </aside><main class="main"><header class="head"><div><div class="eyebrow">ACCUEIL OPÉRATIONNEL</div><h1>Contrats</h1><p>Retrouvez vos contrats et les actions à traiter.</p></div>
-     <button class="primary" onclick="bridge.createContract()">${icon('plus')}Nouveau contrat</button></header>
-     <section class="attention">${icon('bell')}<span><b>${actionLabel}</b><br><small>maintenant ou prochainement</small></span><button class="ghost" onclick="bridge.setFilter('ACTIONS')">Afficher les actions ${icon('chevron')}</button><span class="divider"></span><span>${icon('backup')} ${esc(backup)}</span><button class="ghost" onclick="bridge.saveBackup()">Sauvegarder maintenant</button></section>
--    <section class="toolbar"><label class="search">${icon('search')}<input value="${esc(state.search)}" placeholder="Rechercher par numéro, client ou site" oninput="bridge.setSearch(this.value)"></label><span class="tabs">${state.filters.map(filter => `<button class="${filter.active ? 'active' : ''}" onclick="bridge.setFilter('${filter.id}')">${filter.label}</button>`).join('')}</span></section>
-+    <section class="toolbar"><label class="search">${icon('search')}<input id="contracts-search" value="${esc(state.search)}" placeholder="Rechercher par numéro, client ou site" oninput="bridge.setSearch(this.value)"></label><span class="tabs">${state.filters.map(filter => `<button class="${filter.active ? 'active' : ''}" onclick="bridge.setFilter('${filter.id}')">${filter.label}</button>`).join('')}</span></section>
-     <div class="shell"><table><thead><tr><th>Contrat</th><th>Client & site</th><th>Statut</th><th>Échéance</th><th>Action / information</th><th class="docs">Documents</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
-   </main></div>`;
-+  restoreSearchFocus(searchFocus);
+ function confirmOfficialGeneration() {
+   if (contractGenerationRunning || !contractWorkspaceState?.official_generation?.allowed) return;
++  const contractId = contractWorkspaceState.contract.id;
+   contractGenerationRunning = true;
+   const confirm = document.querySelector('.generation-confirm-action');
+   const cancel = document.querySelector('.generation-cancel-action');
+   if (confirm) { confirm.disabled = true; confirm.classList.add('is-busy'); confirm.setAttribute('aria-busy', 'true'); confirm.textContent = 'Génération en cours…'; }
+   if (cancel) cancel.disabled = true;
+-  bridge.generateOfficialContract(contractWorkspaceState.contract.id, result => {
++  requestAnimationFrame(() => requestAnimationFrame(() => {
+     try {
+-      if (!result?.ok && !contractWorkspaceState?.official_generation?.feedback) {
+-        contractSaveFailure = result?.message || 'La génération a été interrompue.';
+-      }
+-    } finally {
++      bridge.generateOfficialContract(contractId, result => {
++        try {
++          if (!result?.ok && !contractWorkspaceState?.official_generation?.feedback) {
++            contractSaveFailure = result?.message || 'La génération a été interrompue.';
++          }
++        } finally {
++          contractGenerationRunning = false;
++          document.querySelector('.generation-modal-overlay')?.remove();
++          if (contractWorkspaceState) renderContractWorkspace(contractWorkspaceState);
++        }
++      });
++    } catch (error) {
++      contractSaveFailure = error?.message || 'La génération a été interrompue.';
+       contractGenerationRunning = false;
+       document.querySelector('.generation-modal-overlay')?.remove();
+       if (contractWorkspaceState) renderContractWorkspace(contractWorkspaceState);
+     }
+-  });
++  }));
  }
 ␠
- function renderClients(state) {
-@@ -465,7 +491,7 @@ function renderClients(state) {
-   const linked = selected?.linked?.length ? selected.linked.map(contract => `<button class="linked-contract-row" onclick="bridge.openLinkedContract('${contract.id}')">${icon('file')}<span><strong>${esc(contract.number)}</strong><small>${esc(contract.secondary_display)}</small></span><span class="pill ${esc(contract.status_tone)}">${esc(contract.status_label)}</span>${icon('chevron')}</button>`).join('') : '<div class="empty-list">Aucun contrat lié</div>';
-   const clientHeaderAction = selected && !selected.archived ? '<button class="ghost">Modifier</button>' : '';
-   const clientArchiveZone = !selected ? '' : `<div class="archive-zone"><button type="button" class="archive-zone-action">${icon(selected.archived ? 'restore' : 'archive')}<span><b>${selected.archived ? 'Restaurer cette fiche' : 'Archiver cette fiche'}</b><small>${selected.archived ? 'La fiche redeviendra disponible dans les nouvelles sélections.' : 'La fiche sera retirée des nouvelles sélections ; les contrats historiques resteront accessibles.'}</small></span></button></div>`;
--  document.querySelector('#app').innerHTML = `<div class="app"><aside class="side"><div class="brand"><span class="brand-icon">${icon('air')}</span><span>ICP Renov<br><small>Contrats d’entretien</small></span></div><button type="button" class="nav" onclick="bridge.navigate('CONTRACTS')">${icon('file')}Contrats</button><button type="button" class="nav active" aria-current="page">${icon('users')}Clients & installations</button><button type="button" class="nav" onclick="bridge.navigate('SETTINGS')">${icon('settings')}Paramètres</button><div class="side-bottom"><div class="local-state">${icon('laptop')}<b>Mode local</b><small>Données conservées uniquement sur ce poste.</small></div><div class="backup-state">${icon('backup')}<small>Sauvegarde</small><b>${esc(backup)}</b></div></div></aside><main class="main"><header class="head"><div><div class="eyebrow">Données réutilisables</div><h1>Clients & installations</h1><p>Gérez les fiches maîtres sans modifier les snapshots des contrats.</p></div><button class="primary">${icon('plus')}Nouveau client</button></header><section class="client-workspace"><aside class="client-list-panel"><label class="search">${icon('search')}<input value="${esc(state.search)}" placeholder="Rechercher un client" oninput="bridge.setClientSearch(this.value)"></label><div class="archive-filter"><button class="${!state.archived ? 'active' : ''}" onclick="bridge.setClientArchived(false)">Actifs</button><button class="${state.archived ? 'active' : ''}" onclick="bridge.setClientArchived(true)">Archivés</button></div><div class="client-list">${list}</div></aside><section class="client-detail">${selected ? `<header class="client-detail-header"><span class="large-avatar">${esc(selected.name.slice(0,2).toUpperCase())}</span><div><div class="eyebrow">${esc(selected.type)}${selected.archived ? archiveBadge : ''}</div><h2>${esc(selected.name)}</h2><small>${esc(selected.email || selected.phone || '')}</small></div>${clientHeaderAction}</header><div class="notice-info"><b>Effet des modifications maître</b><br><small>Les modifications seront proposées pour les futurs contrats. Les brouillons déjà créés, contrats et révisions existants restent inchangés.</small></div><div class="detail-grid"><section class="detail-block"><h3>Identité & coordonnées</h3><dl>${selected.type ? `<div><dt>Type de fiche</dt><dd>${esc(selected.type === 'ORGANIZATION' ? 'Organisation' : selected.type === 'PERSON' ? 'Personne' : selected.type)}</dd></div>` : ''}${selected.name ? `<div><dt>Raison sociale</dt><dd>${esc(selected.name)}</dd></div>` : ''}${selected.legal_form ? `<div><dt>Forme juridique</dt><dd>${esc(selected.legal_form)}</dd></div>` : ''}${selected.siret ? `<div><dt>SIRET</dt><dd>${esc(selected.siret)}</dd></div>` : ''}${selected.address ? `<div><dt>Adresse</dt><dd>${esc(selected.address)}</dd></div>` : ''}</dl></section><section class="detail-block"><h3>Contact / repères</h3><dl>${selected.phone ? `<div><dt>Téléphone</dt><dd>${esc(selected.phone)}</dd></div>` : ''}${selected.email ? `<div><dt>E-mail</dt><dd>${esc(selected.email)}</dd></div>` : ''}${selected.billing_address ? `<div><dt>Adresse de facturation</dt><dd>${esc(selected.billing_address)}</dd></div>` : ''}${selected.internal_reference ? `<div><dt>Référence interne</dt><dd>${esc(selected.internal_reference)}</dd></div>` : ''}</dl></section></div><section class="installation-section"><h2>Sites & équipements</h2>${sites}</section><section class="linked-contracts"><h2>Contrats liés</h2>${linked}</section>${clientArchiveZone}` : '<div class="empty-list">Sélectionnez un client pour consulter sa fiche.</div>'}</section></section></main></div>`;
-+  document.querySelector('#app').innerHTML = `<div class="app"><aside class="side"><div class="brand"><span class="brand-icon">${icon('air')}</span><span>ICP Renov<br><small>Contrats d’entretien</small></span></div><button type="button" class="nav" onclick="bridge.navigate('CONTRACTS')">${icon('file')}Contrats</button><button type="button" class="nav active" aria-current="page">${icon('users')}Clients & installations</button><button type="button" class="nav" onclick="bridge.navigate('SETTINGS')">${icon('settings')}Paramètres</button><div class="side-bottom"><div class="local-state">${icon('laptop')}<b>Mode local</b><small>Données conservées uniquement sur ce poste.</small></div><div class="backup-state">${icon('backup')}<small>Sauvegarde</small><b>${esc(backup)}</b></div></div></aside><main class="main"><header class="head"><div><div class="eyebrow">Données réutilisables</div><h1>Clients & installations</h1><p>Gérez les fiches maîtres sans modifier les snapshots des contrats.</p></div><button class="primary">${icon('plus')}Nouveau client</button></header><section class="client-workspace"><aside class="client-list-panel"><label class="search">${icon('search')}<input id="clients-search" value="${esc(state.search)}" placeholder="Rechercher un client" oninput="bridge.setClientSearch(this.value)"></label><div class="archive-filter"><button class="${!state.archived ? 'active' : ''}" onclick="bridge.setClientArchived(false)">Actifs</button><button class="${state.archived ? 'active' : ''}" onclick="bridge.setClientArchived(true)">Archivés</button></div><div class="client-list">${list}</div></aside><section class="client-detail">${selected ? `<header class="client-detail-header"><span class="large-avatar">${esc(selected.name.slice(0,2).toUpperCase())}</span><div><div class="eyebrow">${esc(selected.type)}${selected.archived ? archiveBadge : ''}</div><h2>${esc(selected.name)}</h2><small>${esc(selected.email || selected.phone || '')}</small></div>${clientHeaderAction}</header><div class="notice-info"><b>Effet des modifications maître</b><br><small>Les modifications seront proposées pour les futurs contrats. Les brouillons déjà créés, contrats et révisions existants restent inchangés.</small></div><div class="detail-grid"><section class="detail-block"><h3>Identité & coordonnées</h3><dl>${selected.type ? `<div><dt>Type de fiche</dt><dd>${esc(selected.type === 'ORGANIZATION' ? 'Organisation' : selected.type === 'PERSON' ? 'Personne' : selected.type)}</dd></div>` : ''}${selected.name ? `<div><dt>Raison sociale</dt><dd>${esc(selected.name)}</dd></div>` : ''}${selected.legal_form ? `<div><dt>Forme juridique</dt><dd>${esc(selected.legal_form)}</dd></div>` : ''}${selected.siret ? `<div><dt>SIRET</dt><dd>${esc(selected.siret)}</dd></div>` : ''}${selected.address ? `<div><dt>Adresse</dt><dd>${esc(selected.address)}</dd></div>` : ''}</dl></section><section class="detail-block"><h3>Contact / repères</h3><dl>${selected.phone ? `<div><dt>Téléphone</dt><dd>${esc(selected.phone)}</dd></div>` : ''}${selected.email ? `<div><dt>E-mail</dt><dd>${esc(selected.email)}</dd></div>` : ''}${selected.billing_address ? `<div><dt>Adresse de facturation</dt><dd>${esc(selected.billing_address)}</dd></div>` : ''}${selected.internal_reference ? `<div><dt>Référence interne</dt><dd>${esc(selected.internal_reference)}</dd></div>` : ''}</dl></section></div><section class="installation-section"><h2>Sites & équipements</h2>${sites}</section><section class="linked-contracts"><h2>Contrats liés</h2>${linked}</section>${clientArchiveZone}` : '<div class="empty-list">Sélectionnez un client pour consulter sa fiche.</div>'}</section></section></main></div>`;
-   document.querySelector('.head .primary').addEventListener('click', event => openClientDrawer('create', event.currentTarget));
-   if (!selected?.archived) document.querySelector('.client-detail-header .ghost')?.addEventListener('click', event => openClientDrawer('edit', event.currentTarget));
-   if (selected) {
-diff --git a/tests/test_web_bridge_c2w1.py b/tests/test_web_bridge_c2w1.py
-index 219c488..1b7dd56 100644
---- a/tests/test_web_bridge_c2w1.py
-+++ b/tests/test_web_bridge_c2w1.py
-@@ -1,5 +1,6 @@
- from __future__ import annotations
+ function openGenerationConfirmation() {
+diff --git a/tests/test_web_contract_generation_w3c2.py b/tests/test_web_contract_generation_w3c2.py
+index 47c6f0a..1da2727 100644
+--- a/tests/test_web_contract_generation_w3c2.py
++++ b/tests/test_web_contract_generation_w3c2.py
+@@ -140,9 +140,60 @@ class WebContractGenerationW3C2Tests(GenerationCase):
+         self.assertIn("finally", confirmation)
+         self.assertIn("contractGenerationRunning = false", confirmation)
+         self.assertIn("renderContractWorkspace(contractWorkspaceState)", confirmation)
++        self.assertIn("const contractId = contractWorkspaceState.contract.id", confirmation)
++        self.assertIn("confirm.disabled = true", confirmation)
++        self.assertIn("confirm.classList.add('is-busy')", confirmation)
++        self.assertIn("confirm.setAttribute('aria-busy', 'true')", confirmation)
++        self.assertIn("cancel.disabled = true", confirmation)
++        self.assertEqual(confirmation.count("requestAnimationFrame"), 2)
++        self.assertLess(confirmation.index("contractGenerationRunning = true"), confirmation.index("requestAnimationFrame"))
++        self.assertLess(confirmation.index("requestAnimationFrame"), confirmation.index("bridge.generateOfficialContract"))
++        self.assertIn("bridge.generateOfficialContract(contractId", confirmation)
++        self.assertIn("catch (error)", confirmation)
++        self.assertGreaterEqual(confirmation.count("contractGenerationRunning = false"), 2)
++        self.assertIn("if (contractGenerationRunning || !contractWorkspaceState?.official_generation?.allowed) return;", confirmation)
++        self.assertIn("if (!generation?.allowed || contractGenerationRunning) return;", opening)
+         for copy in ("Annuler", "Générer le DOCX et le PDF", "Numéro prévu", "À signer", "Si la génération échoue"):
+             self.assertIn(copy, opening)
 ␠
-+from pathlib import Path
- from unittest import mock
-␠
- from icp_renov_contracts.services import ContractRegisterFilter
-@@ -55,6 +56,20 @@ class WebBridgeC2W1Tests(GenerationCase):
-         self.bridge.setSearch("")
-         self.assertEqual(len(self.states[-1]["rows"]), 3)
-␠
-+    def test_web_search_focus_restoration_is_conditional_and_shared(self) -> None:
-+        source = (Path(__file__).parents[1] / "src" / "icp_renov_contracts" / "ui_web" / "app.js").read_text(encoding="utf-8")
-+        for identifier in ("contracts-search", "clients-search"):
-+            self.assertIn(identifier, source)
-+        for primitive in (
-+            "function captureSearchFocus()", "function restoreSearchFocus(focus)",
-+            "document.activeElement", "selectionStart", "selectionEnd", "selectionDirection",
-+            "input.setSelectionRange(start, end, focus.direction)",
-+            "if (!focus) return;", "restoreSearchFocus(searchFocus)",
-+        ):
-+            self.assertIn(primitive, source)
-+        self.assertIn("Math.min(Math.max(0, focus.start), length)", source)
-+        self.assertIn("Math.min(Math.max(start, focus.end), length)", source)
++    def test_generation_busy_state_yields_two_frames_before_one_bridge_call_and_recovers(self):
++        application = QCoreApplication.instance() or QCoreApplication([])
++        self.assertIsNotNone(application)
++        js = (Path(__file__).parents[1] / "src" / "icp_renov_contracts" / "ui_web" / "contract-workspace.js").read_text(encoding="utf-8")
++        start = js.index("function closeGenerationConfirmation")
++        end = js.index("function renderContractDocuments", start)
++        engine = QJSEngine()
++        harness = """
++            var contractGenerationRunning=false, contractSaveFailure='', renders=0, removed=0, frames=[];
++            var contractWorkspaceState={contract:{id:'exact-contract'},official_generation:{allowed:true}};
++            var confirm={disabled:false,classList:{add:function(value){this.busy=value;}},setAttribute:function(name,value){this[name]=value;},textContent:''};
++            var cancel={disabled:false}; var overlay={remove:function(){removed++;}};
++            var document={querySelector:function(selector){if(selector==='.generation-confirm-action')return confirm;if(selector==='.generation-cancel-action')return cancel;if(selector==='.generation-modal-overlay')return overlay;return null;}};
++            function requestAnimationFrame(callback){frames.push(callback);}
++            function renderContractWorkspace(){renders++;}
++            var bridge={calls:0,generateOfficialContract:function(id,callback){this.calls++;this.id=id;callback({ok:true});}};
++        """
++        self.assertFalse(engine.evaluate(harness).isError())
++        evaluated = engine.evaluate(js[start:end]); self.assertFalse(evaluated.isError(), evaluated.toString())
++        engine.evaluate("confirmOfficialGeneration();")
++        self.assertTrue(engine.evaluate("contractGenerationRunning").toBool())
++        self.assertEqual(engine.evaluate("frames.length").toInt(), 1)
++        self.assertEqual(engine.evaluate("bridge.calls").toInt(), 0)
++        self.assertTrue(engine.evaluate("confirm.disabled && cancel.disabled && confirm.classList.busy === 'is-busy' && confirm['aria-busy'] === 'true'").toBool())
++        engine.evaluate("frames.shift()();")
++        self.assertEqual(engine.evaluate("frames.length").toInt(), 1)
++        self.assertEqual(engine.evaluate("bridge.calls").toInt(), 0)
++        engine.evaluate("frames.shift()();")
++        self.assertEqual(engine.evaluate("bridge.calls").toInt(), 1)
++        self.assertEqual(engine.evaluate("bridge.id").toString(), "exact-contract")
++        self.assertFalse(engine.evaluate("contractGenerationRunning").toBool())
++        self.assertEqual(engine.evaluate("renders").toInt(), 1)
 +
-     def test_explicit_actions_open_the_bounded_web_workspace(self) -> None:
-         opened = self.bridge.openContract(self.contract.id)
-         self.assertTrue(opened["ok"])
-diff --git a/tests/test_web_clients_d1.py b/tests/test_web_clients_d1.py
-index fb9880b..750ffa1 100644
---- a/tests/test_web_clients_d1.py
-+++ b/tests/test_web_clients_d1.py
-@@ -77,6 +77,13 @@ class WebClientBridgeD1Tests(unittest.TestCase):
-         self.assertEqual(set(self.states[-1]["selected"]["editor"]), CLIENT_DTO_FIELDS)
-         self.assertFalse(any("regime" in field for field in CLIENT_DTO_FIELDS))
-␠
-+    def test_client_search_is_python_authoritative_and_clearing_restores_the_list(self) -> None:
-+        self.master.create_client(organization("Bâtiments Horizon"))
-+        self.bridge.setClientSearch("Ateliers")
-+        self.assertEqual([item["name"] for item in self.states[-1]["clients"]], ["Ateliers du Rhône"])
-+        self.bridge.setClientSearch("")
-+        self.assertEqual(len(self.states[-1]["clients"]), 2)
++        engine.evaluate("bridge.generateOfficialContract=function(){throw new Error('bridge failure');}; confirmOfficialGeneration(); frames.shift()(); frames.shift()();")
++        self.assertFalse(engine.evaluate("contractGenerationRunning").toBool())
++        self.assertEqual(engine.evaluate("bridge.calls").toInt(), 1)
++        self.assertEqual(engine.evaluate("contractSaveFailure").toString(), "bridge failure")
 +
-     def test_validation_failure_and_unsupported_regime_create_no_client(self) -> None:
-         before = len(self.master.list_clients())
-         invalid = self.bridge.createClient(person_payload(first_name="", email="invalide"))
+     def test_complete_success_creates_exact_r01_snapshot_event_number_and_to_sign(self):
+         result = self.bridge.generateOfficialContract(self.contract.id)
+         self.assertTrue(result["ok"])
