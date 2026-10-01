@@ -453,6 +453,7 @@ function publishSignedPdf(intent) {
   const state = contractWorkspaceState;
   if (!state) return;
   if (!['ADD', 'LOCATE', 'REPLACE'].includes(intent)) return;
+  if (intent === 'REPLACE') { openSignedPdfReplacementModal(); return; }
   bridge.selectContractSignedPdf(state.contract.id, intent, result => {
     if (!result?.ok || !result.selected) {
       if (!result?.ok) { contractDocumentsError = result?.message || 'Le PDF signé ne peut pas être sélectionné.'; renderContractWorkspace(contractWorkspaceState); }
@@ -463,8 +464,36 @@ function publishSignedPdf(intent) {
     };
     if (intent === 'ADD') bridge.addContractSignedPdf(state.contract.id, savedHandler);
     else if (intent === 'LOCATE') bridge.locateContractSignedPdf(state.contract.id, savedHandler);
-    else bridge.replaceContractSignedPdf(state.contract.id, savedHandler);
   });
+}
+
+function openSignedPdfReplacementModal() {
+  const state = contractWorkspaceState;
+  const signed = state?.documents_d1?.revisions?.find(item => item.signed);
+  if (!state || !signed) return;
+  bridge.clearContractSignedPdfSelection(state.contract.id, 'REPLACE', () => {});
+  closeContractDocumentsModal();
+  const overlay = document.createElement('div');
+  overlay.className = 'drawer-overlay documents-modal-overlay';
+  overlay.innerHTML = `<div class="drawer-backdrop" onclick="closeContractDocumentsModal()"></div><section class="documents-modal" role="dialog" aria-modal="true" aria-labelledby="replace-signed-pdf-title"><header><span class="eyebrow">Copie signée</span><h2 id="replace-signed-pdf-title">Remplacer le PDF signé</h2><p>Révision signée concernée : <strong>${esc(signed.revision)}</strong></p></header><div class="documents-modal-body"><p>La révision contractuelle, la signature enregistrée, le numéro et le statut ne changeront pas.</p><p>Seul le PDF archivé sera remplacé. La copie précédente restera conservée dans l’historique documentaire.</p><p class="signed-pdf-selection">Aucun PDF sélectionné.</p><p class="documents-modal-error" hidden></p></div><footer><button class="button button-secondary replace-cancel-action" onclick="closeContractDocumentsModal()">Annuler</button><button class="button button-secondary replace-select-action">Choisir le nouveau PDF signé</button><button class="primary replace-confirm-action" disabled>Remplacer le PDF signé</button></footer></section>`;
+  document.body.appendChild(overlay);
+  const selection = overlay.querySelector('.signed-pdf-selection');
+  const error = overlay.querySelector('.documents-modal-error');
+  const confirm = overlay.querySelector('.replace-confirm-action');
+  overlay.querySelector('.replace-select-action').addEventListener('click', () => {
+    bridge.selectContractSignedPdf(state.contract.id, 'REPLACE', result => {
+      if (!result?.ok) { error.hidden = false; error.textContent = result?.message || 'Le PDF signé ne peut pas être sélectionné.'; return; }
+      if (result.selected) { selection.textContent = result.name || 'PDF sélectionné'; confirm.disabled = false; }
+    });
+  });
+  confirm.addEventListener('click', () => {
+    if (confirm.disabled) return;
+    bridge.replaceContractSignedPdf(state.contract.id, result => {
+      if (result?.ok) closeContractDocumentsModal();
+      else { error.hidden = false; error.textContent = result?.message || 'Le PDF signé n’a pas été remplacé.'; }
+    });
+  });
+  overlay.querySelector('.replace-cancel-action')?.focus();
 }
 
 function updateContractRegime(regime) {
@@ -788,10 +817,10 @@ function renderContractDocuments(state) {
     const signedDate = item.signed_display ? `<span class="revision-signed-date">Signée le ${esc(item.signed_display)}</span>` : '';
     let signedCopy = '';
     if (item.signed_copy_state === 'NONE') signedCopy = '<div class="signed-copy-notice"><strong>Signature enregistrée — copie signée non archivée</strong><button class="button button-secondary" onclick="publishSignedPdf(\'ADD\')">Ajouter le PDF signé</button></div>';
-    else if (item.signed_copy_state === 'VALID') signedCopy = `<div class="signed-copy-valid"><span>Copie signée archivée${item.signed_copy_attached_display ? ` le ${esc(item.signed_copy_attached_display)}` : ''}</span><button class="button button-secondary" onclick="openContractFile('${esc(item.revision)}','signed')">Ouvrir le PDF signé</button></div>`;
+    else if (item.signed_copy_state === 'VALID') signedCopy = `<div class="signed-copy-valid"><span>Copie signée archivée${item.signed_copy_attached_display ? ` le ${esc(item.signed_copy_attached_display)}` : ''}</span><button class="button button-secondary" onclick="openContractFile('${esc(item.revision)}','signed')">Ouvrir le PDF signé</button><button class="button button-secondary" onclick="openSignedPdfReplacementModal()">Remplacer le PDF signé</button></div>`;
     else if (item.signed_copy_state === 'MISSING' || item.signed_copy_state === 'HASH_MISMATCH') {
       const message = item.signed_copy_state === 'MISSING' ? 'Copie signée introuvable dans le dossier de travail' : 'La copie signée ne correspond plus au fichier archivé.';
-      signedCopy = `<div class="signed-copy-missing"><strong>${message}</strong><div><button class="button button-secondary" onclick="publishSignedPdf('LOCATE')">Localiser le fichier</button><button class="button button-secondary" onclick="publishSignedPdf('REPLACE')">Ajouter une nouvelle copie</button></div></div>`;
+      signedCopy = `<div class="signed-copy-missing"><strong>${message}</strong><div><button class="button button-secondary" onclick="publishSignedPdf('LOCATE')">Localiser le fichier</button><button class="button button-secondary" onclick="openSignedPdfReplacementModal()">Remplacer le PDF signé</button></div></div>`;
     }
     const anomaly = item.docx_available && item.pdf_available ? '' : '<p class="revision-anomaly">La révision reste conservée dans l’historique. Le fichier manquant n’a pas été recréé.</p>';
     return `<article class="revision-card ${item.latest ? 'current' : ''}"><header><div><span class="revision-number">${esc(item.revision)}</span>${statePill}${signedMarker}</div>${sent}</header><div class="revision-metadata"><span>Générée le <strong>${esc(item.generated_display)}</strong></span><span>Modèle <strong>${esc(item.template_name)} · ${esc(item.template_version)}</strong></span>${signedDate}</div><div class="revision-actions">${docx}${pdf}</div>${signedCopy}${anomaly}</article>`;

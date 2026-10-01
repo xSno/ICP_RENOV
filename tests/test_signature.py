@@ -140,7 +140,9 @@ class SignatureLifecycleTests(GenerationCase):
         restored=self.lifecycle.locate_signed_copy(self.contract.id,source);self.assertEqual(restored.signed_pdf_hash,digest);self.assertEqual(restored.signed_pdf_attached_at,attached)
         restored_path=self.context.workspace.root/restored.signed_pdf_path;restored_path.write_bytes(wrong.read_bytes());self.assertIs(self.lifecycle.signed_copy_state(self.documents.get(document.id)),SignedCopyState.HASH_MISMATCH)
         replaced=self.lifecycle.replace_signed_copy(self.contract.id,wrong);self.assertNotEqual(replaced.signed_pdf_path,restored.signed_pdf_path);self.assertNotEqual(replaced.signed_pdf_hash,digest)
-        self.assertEqual(self.lifecycle.history(self.contract.id),before)
+        history=self.lifecycle.history(self.contract.id);self.assertEqual(len(history),len(before)+1)
+        replacement=next(event for event in history if event.type is ContractEventType.ADMIN_CORRECTION and event.reason_code=="SIGNED_PDF_REPLACED")
+        self.assertEqual(replacement.document_id,r01.document.id)
 
     def test_core_document_immutability_and_narrow_metadata_update(self):
         self._set_start("2026-08-14");r01=self.service().generate(self.contract.id)

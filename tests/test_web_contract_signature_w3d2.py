@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import date, datetime, timezone
+import hashlib
 from pathlib import Path
 import json
 import sqlite3
@@ -16,8 +17,11 @@ from icp_renov_contracts.domain import ContractDocument, ContractEventType, Cont
 from icp_renov_contracts.documents.validation import DocumentGenerationError
 from icp_renov_contracts.errors import ContractLifecycleError
 from icp_renov_contracts.repositories import ContractDocumentRepository, ContractEventRepository
-from icp_renov_contracts.services import ContractLifecycleService
+from icp_renov_contracts.services import BackupService, ContractLifecycleService, RestoreService
+from icp_renov_contracts.bootstrap import build_application_context
+from icp_renov_contracts.config import MachineConfigStore
 from icp_renov_contracts.ui.web_host import UiBridge
+from icp_renov_contracts.services.signed_copy_replacement import decode_signed_pdf_replacement, resolve_signed_copy_audit_path
 
 from test_contract_events import RecordingOpener, UnavailableAllocator
 from test_document_generation import GenerationCase
@@ -160,19 +164,192 @@ class WebContractSignatureW3D2Tests(GenerationCase):
         archived = self.context.workspace.root / document.signed_pdf_path
         archived.unlink()
         before = self._events()
+        before_metadata = self.documents.get(r01.document.id)
+        before_files = set(archived.parent.glob("*.pdf"))
         state = self._state(); row = state["documents_d1"]["revisions"][0]
         self.assertEqual(row["signed_copy_state"], SignedCopyState.MISSING.value)
         self.assertEqual(state["documents_d2"]["signature"]["revision"], "R01")
         self.assertIs(self.context.contracts.get(self.contract.id).status, ContractStatus.SIGNED)
+        with self.assertRaises(ContractLifecycleError) as guidance:
+            self.lifecycle.replace_signed_copy(self.contract.id, source)
+        self.assertIn("Localiser", guidance.exception.user_message)
+        self.assertEqual(self.documents.get(r01.document.id), before_metadata)
+        self.assertEqual(set(archived.parent.glob("*.pdf")), before_files)
+        self.assertEqual(self._events(), before)
         self.assertTrue(self._select("LOCATE", source)["selected"])
         self.assertTrue(self.bridge.locateContractSignedPdf(self.contract.id)["ok"])
         reopened = self.documents.get(r01.document.id)
         (self.context.workspace.root / reopened.signed_pdf_path).unlink()
         replacement = self._pdf("replacement.pdf", b"replacement")
+        mismatch_files = set((self.context.workspace.root / reopened.signed_pdf_path).parent.glob("*.pdf"))
+        mismatch_events = self._events()
+        with self.assertRaises(ContractLifecycleError) as guidance:
+            self.lifecycle.replace_signed_copy(self.contract.id, source)
+        self.assertIn("Localiser", guidance.exception.user_message)
+        current = self.documents.get(r01.document.id)
+        self.assertEqual((current.signed_pdf_hash, current.signed_pdf_attached_at), (reopened.signed_pdf_hash, reopened.signed_pdf_attached_at))
+        self.assertEqual(set((self.context.workspace.root / reopened.signed_pdf_path).parent.glob("*.pdf")), mismatch_files)
+        self.assertEqual(self._events(), mismatch_events)
+        self.assertTrue(self._select("LOCATE", source)["selected"])
+        self.assertTrue(self.bridge.locateContractSignedPdf(self.contract.id)["ok"])
         self.assertTrue(self._select("REPLACE", replacement)["selected"])
         self.assertTrue(self.bridge.replaceContractSignedPdf(self.contract.id)["ok"])
-        self.assertEqual(self._events(), before)
+        replacements = [event for event in self._events() if event.type is ContractEventType.ADMIN_CORRECTION and event.reason_code == "SIGNED_PDF_REPLACED"]
+        self.assertEqual(len(replacements), 1)
+        self.assertEqual(replacements[0].document_id, r01.document.id)
         self.assertEqual(len(self.lifecycle.revisions(self.contract.id)), 1)
+
+    def test_valid_signed_copy_replacement_preserves_authority_and_audits_previous_copy(self):
+        r01 = self._sign_without_copy()
+        original = self._pdf("original-valid.pdf", b"original-valid")
+        self.assertTrue(self._select("ADD", original)["selected"])
+        self.assertTrue(self.bridge.addContractSignedPdf(self.contract.id)["ok"])
+        before = self.documents.get(r01.document.id)
+        old_path = self.context.workspace.root / before.signed_pdf_path
+        before_files = set(old_path.parent.glob("*.pdf"))
+        self.assertTrue(old_path.is_file())
+        self.lifecycle.now_provider = lambda: "2026-08-14T12:00:00+00:00"
+        replacement = self._pdf("replacement-valid.pdf", b"replacement-valid")
+        self.assertTrue(self._select("REPLACE", replacement)["selected"])
+        result = self.bridge.replaceContractSignedPdf(self.contract.id)
+        self.assertTrue(result["ok"])
+        after = self.documents.get(r01.document.id)
+        self.assertIs(self.lifecycle.signed_copy_state(after), SignedCopyState.VALID)
+        self.assertTrue(old_path.is_file())
+        self.assertNotEqual(after.signed_pdf_path, before.signed_pdf_path)
+        self.assertEqual(self.context.contracts.get(self.contract.id).signature_date, "2026-08-13")
+        self.assertEqual(sum(event.type is ContractEventType.SIGNATURE_RECORDED for event in self._events()), 1)
+        event = next(event for event in self._events() if event.reason_code == "SIGNED_PDF_REPLACED")
+        audit = decode_signed_pdf_replacement(event.note)
+        self.assertIsNotNone(audit)
+        self.assertEqual((event.document_id, event.occurred_at, after.signed_pdf_attached_at), (r01.document.id, "2026-08-14T12:00:00+00:00", "2026-08-14T12:00:00+00:00"))
+        self.assertEqual((audit.previous_path, audit.previous_attached_at, audit.replacement_path, audit.replacement_attached_at), (before.signed_pdf_path, before.signed_pdf_attached_at, after.signed_pdf_path, after.signed_pdf_attached_at))
+        timeline = self._state()["documents_d1"]["timeline"]
+        self.assertTrue(any(item["label"] == "PDF signé remplacé" and item["revision"] == "R01" for item in timeline))
+
+        events_before_noop = self._events()
+        no_change = self.lifecycle.replace_signed_copy(self.contract.id, replacement)
+        self.assertEqual(no_change.kind, "SAME_CONTENT")
+        self.assertEqual(self.documents.get(r01.document.id), after)
+        self.assertEqual(self._events(), events_before_noop)
+        self.assertEqual(set(old_path.parent.glob("*.pdf")), before_files | {self.context.workspace.root / after.signed_pdf_path})
+
+    def test_replacement_cas_or_event_failure_preserves_previous_copy(self):
+        r01 = self._sign_without_copy()
+        original = self._pdf("cas-original.pdf", b"cas-original")
+        self._select("ADD", original); self.bridge.addContractSignedPdf(self.contract.id)
+        before = self.documents.get(r01.document.id)
+        old_path = self.context.workspace.root / before.signed_pdf_path
+        before_files = set(old_path.parent.glob("*.pdf"))
+        replacement = self._pdf("cas-replacement.pdf", b"cas-replacement")
+        with patch.object(ContractDocumentRepository, "replace_signed_copy_cas", return_value=False):
+            with self.assertRaises(ContractLifecycleError):
+                self.lifecycle.replace_signed_copy(self.contract.id, replacement)
+        self.assertEqual(self.documents.get(r01.document.id), before)
+        self.assertTrue(old_path.is_file())
+        self.assertEqual(set(old_path.parent.glob("*.pdf")), before_files)
+        self.assertFalse(any(event.reason_code == "SIGNED_PDF_REPLACED" for event in self._events()))
+
+        with patch.object(ContractEventRepository, "insert", side_effect=sqlite3.IntegrityError("event")):
+            with self.assertRaises(ContractLifecycleError):
+                self.lifecycle.replace_signed_copy(self.contract.id, replacement)
+        self.assertEqual(self.documents.get(r01.document.id), before)
+        self.assertTrue(old_path.is_file())
+        self.assertEqual(set(old_path.parent.glob("*.pdf")), before_files)
+        self.assertFalse(any(event.reason_code == "SIGNED_PDF_REPLACED" for event in self._events()))
+
+    def test_replacement_audit_and_both_signed_copies_survive_backup_restore(self):
+        r01 = self._sign_without_copy()
+        original = self._pdf("portable-original.pdf", b"portable-original")
+        self._select("ADD", original); self.assertTrue(self.bridge.addContractSignedPdf(self.contract.id)["ok"])
+        before = self.documents.get(r01.document.id)
+        replacement = self._pdf("portable-replacement.pdf", b"portable-replacement")
+        self._select("REPLACE", replacement); self.assertTrue(self.bridge.replaceContractSignedPdf(self.contract.id)["ok"])
+        after = self.documents.get(r01.document.id)
+        machine_store = MachineConfigStore(self.temporary / "bootstrap.json")
+        backup = BackupService(self.context.database, self.context.workspace, machine_store)
+        backup.set_destination(self.temporary / "backup")
+        archive = backup.create_now()
+        restored = RestoreService(machine_store).restore(archive, self.temporary / "restored")
+        restored_context = build_application_context(config_store=machine_store)
+        restored_document = ContractDocumentRepository(restored_context.database).get(r01.document.id)
+        self.assertEqual(restored.root, restored_context.workspace.root)
+        self.assertEqual((restored_document.signed_pdf_path, restored_document.signed_pdf_hash), (after.signed_pdf_path, after.signed_pdf_hash))
+        restored_lifecycle = ContractLifecycleService(restored_context.database, restored_context.contracts, ContractDocumentRepository(restored_context.database), ContractEventRepository(restored_context.database), restored.root, self.opener, self.clock, lambda: "2026-08-13T10:00:00+00:00")
+        self.assertIs(restored_lifecycle.signed_copy_state(restored_document), SignedCopyState.VALID)
+        restored_events = ContractEventRepository(restored_context.database).list_for_contract(self.contract.id)
+        replacement_event = next(event for event in restored_events if event.reason_code == "SIGNED_PDF_REPLACED")
+        audit = decode_signed_pdf_replacement(replacement_event.note)
+        self.assertEqual((audit.previous_path, audit.replacement_path), (before.signed_pdf_path, after.signed_pdf_path))
+        previous_file = resolve_signed_copy_audit_path(restored.root, audit.previous_path)
+        replacement_file = resolve_signed_copy_audit_path(restored.root, audit.replacement_path)
+        self.assertTrue(previous_file.is_file()); self.assertTrue(replacement_file.is_file())
+        self.assertEqual(hashlib.sha256(previous_file.read_bytes()).hexdigest(), audit.previous_hash)
+        self.assertEqual(hashlib.sha256(replacement_file.read_bytes()).hexdigest(), audit.replacement_hash)
+        self.assertEqual(restored_document.signed_pdf_hash, audit.replacement_hash)
+        self.assertNotIn(str(self.context.workspace.root), replacement_event.note); self.assertNotIn(str(restored.root), replacement_event.note)
+        self.assertEqual(restored_lifecycle.signature_authority(self.contract.id).document.id, r01.document.id)
+        self.assertEqual(sum(event.type is ContractEventType.SIGNATURE_RECORDED for event in restored_events), 1)
+
+    def test_multiple_replacements_keep_audit_chain_and_prior_files(self):
+        r01 = self._sign_without_copy()
+        source_a = self._pdf("chain-a.pdf", b"chain-a")
+        self._select("ADD", source_a); self.bridge.addContractSignedPdf(self.contract.id)
+        document_a = self.documents.get(r01.document.id)
+        self.lifecycle.now_provider = lambda: "2026-08-14T11:00:00+00:00"
+        source_b = self._pdf("chain-b.pdf", b"chain-b"); document_b = self.lifecycle.replace_signed_copy(self.contract.id, source_b).document
+        self.lifecycle.now_provider = lambda: "2026-08-14T12:00:00+00:00"
+        source_c = self._pdf("chain-c.pdf", b"chain-c"); document_c = self.lifecycle.replace_signed_copy(self.contract.id, source_c).document
+        audits = [decode_signed_pdf_replacement(event.note) for event in self._events() if event.reason_code == "SIGNED_PDF_REPLACED"]
+        self.assertEqual(len(audits), 2)
+        self.assertEqual((audits[0].previous_path, audits[0].replacement_path), (document_b.signed_pdf_path, document_c.signed_pdf_path))
+        self.assertEqual((audits[1].previous_path, audits[1].replacement_path), (document_a.signed_pdf_path, document_b.signed_pdf_path))
+        self.assertEqual(audits[1].previous_attached_at, document_a.signed_pdf_attached_at)
+        self.assertEqual(audits[0].previous_attached_at, document_b.signed_pdf_attached_at)
+        self.assertTrue((self.context.workspace.root / document_a.signed_pdf_path).is_file())
+        self.assertTrue((self.context.workspace.root / document_b.signed_pdf_path).is_file())
+        self.assertIs(self.lifecycle.signed_copy_state(document_c), SignedCopyState.VALID)
+
+    def test_real_cas_rejects_stale_metadata_without_overwriting_newer_value(self):
+        r01 = self._sign_without_copy()
+        source_a = self._pdf("stale-a.pdf", b"stale-a")
+        self._select("ADD", source_a); self.bridge.addContractSignedPdf(self.contract.id)
+        document_a = self.documents.get(r01.document.id)
+        source_b = self._pdf("stale-b.pdf", b"stale-b")
+        digest_b = hashlib.sha256(source_b.read_bytes()).hexdigest()
+        with self.context.database.transaction() as connection:
+            self.assertTrue(ContractDocumentRepository.replace_signed_copy_cas(connection, document_a.id, document_a.signed_pdf_path, document_a.signed_pdf_hash, document_a.signed_pdf_attached_at, "documents/contracts/stale-b.pdf", digest_b, "2026-08-14T11:00:00+00:00"))
+        with self.context.database.transaction() as connection:
+            self.assertFalse(ContractDocumentRepository.replace_signed_copy_cas(connection, document_a.id, document_a.signed_pdf_path, document_a.signed_pdf_hash, document_a.signed_pdf_attached_at, "documents/contracts/stale-c.pdf", "c" * 64, "2026-08-14T12:00:00+00:00"))
+        current = self.documents.get(document_a.id)
+        self.assertEqual((current.signed_pdf_path, current.signed_pdf_hash), ("documents/contracts/stale-b.pdf", digest_b))
+
+    def test_replacement_payload_rejects_nonportable_paths(self):
+        digest = "a" * 64
+        def payload(path, previous_at="2026-08-13T10:00:00+00:00", replacement_at="2026-08-14T10:00:00+00:00", state="VALID"): return json.dumps({"version": "SIGNED_PDF_REPLACEMENT_V1", "previous": {"path": path, "sha256": digest, "attached_at": previous_at, "state": state}, "replacement": {"path": "documents/contracts/id/R01/signed/signed-abc.pdf", "sha256": digest, "attached_at": replacement_at}})
+        for path in (".", "./file.pdf", "foo/./bar.pdf", "foo//bar.pdf", "../outside.pdf", "/absolute/file.pdf", r"C:\\Users\\Test\\file.pdf", "C:/Users/Test/file.pdf", r"\\\\server\\share\\file.pdf"):
+            self.assertIsNone(decode_signed_pdf_replacement(payload(path)))
+        self.assertIsNone(decode_signed_pdf_replacement(payload("documents/contracts/id/R01/signed/signed-abc.pdf", previous_at="invalid")))
+        self.assertIsNone(decode_signed_pdf_replacement(payload("documents/contracts/id/R01/signed/signed-abc.pdf", replacement_at="invalid")))
+        self.assertIsNone(decode_signed_pdf_replacement(payload("documents/contracts/id/R01/signed/signed-abc.pdf", state="OTHER")))
+        self.assertIsNotNone(decode_signed_pdf_replacement(payload("documents/contracts/id/R01/signed/signed-abc.pdf")))
+
+    def test_hash_mismatch_expected_content_uses_locate_without_replacement(self):
+        r01 = self._sign_without_copy()
+        source_a = self._pdf("mismatch-a.pdf", b"mismatch-a")
+        self._select("ADD", source_a); self.bridge.addContractSignedPdf(self.contract.id)
+        before = self.documents.get(r01.document.id); signed_file = self.context.workspace.root / before.signed_pdf_path
+        source_b = self._pdf("mismatch-b.pdf", b"mismatch-b")
+        signed_file.write_bytes(source_b.read_bytes())
+        self.assertIs(self.lifecycle.signed_copy_state(self.documents.get(r01.document.id)), SignedCopyState.HASH_MISMATCH)
+        files = set(signed_file.parent.glob("*.pdf")); events = self._events()
+        with self.assertRaises(ContractLifecycleError) as guidance: self.lifecycle.replace_signed_copy(self.contract.id, source_a)
+        self.assertIn("Localiser", guidance.exception.user_message)
+        self.assertEqual(self.documents.get(r01.document.id), before); self.assertEqual(set(signed_file.parent.glob("*.pdf")), files); self.assertEqual(self._events(), events)
+        restored = self.lifecycle.locate_signed_copy(self.contract.id, source_a)
+        self.assertIs(self.lifecycle.signed_copy_state(restored), SignedCopyState.VALID)
+        self.assertEqual((restored.signed_pdf_hash, restored.signed_pdf_attached_at), (before.signed_pdf_hash, before.signed_pdf_attached_at))
+        self.assertEqual(self._events(), events)
 
     def test_invalid_signed_pdf_failure_does_not_create_signature_or_false_state(self):
         self._set_start("2026-08-14")
@@ -202,8 +379,10 @@ class WebContractSignatureW3D2Tests(GenerationCase):
         start = js.index("function renderContractDocuments")
         end = js.index("function renderContractReview", start)
         d2 = js[start:end]
-        for copy in ("Enregistrer la signature", "Révision réellement signée", "Ajouter le PDF signé", "Localiser le fichier", "Ajouter une nouvelle copie"):
+        for copy in ("Enregistrer la signature", "Révision réellement signée", "Ajouter le PDF signé", "Localiser le fichier", "Remplacer le PDF signé"):
             self.assertIn(copy, js)
+        css = (root / "contract-documents.css").read_text(encoding="utf-8")
+        self.assertIn(".documents-feedback.info", css)
         # D5 may add separate intervention documents; the signed-copy surface
         # still exposes no manual activation action.
         for forbidden in ("Activer",):

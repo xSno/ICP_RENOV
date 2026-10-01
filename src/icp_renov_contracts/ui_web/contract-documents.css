@@ -1,6 +1,7 @@
 .contract-documents-panel{padding:15px}
 .documents-feedback{margin-top:12px;padding:10px 12px;border:1px solid #b8d8c8;border-radius:7px;background:#edf7f1;color:#2e6d52;font-size:10px}
 .documents-feedback.error{border-color:#e4bcbc;background:#faeded;color:#913b3b}
+.documents-feedback.info{border-color:#bfd9e8;background:#f1f7fa;color:#2d617d}
 .documents-section{margin-top:13px;padding:13px;border:1px solid var(--line);border-radius:7px;background:#fff}
 .documents-section h3{margin:4px 0 0;font-size:15px}
 .documents-section-head{display:flex;align-items:center;justify-content:space-between;gap:12px}

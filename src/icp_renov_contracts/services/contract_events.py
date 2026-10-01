@@ -23,6 +23,9 @@ from ..errors import ContractLifecycleError, ContractNotFoundError
 from ..repositories import ContractDocumentRepository, ContractEventRepository
 from ..repositories.conditions import CONDITION_COLUMNS, DB_COLUMN, ContractConditionsRepository
 from .contracts import ContractService
+from .signed_copy_replacement import (
+    SignedCopyReplacementAudit, encode_signed_pdf_replacement, resolve_signed_copy_audit_path,
+)
 
 
 def _now() -> str:
@@ -44,6 +47,15 @@ class SignedContractAuthority:
     event: ContractEvent
     document: ContractDocument
     start_date: date
+
+
+@dataclass(frozen=True)
+class SignedCopyReplacementOutcome:
+    kind: str
+    document: ContractDocument
+
+    def __getattr__(self, name: str):
+        return getattr(self.document, name)
 
 
 @dataclass(frozen=True)
@@ -118,6 +130,9 @@ class ContractLifecycleService:
         try:candidate.relative_to(self.workspace_root)
         except ValueError:return None
         return candidate if candidate.is_file() else None
+
+    def resolve_signed_copy_audit_path(self, relpath: str) -> Path | None:
+        return resolve_signed_copy_audit_path(self.workspace_root, relpath)
 
     def open_document(self, document_id: str, kind: str) -> None:
         document=self.documents.get(document_id)
@@ -533,11 +548,39 @@ class ContractLifecycleService:
             self._unlink(staged);raise ContractLifecycleError("wrong hash","Le fichier sélectionné ne correspond pas à la copie signée archivée.")
         return self._publish_staged(authority.document,staged,digest,True,authority.document.signed_pdf_attached_at)
 
-    def replace_signed_copy(self,contract_id:str,source:Path)->ContractDocument:
+    def replace_signed_copy(self,contract_id:str,source:Path)->SignedCopyReplacementOutcome:
         authority=self.signature_authority(contract_id)
-        if authority is None or self.signed_copy_state(authority.document) is SignedCopyState.VALID:
+        if authority is None or authority.document.signed_pdf_path is None or authority.document.signed_pdf_hash is None or authority.document.signed_pdf_attached_at is None:
             raise ContractLifecycleError("replacement unavailable")
-        return self._publish_copy(authority.document,source,False)
+        document=authority.document;previous_state=self.signed_copy_state(document)
+        staged,digest=self._stage_pdf(source)
+        if digest==document.signed_pdf_hash:
+            self._unlink(staged)
+            if previous_state is SignedCopyState.VALID:
+                return SignedCopyReplacementOutcome("SAME_CONTENT",document)
+            raise ContractLifecycleError("use locate","Le PDF sélectionné correspond à la copie attendue. Utilisez « Localiser le fichier » pour rétablir son emplacement.")
+        replacement_at=self.now_provider();final:Path|None=None;moved=False
+        replacement_path=""
+        try:
+            final=self._new_signed_destination(document);replacement_path=self._relative(final)
+            audit=SignedCopyReplacementAudit(document.signed_pdf_path,document.signed_pdf_hash,document.signed_pdf_attached_at,
+                previous_state.value,replacement_path,digest,replacement_at)
+            event=ContractEvent(str(uuid.uuid4()),contract_id,ContractEventType.ADMIN_CORRECTION,replacement_at,
+                document_id=document.id,reason_code="SIGNED_PDF_REPLACED",note=encode_signed_pdf_replacement(audit))
+            with self.database.transaction() as connection:
+                if final.exists():raise sqlite3.IntegrityError("signed copy collision")
+                final.parent.mkdir(parents=True,exist_ok=True);staged.replace(final);moved=True
+                if not ContractDocumentRepository.replace_signed_copy_cas(connection,document.id,document.signed_pdf_path,
+                    document.signed_pdf_hash,document.signed_pdf_attached_at,replacement_path,digest,replacement_at):
+                    raise sqlite3.IntegrityError("signed copy stale")
+                ContractEventRepository.insert(connection,event)
+        except (OSError,sqlite3.Error) as exc:
+            if moved and final is not None:self._unlink(final)
+            raise ContractLifecycleError("signed copy persistence","Le PDF signé n’a pas été remplacé. La copie précédente est conservée.") from exc
+        finally:self._unlink(staged)
+        updated=self.documents.get(document.id)
+        if updated is None:raise ContractLifecycleError("signed copy persistence")
+        return SignedCopyReplacementOutcome("REPLACED",updated)
 
     def _publish_copy(self,document:ContractDocument,source:Path,relocate:bool)->ContractDocument:
         staged,digest=self._stage_pdf(source)

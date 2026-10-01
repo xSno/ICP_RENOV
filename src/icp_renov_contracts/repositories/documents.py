@@ -74,3 +74,15 @@ class ContractDocumentRepository:
         )
         if cursor.rowcount != 1:
             raise sqlite3.IntegrityError("signed document metadata missing")
+
+    @staticmethod
+    def replace_signed_copy_cas(connection: sqlite3.Connection, document_id: str,
+                                expected_path: str | None, expected_hash: str | None, expected_attached_at: str | None,
+                                replacement_path: str, replacement_hash: str, replacement_attached_at: str) -> bool:
+        cursor = connection.execute(
+            "UPDATE contract_documents SET signed_pdf_path=?,signed_pdf_hash=?,signed_pdf_attached_at=? "
+            "WHERE id=? AND signed_pdf_path IS ? AND signed_pdf_hash IS ? AND signed_pdf_attached_at IS ?",
+            (replacement_path, replacement_hash, replacement_attached_at, document_id,
+             expected_path, expected_hash, expected_attached_at),
+        )
+        return cursor.rowcount == 1

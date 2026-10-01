@@ -27,6 +27,7 @@ from ..services import (
     RealBackupSummaryProvider,
 )
 from ..services.contract_register import STATUS_LABELS
+from ..services.signed_copy_replacement import decode_signed_pdf_replacement
 
 
 CLIENT_DTO_FIELDS = frozenset({
@@ -394,9 +395,25 @@ class UiBridge(QObject):
             ContractEventType.EXPIRED: "Contrat expiré",
             ContractEventType.ABANDONED: "Contrat abandonné",
         }
-        timeline_entries = []
         history = self.context.lifecycle.history(contract.id)
+        replacement_audits = [
+            (event, audit) for event in history
+            if event.type is ContractEventType.ADMIN_CORRECTION and event.reason_code == "SIGNED_PDF_REPLACED"
+            for audit in (decode_signed_pdf_replacement(event.note),) if audit is not None
+        ]
+        replacement_attachments = {(event.document_id, audit.replacement_attached_at) for event, audit in replacement_audits}
+        timeline_entries = []
         for event in history:
+            if event.type is ContractEventType.ADMIN_CORRECTION and event.reason_code == "SIGNED_PDF_REPLACED":
+                audit = decode_signed_pdf_replacement(event.note)
+                if audit is not None:
+                    timeline_entries.append((event.occurred_at, event.id, {
+                        "label": "PDF signé remplacé", "occurred_display": _datetime_fr(event.occurred_at),
+                        "effective_display": "", "revision": revision_by_document.get(event.document_id or "", ""),
+                        "note": f"La copie précédente, archivée le {_datetime_fr(audit.previous_attached_at)}, est conservée.",
+                        "documentary": True,
+                    }))
+                continue
             if event.type not in event_labels:continue
             revision = revision_by_document.get(event.document_id or "", "")
             label = event_labels[event.type]
@@ -427,7 +444,7 @@ class UiBridge(QObject):
                 "revision": revision,
                 "note": detail,
             }))
-        if signature and signature.document.signed_pdf_attached_at:
+        if signature and signature.document.signed_pdf_attached_at and (signature.document.id, signature.document.signed_pdf_attached_at) not in replacement_attachments:
             timeline_entries.append((signature.document.signed_pdf_attached_at, signature.document.id, {
                 "label": "Copie signée archivée",
                 "occurred_display": _datetime_fr(signature.document.signed_pdf_attached_at),
@@ -436,6 +453,13 @@ class UiBridge(QObject):
                 "note": "",
                 "documentary": True,
             }))
+        elif signature and replacement_audits:
+            initial = min((audit for event, audit in replacement_audits if event.document_id == signature.document.id), key=lambda audit: audit.previous_attached_at, default=None)
+            if initial is not None:
+                timeline_entries.append((initial.previous_attached_at, f"initial-{signature.document.id}", {
+                    "label": "Copie signée archivée", "occurred_display": _datetime_fr(initial.previous_attached_at),
+                    "effective_display": "", "revision": signature.document.revision, "note": "", "documentary": True,
+                }))
         timeline = [entry for _, _, entry in sorted(timeline_entries, key=lambda item: (item[0], item[1]), reverse=True)]
         feedback = self.contract_documents_feedback
         if (
@@ -984,6 +1008,13 @@ class UiBridge(QObject):
         return selection[2]
 
     @Slot(str, str, result="QVariant")
+    def clearContractSignedPdfSelection(self, contract_id: str, intent: str) -> dict:
+        if contract_id != self.contract_id or intent != "REPLACE":
+            return {"ok": False}
+        self.contract_signed_pdf_selection = None
+        return {"ok": True}
+
+    @Slot(str, str, result="QVariant")
     def selectContractSignedPdf(self, contract_id: str, intent: str) -> dict:
         if contract_id != self.contract_id or intent not in {"SIGNATURE", "ADD", "LOCATE", "REPLACE"}:
             return {"ok": False, "message": "Cette sélection de fichier n’est pas disponible."}
@@ -995,7 +1026,7 @@ class UiBridge(QObject):
             return {"ok": False, "message": "Aucune révision signée n’est disponible."}
         if intent == "ADD" and authority is not None and authority.document.signed_pdf_path is not None:
             return {"ok": False, "message": "Une copie signée est déjà archivée."}
-        if intent in {"LOCATE", "REPLACE"} and authority is not None and self.context.lifecycle.signed_copy_state(authority.document) is SignedCopyState.VALID:
+        if intent == "LOCATE" and authority is not None and self.context.lifecycle.signed_copy_state(authority.document) is SignedCopyState.VALID:
             return {"ok": False, "message": "La copie signée est déjà disponible."}
         selected, _ = QFileDialog.getOpenFileName(None, "Choisir le PDF signé", "", "Documents PDF (*.pdf)")
         if not selected:
@@ -1025,16 +1056,24 @@ class UiBridge(QObject):
         if source is None:
             return {"ok": False, "message": "Choisissez un PDF signé avant de continuer."}
         try:
-            document = {
+            result = {
                 "ADD": self.context.lifecycle.add_signed_copy,
                 "LOCATE": self.context.lifecycle.locate_signed_copy,
                 "REPLACE": self.context.lifecycle.replace_signed_copy,
             }[intent](contract_id, source)
         except ContractLifecycleError as error:
             return {"ok": False, "message": error.user_message}
-        self.contract_documents_feedback = {"kind": "success", "message": "Le PDF signé a été archivé."}
+        if intent == "REPLACE":
+            if result.kind == "SAME_CONTENT":
+                self.contract_documents_feedback = {"kind": "info", "message": "Ce PDF correspond déjà à la copie signée archivée. Aucun remplacement n’a été effectué."}
+            else:
+                self.contract_documents_feedback = {"kind": "success", "message": "Le PDF signé a été remplacé. La copie précédente est conservée dans l’historique documentaire."}
+            document = result.document
+        else:
+            document = result
+            self.contract_documents_feedback = {"kind": "success", "message": "Le PDF signé a été archivé."}
         self.refresh()
-        return {"ok": True, "revision": document.revision}
+        return {"ok": True, "revision": document.revision, "outcome": result.kind if intent == "REPLACE" else "ARCHIVED"}
 
     @Slot(str, result="QVariant")
     def addContractSignedPdf(self, contract_id: str) -> dict:
