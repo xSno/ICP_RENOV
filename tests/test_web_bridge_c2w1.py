@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from unittest import mock
 
 from icp_renov_contracts.services import ContractRegisterFilter
@@ -54,6 +55,20 @@ class WebBridgeC2W1Tests(GenerationCase):
         self.assertEqual(self.states[-1]["rows"], [])
         self.bridge.setSearch("")
         self.assertEqual(len(self.states[-1]["rows"]), 3)
+
+    def test_web_search_focus_restoration_is_conditional_and_shared(self) -> None:
+        source = (Path(__file__).parents[1] / "src" / "icp_renov_contracts" / "ui_web" / "app.js").read_text(encoding="utf-8")
+        for identifier in ("contracts-search", "clients-search"):
+            self.assertIn(identifier, source)
+        for primitive in (
+            "function captureSearchFocus()", "function restoreSearchFocus(focus)",
+            "document.activeElement", "selectionStart", "selectionEnd", "selectionDirection",
+            "input.setSelectionRange(start, end, focus.direction)",
+            "if (!focus) return;", "restoreSearchFocus(searchFocus)",
+        ):
+            self.assertIn(primitive, source)
+        self.assertIn("Math.min(Math.max(0, focus.start), length)", source)
+        self.assertIn("Math.min(Math.max(start, focus.end), length)", source)
 
     def test_explicit_actions_open_the_bounded_web_workspace(self) -> None:
         opened = self.bridge.openContract(self.contract.id)

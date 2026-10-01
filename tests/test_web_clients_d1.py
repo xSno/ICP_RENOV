@@ -77,6 +77,13 @@ class WebClientBridgeD1Tests(unittest.TestCase):
         self.assertEqual(set(self.states[-1]["selected"]["editor"]), CLIENT_DTO_FIELDS)
         self.assertFalse(any("regime" in field for field in CLIENT_DTO_FIELDS))
 
+    def test_client_search_is_python_authoritative_and_clearing_restores_the_list(self) -> None:
+        self.master.create_client(organization("Bâtiments Horizon"))
+        self.bridge.setClientSearch("Ateliers")
+        self.assertEqual([item["name"] for item in self.states[-1]["clients"]], ["Ateliers du Rhône"])
+        self.bridge.setClientSearch("")
+        self.assertEqual(len(self.states[-1]["clients"]), 2)
+
     def test_validation_failure_and_unsupported_regime_create_no_client(self) -> None:
         before = len(self.master.list_clients())
         invalid = self.bridge.createClient(person_payload(first_name="", email="invalide"))

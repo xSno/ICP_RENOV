@@ -1,47 +1,42 @@
-IMP-DS-01D — Pre-manual-QA closure patch
+BUG-SEARCH-01/02 — Search Focus Preservation
 
 Baseline
-- Starting HEAD: 9d876a84b7d7cff903ac44f60d26514f1c2a1efe (IMP-DS-01C normalize settings visuals).
-- Current HEAD: 9d876a84b7d7cff903ac44f60d26514f1c2a1efe.
-- The accepted uncommitted IMP-DS-01D worktree was preserved. No commit was created.
+- Starting HEAD: 75c8a740cfe096451bd7dbe2f5b0a26c7d3f4e4d (IMP-DS-01D migrate contract workspace visuals).
+- Starting worktree: clean.
+- Current HEAD: 75c8a740cfe096451bd7dbe2f5b0a26c7d3f4e4d. No commit was created.
 
-Closure corrections
-- Review CSS now targets only the renderer’s real semantic classes: review-business-state.valid/error and review-block.valid/error. The unused complete/warning/blocking review-block selectors were removed.
-- Valid uses the DS success family. Error uses a restrained DS error surface and error marker. Review wording, issue text, correction routing and Review authority are unchanged.
-- The existing contractGenerationRunning authority now adds is-busy and aria-busy=true to the active generation confirmation control, while retaining its existing text and blocking behavior. The Step 3 control projects the same busy presentation if rendered during the operation; normal disabled remains neutral.
-- Existing signed-copy markup is mapped directly: signed-copy-notice is attention, signed-copy-valid is success, and signed-copy-missing is error. No signed-PDF policy changed.
-- The existing item.latest boolean now adds revision-card current, enabling the previously defined latest-revision presentation without deriving new state or changing ordering.
-- Correction and abandonment confirmation controls preserve their existing listeners and flows, but now use the shared quiet-danger treatment rather than routine primary blue. Annuler remains secondary.
+Root cause
+- Contracts and Clients shared the same rerender lifecycle: input oninput calls the Python UiBridge, the authoritative snapshot refreshes, then WebEngine replaces #app through innerHTML.
+- The active search input was destroyed on every character, so browser focus and caret/selection were lost.
+
+Implementation
+- app.js gives the two inputs stable identifiers: contracts-search and clients-search.
+- Shared captureSearchFocus / restoreSearchFocus helpers capture identity, selectionStart, selectionEnd and selectionDirection only when one of these search inputs is active.
+- After the ordinary render, focus and selection are restored only to the recreated matching input. Selection boundaries are clamped to the current input value length.
+- No focus is restored when focus had moved elsewhere; Tab and click-away behavior therefore remain native and no focus trap is introduced.
+- Python UiBridge filtering, refresh, search matching and routing remain authoritative and unchanged.
 
 Files changed
-- diff.txt
+- src/icp_renov_contracts/ui_web/app.js
+- tests/test_web_bridge_c2w1.py
+- tests/test_web_clients_d1.py
 - recap.txt
-- packaging/icp_renov_contracts.spec
-- src/icp_renov_contracts/ui_web/contract-workspace.js
-- src/icp_renov_contracts/ui_web/contract-workspace-ds01d.css (new)
-- src/icp_renov_contracts/ui_web/index.html
-- tests/test_packaging_foundation_c3b1.py
-- tests/test_web_contract_documents_w3d1.py
-- tests/test_web_contract_review_w3c1.py
-- tests/test_web_contract_workspace_w3a.py
-
-Behavior preservation
-- No Python/domain/service/persistence/WebChannel/route/ID/lifecycle/review/generation/numbering/signature/renewal/correction/abandonment or document-authority behavior changed.
-- No QA-DS-01 work, functional V1.0.1 backlog or IMP-DS-01C scope was started.
+- diff.txt
 
 Tests
-- QT_QPA_PLATFORM=offscreen ..\\.venv\\Scripts\\python.exe -W error::ResourceWarning -m unittest -v test_web_contract_workspace_w3a test_web_contract_review_w3c1 test_web_contract_documents_w3d1: Ran 28 tests in 19.160s — OK.
-- Signature/D2, renewal/D3, end/D4, intervention/D5 and lifecycle suites were launched as targeted regression coverage; their exercised output was green.
-- Full suite: QT_QPA_PLATFORM=offscreen .venv\\Scripts\\python.exe -W error::ResourceWarning -m unittest discover -s tests -v: Ran 416 tests in 247.244s — OK (exit 0).
-- git diff --check: PASS.
+- Combined targeted Web bridge/register/clients/foundation command: 43 tests, with one existing QApplication palette order-sensitive failure (#efefef instead of #eef3f6).
+- Isolated foundation suite: 23/23 PASS.
+- Full suite: QT_QPA_PLATFORM=offscreen .venv\\Scripts\\python.exe -W error::ResourceWarning -m unittest discover -s tests -v — 418 tests in 229.651s, OK, exit 0.
+- git diff --check: PASS before review-artifact refresh; final verification follows this artifact refresh.
 
-Visual validation
-- No interactive graphical WebEngine session or screenshot capture was run in this environment; no visual proof is claimed.
-- Manual QA remains required for Steps 1–4, busy generation, signed-copy NONE/VALID/MISSING, latest revision, correction/abandonment confirmations and the 1366×768 desktop layout.
+Manual validation still required
+- Contracts and Clients: continuously type 8–10 characters; use Backspace/Delete; move caret; insert/delete; select and replace; clear and confirm list restoration; Tab away; then click another control and confirm focus is not stolen.
+- No interactive WebEngine session or screenshot is claimed by this automated pass.
 
-Deviations
-- None.
+Scope preservation
+- No search semantics, Design System styling, WebChannel contract, Python authority, routing, filters, status colors or unrelated backlog area changed.
 
-Remaining debt
-- QA-DS-01 manual visual review only.
-- Functional V1.0.1 backlog remains intentionally untouched.
+Limitations / remaining debt
+- The repository has no DOM-capable JavaScript test harness, so the focus/caret regression is source-level coverage plus required manual WebEngine QA.
+- The isolated targeted aggregate showed a Qt QApplication palette test-order sensitivity; the same foundation suite in isolation and the complete standard suite passed.
+- No commit has been made.
