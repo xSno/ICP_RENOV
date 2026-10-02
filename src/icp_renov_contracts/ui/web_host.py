@@ -1388,6 +1388,51 @@ class UiBridge(QObject):
         return {"ok": True, "id": contract_id, "resolved_end_date": saved.resolved_end_date, "message": "Période enregistrée."}
 
     @Slot(str, "QVariant", result="QVariant")
+    def previewContractPeriod(self, contract_id: str, payload: object) -> dict:
+        try:
+            values = _closed_contract_dto(payload, {"start_date", "initial_duration_mode", "initial_duration_months", "initial_end_date"})
+            for field in ("start_date", "initial_duration_mode", "initial_end_date"):
+                if values[field] is not None and not isinstance(values[field], str):
+                    raise ContractConditionsValidationError({field: "Cette valeur est invalide."})
+            months = values["initial_duration_months"]
+            if months is not None and (isinstance(months, bool) or not isinstance(months, (int, float)) or int(months) != months):
+                raise ContractConditionsValidationError({"initial_duration_months": "Saisissez un nombre entier valide."})
+            if values["initial_duration_mode"] == "STANDARD" and (not values["start_date"] or not months or months < 1):
+                return {"ok": False, "message": "À calculer"}
+            if values["initial_duration_mode"] == "CUSTOM" and values["start_date"] and values["initial_end_date"]:
+                try:
+                    incoherent = date.fromisoformat(values["initial_end_date"]) < date.fromisoformat(values["start_date"])
+                except ValueError:
+                    incoherent = False
+                if incoherent:
+                    raise ContractConditionsValidationError({"initial_end_date": "La date de fin doit être postérieure à la date de prise d’effet."})
+            current = asdict(self.context.contracts.get_conditions(contract_id)); current.update(values)
+            current["initial_duration_months"] = int(months) if months is not None else None
+            preview = self.context.contracts.preview_conditions(contract_id, ContractConditions(**current))
+            return {"ok": True, "resolved_end_date": preview.resolved_end_date} if preview.resolved_end_date else {"ok": False, "message": "À calculer"}
+        except ApplicationError as error:
+            details = _master_error(error)
+            return {"ok": False, "message": next(iter(details.get("field_errors", {}).values()), details.get("message", "À calculer"))}
+
+    @Slot(str, "QVariant", result="QVariant")
+    def previewContractPricing(self, contract_id: str, payload: object) -> dict:
+        try:
+            values = _closed_contract_dto(payload, {"annual_ht", "vat_rate"})
+            for field in ("annual_ht", "vat_rate"):
+                if values[field] is not None and not isinstance(values[field], str):
+                    raise ContractConditionsValidationError({field: "Cette valeur est invalide."})
+            if not values["annual_ht"] or not values["vat_rate"]:
+                return {"ok": False, "message": "À calculer"}
+            current = asdict(self.context.contracts.get_conditions(contract_id)); current.update(values)
+            preview = self.context.contracts.preview_conditions(contract_id, ContractConditions(**current))
+            if preview.vat_amount is None or preview.annual_ttc is None:
+                return {"ok": False, "message": "À calculer"}
+            return {"ok": True, "vat_amount": _money_fr(preview.vat_amount), "annual_ttc": _money_fr(preview.annual_ttc)}
+        except ApplicationError as error:
+            details = _master_error(error)
+            return {"ok": False, "message": next(iter(details.get("field_errors", {}).values()), details.get("message", "À calculer"))}
+
+    @Slot(str, "QVariant", result="QVariant")
     def updateContractInterventionConditions(self, contract_id: str, payload: object) -> dict:
         try:
             values = _closed_contract_dto(payload, CONTRACT_INTERVENTION_DTO_FIELDS)

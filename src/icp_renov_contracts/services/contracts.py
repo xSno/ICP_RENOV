@@ -120,6 +120,11 @@ class ContractService:
         return self.get(contract_id)
 
     def save_conditions(self, contract_id: str, conditions: ContractConditions) -> ContractConditions:
+        normalized = self._prepare_conditions(contract_id, conditions)
+        self._persist(self.conditions_repository.save, contract_id, normalized, _now())
+        return self.get_conditions(contract_id)
+
+    def _prepare_conditions(self, contract_id: str, conditions: ContractConditions) -> ContractConditions:
         contract = self._editable(contract_id)
         version = self.selected_template_version(contract_id)
         regime = contract.regime.value if contract.regime else None
@@ -129,9 +134,10 @@ class ContractService:
             if default_days is not None:
                 conditions = ContractConditions(**{**asdict(conditions), "internal_alert_days": default_days})
         normalized = self._normalize_context(conditions, regime, version, strict=True)
-        normalized = self._validate_conditions(normalized, version)
-        self._persist(self.conditions_repository.save, contract_id, normalized, _now())
-        return self.get_conditions(contract_id)
+        return self._validate_conditions(normalized, version)
+
+    def preview_conditions(self, contract_id: str, conditions: ContractConditions) -> ContractConditions:
+        return self._prepare_conditions(contract_id, conditions)
 
     @staticmethod
     def _normalize_context(conditions: ContractConditions, regime: str | None, version, strict: bool) -> ContractConditions:

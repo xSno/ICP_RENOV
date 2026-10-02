@@ -5,6 +5,37 @@ let contractSaveFailure = '';
 let contractSaveFeedback = '';
 let contractGenerationRunning = false;
 let contractDocumentsError = '';
+let periodPreviewRequestId = 0;
+let pricingPreviewRequestId = 0;
+let step2PreviewRenderEpoch = 0;
+const step2BlockUiState = {};
+const managedStep2BlockIds = ['SERVICE', 'PERIOD', 'INTERVENTION', 'PRICING', 'RENEWAL', 'SPECIAL_TERMS'];
+
+function step2BlockState(blockId) {
+  const contractId = contractWorkspaceState?.contract?.id;
+  if (!contractId) return { mode: 'EDITING', hasSaved: false, feedback: '' };
+  const states = step2BlockUiState[contractId] || (step2BlockUiState[contractId] = {});
+  return states[blockId] || (states[blockId] = { mode: 'EDITING', hasSaved: false, feedback: '' });
+}
+
+function editStep2Block(blockId) {
+  if (!contractWorkspaceState?.contract?.editable) return;
+  const state = step2BlockState(blockId); state.mode = 'EDITING'; state.feedback = '';
+  renderContractWorkspace(contractWorkspaceState);
+}
+
+function cancelStep2Block(blockId) {
+  const state = step2BlockState(blockId); if (!state.hasSaved) return;
+  state.mode = 'SAVED'; state.feedback = '';
+  renderContractWorkspace(contractWorkspaceState);
+}
+
+function resetManagedStep2Blocks() {
+  const contractId = contractWorkspaceState?.contract?.id;
+  if (!contractId) return;
+  const states = step2BlockUiState[contractId] || (step2BlockUiState[contractId] = {});
+  managedStep2BlockIds.forEach(blockId => { states[blockId] = { mode: 'EDITING', hasSaved: false, feedback: '' }; });
+}
 
 function closeContractDrawer() {
   document.querySelector('.contract-selector-overlay')?.remove();
@@ -33,7 +64,7 @@ function showContractSaveFeedback(message) {
   }, 0);
 }
 
-function contractMutation(invoke, preserveValues = false, successMessage = '') {
+function contractMutation(invoke, preserveValues = false, successMessage = '', options = null) {
   const save = document.querySelector('.contract-save-state');
   if (save) { save.textContent = 'Enregistrement…'; save.classList.remove('failed'); }
   invoke(result => {
@@ -41,7 +72,14 @@ function contractMutation(invoke, preserveValues = false, successMessage = '') {
       contractSaveFailure = '';
       const current = document.querySelector('.contract-save-state');
       if (current) { current.textContent = 'Enregistré'; current.classList.remove('failed'); }
-      if (successMessage) showContractSaveFeedback(result.message || successMessage);
+      if (options?.resetStep2Blocks) {
+        resetManagedStep2Blocks();
+        renderContractWorkspace(contractWorkspaceState);
+      } else if (options?.step2BlockId) {
+        const block = step2BlockState(options.step2BlockId);
+        block.mode = 'SAVED'; block.hasSaved = true; block.feedback = result.message || successMessage;
+        renderContractWorkspace(contractWorkspaceState);
+      } else if (successMessage) showContractSaveFeedback(result.message || successMessage);
       closeContractDrawer();
       return;
     }
@@ -499,13 +537,13 @@ function openSignedPdfReplacementModal() {
 function updateContractRegime(regime) {
   contractMutation(callback => bridge.updateContractFramework(
     contractWorkspaceState.contract.id, { regime }, callback
-  ));
+  ), false, '', { resetStep2Blocks: true });
 }
 
 function selectContractTemplateVersion(versionId) {
   contractMutation(callback => bridge.selectContractTemplateVersion(
     contractWorkspaceState.contract.id, versionId, callback
-  ));
+  ), false, '', { resetStep2Blocks: true });
 }
 
 function updateContractContext() {
@@ -519,7 +557,8 @@ function updateContractContext() {
 }
 
 function priorityDelayMarkup(value = '') {
-  return `<label class="condition-field priority-delay-field"><span>Délai d’intervention</span><input id="priority-breakdown-delay" value="${esc(value)}" placeholder="Ex. Sous 48 heures"></label>`;
+  const disabled = !contractWorkspaceState?.contract?.editable || step2BlockState('SERVICE').mode === 'SAVED' ? ' disabled' : '';
+  return `<label class="condition-field priority-delay-field"><span>Délai d’intervention</span><input id="priority-breakdown-delay" value="${esc(value)}" placeholder="Ex. Sous 48 heures"${disabled}></label>`;
 }
 
 function syncPriorityDelay() {
@@ -543,11 +582,11 @@ function saveContractServiceOffer() {
   };
   contractMutation(callback => bridge.updateContractServiceOffer(
     contractWorkspaceState.contract.id, payload, callback
-  ), true, 'Prestations enregistrées.');
+  ), true, 'Prestations enregistrées.', { step2BlockId: 'SERVICE' });
 }
 
 function periodDependentMarkup(mode, months, endDate) {
-  if (mode === 'STANDARD') return `<label class="condition-field"><span>Durée standard (mois)</span><input id="contract-duration-months" type="number" min="1" step="1" value="${esc(months ?? '')}"></label><label class="condition-field calculated-field"><span>Date de fin</span><input id="contract-end-date" type="date" value="${esc(endDate || '')}" readonly><small>Calculée automatiquement</small></label>`;
+  if (mode === 'STANDARD') return `<label class="condition-field"><span>Durée standard (mois)</span><input id="contract-duration-months" type="number" min="1" step="1" value="${esc(months ?? '')}"></label><label class="condition-field calculated-field"><span>Date de fin</span><input id="contract-end-date" type="date" value="${esc(endDate || '')}" readonly><small id="period-preview-status">Calculée automatiquement</small></label>`;
   if (mode === 'CUSTOM') return `<label class="condition-field"><span>Date de fin</span><input id="contract-end-date" type="date" value="${esc(endDate || '')}"></label>`;
   return '';
 }
@@ -560,6 +599,106 @@ function syncPeriodMode() {
   const months = document.querySelector('#contract-duration-months')?.value || b2.initial_duration_months || '';
   const endDate = document.querySelector('#contract-end-date')?.value || b2.initial_end_date || b2.resolved_end_date || '';
   host.innerHTML = periodDependentMarkup(mode, months, endDate);
+  if (mode === 'STANDARD') {
+    wirePeriodPreview();
+    requestContractPeriodPreview();
+  } else {
+    periodPreviewRequestId += 1;
+  }
+}
+
+function periodPreviewAllowed() {
+  return Boolean(contractWorkspaceState?.contract?.editable) && step2BlockState('PERIOD').mode === 'EDITING' && document.querySelector('#contract-duration-mode')?.value === 'STANDARD';
+}
+
+function setPeriodPreviewPending() {
+  const endDate = document.querySelector('#contract-end-date');
+  const status = document.querySelector('#period-preview-status');
+  if (endDate) endDate.value = '';
+  if (status) status.textContent = 'À calculer';
+}
+
+function requestContractPeriodPreview() {
+  if (!periodPreviewAllowed()) return;
+  const requestId = ++periodPreviewRequestId;
+  const renderEpoch = step2PreviewRenderEpoch;
+  const contractId = contractWorkspaceState.contract.id;
+  const monthsValue = document.querySelector('#contract-duration-months')?.value || '';
+  setPeriodPreviewPending();
+  bridge.previewContractPeriod(contractId, {
+    start_date: document.querySelector('#contract-start-date')?.value || null,
+    initial_duration_mode: 'STANDARD',
+    initial_duration_months: monthsValue === '' ? null : Number(monthsValue),
+    initial_end_date: null,
+  }, result => {
+    if (requestId !== periodPreviewRequestId || renderEpoch !== step2PreviewRenderEpoch || contractId !== contractWorkspaceState?.contract?.id || !periodPreviewAllowed()) return;
+    const endDate = document.querySelector('#contract-end-date');
+    const status = document.querySelector('#period-preview-status');
+    if (!endDate) return;
+    endDate.value = result?.ok && result.resolved_end_date ? result.resolved_end_date : '';
+    if (status) status.textContent = result?.ok && result.resolved_end_date ? 'Calculée automatiquement' : 'À calculer';
+  });
+}
+
+function wirePeriodPreview() {
+  if (!periodPreviewAllowed()) return;
+  const bind = (node, eventName) => {
+    if (!node || node.dataset.periodPreviewBound) return;
+    node.dataset.periodPreviewBound = 'true';
+    node.addEventListener(eventName, requestContractPeriodPreview);
+  };
+  bind(document.querySelector('#contract-start-date'), 'change');
+  bind(document.querySelector('#contract-duration-months'), 'input');
+}
+
+function pricingPreviewAllowed() {
+  return Boolean(contractWorkspaceState?.contract?.editable) && step2BlockState('PRICING').mode === 'EDITING' && Boolean(document.querySelector('#contract-annual-ht')) && Boolean(document.querySelector('#contract-vat-rate')) && Boolean(document.querySelector('#contract-vat-amount')) && Boolean(document.querySelector('#contract-annual-ttc'));
+}
+
+function setPricingPreviewPending() {
+  const vatAmount = document.querySelector('#contract-vat-amount');
+  const annualTtc = document.querySelector('#contract-annual-ttc');
+  if (vatAmount) vatAmount.textContent = 'À calculer';
+  if (annualTtc) annualTtc.textContent = 'À calculer';
+}
+
+function requestContractPricingPreview() {
+  if (!pricingPreviewAllowed()) return;
+  const requestId = ++pricingPreviewRequestId;
+  const renderEpoch = step2PreviewRenderEpoch;
+  const contractId = contractWorkspaceState.contract.id;
+  setPricingPreviewPending();
+  bridge.previewContractPricing(contractId, {
+    annual_ht: document.querySelector('#contract-annual-ht')?.value || null,
+    vat_rate: document.querySelector('#contract-vat-rate')?.value || null,
+  }, result => {
+    if (requestId !== pricingPreviewRequestId || renderEpoch !== step2PreviewRenderEpoch || contractId !== contractWorkspaceState?.contract?.id || !pricingPreviewAllowed()) return;
+    const vatAmount = document.querySelector('#contract-vat-amount');
+    const annualTtc = document.querySelector('#contract-annual-ttc');
+    if (!vatAmount || !annualTtc) return;
+    if (!result?.ok || !result.vat_amount || !result.annual_ttc) {
+      setPricingPreviewPending();
+      return;
+    }
+    vatAmount.textContent = `${result.vat_amount} €`;
+    annualTtc.textContent = `${result.annual_ttc} €`;
+  });
+}
+
+function wirePricingPreview() {
+  const calculated = document.querySelectorAll('.pricing-section .calculated-money strong');
+  if (calculated.length >= 2) {
+    calculated[0].id = 'contract-vat-amount';
+    calculated[1].id = 'contract-annual-ttc';
+  }
+  if (!pricingPreviewAllowed()) return;
+  const bind = (node, eventName) => {
+    if (!node || node.dataset.pricingPreviewBound) return;
+    node.dataset.pricingPreviewBound = 'true';
+    node.addEventListener(eventName, requestContractPricingPreview);
+  };
+  bind(document.querySelector('#contract-annual-ht'), 'input');
+  bind(document.querySelector('#contract-vat-rate'), 'change');
 }
 
 function saveContractPeriod() {
@@ -573,7 +712,7 @@ function saveContractPeriod() {
     initial_duration_months: mode === 'STANDARD' && months ? Number(months) : null,
     initial_end_date: mode === 'CUSTOM' ? endDate : null,
     signature_city: document.querySelector('#contract-signature-city')?.value || '',
-  }, callback), true, 'Période enregistrée.');
+  }, callback), true, 'Période enregistrée.', { step2BlockId: 'PERIOD' });
 }
 
 function missedAppointmentMarkup(value = '') {
@@ -597,7 +736,7 @@ function saveContractInterventionConditions() {
     travel_included: travel ? travel.value === 'true' : null,
     missed_appointment_fee: amountMode ? document.querySelector('#missed-appointment-fee')?.value || '' : null,
     additional_exclusions: document.querySelector('#contract-additional-exclusions')?.value || '',
-  }, callback), true, 'Conditions d’intervention enregistrées.');
+  }, callback), true, 'Conditions d’intervention enregistrées.', { step2BlockId: 'INTERVENTION' });
 }
 
 function paymentConditionalMarkup(code, dueDays, customText) {
@@ -627,7 +766,58 @@ function saveContractPricing() {
     payment_due_days: due ? Number(due) : null,
     payment_terms_custom_text: document.querySelector('#contract-payment-custom')?.value || '',
     payment_methods: [...document.querySelectorAll('input[name="payment-method"]:checked')].map(node => node.value),
-  }, callback), true, 'Prix et paiement enregistrés.');
+  }, callback), true, 'Prix et paiement enregistrés.', { step2BlockId: 'PRICING' });
+}
+
+function disableManagedStep2Controls(markup) {
+  return markup.replace(/<(input|select|textarea)([^>]*)>/g, (match, control, attributes) => /\bdisabled(?:\s|=|$)/.test(attributes) ? match : `<${control}${attributes} disabled>`);
+}
+
+function presentManagedStep2Block(blockId, markup) {
+  const state = step2BlockState(blockId);
+  const marker = `<article data-step2-block="${blockId}" class="`;
+  if (!contractWorkspaceState?.contract?.editable) {
+    return disableManagedStep2Controls(markup).replace(/<div class="conditions-actions">[\s\S]*?<\/div>/, '').replace('<article class="', marker);
+  }
+  if (state.mode !== 'SAVED') {
+    const cancel = state.hasSaved ? `<button class="button button-secondary" onclick="cancelStep2Block('${blockId}')">Annuler</button>` : '';
+    return markup.replace('</div></article>', `${cancel}</div></article>`).replace('<article class="', `${marker}step2-block-editing `);
+  }
+  const readonly = disableManagedStep2Controls(markup);
+  const action = `<div class="conditions-actions">${state.feedback ? `<p class="step2-block-feedback">${esc(state.feedback)}</p>` : ''}<button class="button button-secondary" onclick="editStep2Block('${blockId}')">Modifier</button></div>`;
+  return readonly.replace(/<div class="conditions-actions">[\s\S]*?<\/div>/, action).replace('<article class="', `${marker}step2-block-saved `);
+}
+
+function presentPeriodBlock(markup) {
+  return presentManagedStep2Block('PERIOD', markup);
+}
+
+function presentServiceBlock() {
+  const section = document.querySelector('.service-offer-section');
+  if (!section) return;
+  const state = step2BlockState('SERVICE');
+  const controls = section.querySelectorAll('#contract-visits, #contract-refrigerant, input[name="included-option"], input[name="priority-breakdown"], #priority-breakdown-delay');
+  const actions = section.querySelector('.conditions-actions');
+  section.dataset.step2Block = 'SERVICE';
+  if (!contractWorkspaceState?.contract?.editable) {
+    controls.forEach(control => { control.disabled = true; });
+    actions?.remove();
+    section.classList.remove('step2-block-editing', 'step2-block-saved');
+    return;
+  }
+  if (state.mode !== 'SAVED') {
+    controls.forEach(control => { control.disabled = false; });
+    if (state.hasSaved && actions && !actions.querySelector('.step2-cancel-action')) {
+      actions.insertAdjacentHTML('beforeend', '<button class="button button-secondary step2-cancel-action" onclick="cancelStep2Block(\'SERVICE\')">Annuler</button>');
+    }
+    section.classList.add('step2-block-editing');
+    section.classList.remove('step2-block-saved');
+    return;
+  }
+  controls.forEach(control => { control.disabled = true; });
+  if (actions) actions.innerHTML = `${state.feedback ? `<p class="step2-block-feedback">${esc(state.feedback)}</p>` : ''}<button class="button button-secondary" onclick="editStep2Block('SERVICE')">Modifier</button>`;
+  section.classList.add('step2-block-saved');
+  section.classList.remove('step2-block-editing');
 }
 
 function renderContractB2(state) {
@@ -641,7 +831,7 @@ function renderContractB2(state) {
   let pricingBody = '<div class="conditions-state">Sélectionnez un modèle compatible pour configurer le prix et le paiement.</div>';
   if (b2.pricing_catalog_available) pricingBody = `<div class="b2-form-grid pricing-grid"><label class="condition-field"><span>Prix annuel HT</span><input id="contract-annual-ht" inputmode="decimal" value="${esc(b2.annual_ht || '')}" ${editable ? '' : 'disabled'}></label><label class="condition-field"><span>Taux de TVA</span><select id="contract-vat-rate" ${editable ? '' : 'disabled'}><option value="">À confirmer</option>${b2.vat_rates.map(rate => `<option value="${esc(rate)}" ${b2.vat_rate === rate ? 'selected' : ''}>${esc(rate.replace('.', ','))} %</option>`).join('')}</select></label><div class="calculated-money"><span>Montant TVA</span><strong>${b2.vat_amount ? `${esc(b2.vat_amount)} €` : 'À calculer'}</strong><small>Calculé automatiquement</small></div><div class="calculated-money"><span>Total TTC</span><strong>${b2.annual_ttc ? `${esc(b2.annual_ttc)} €` : 'À calculer'}</strong><small>Calculé automatiquement</small></div><label class="condition-field"><span>Modalité de paiement</span><select id="contract-payment-term" ${editable ? '' : 'disabled'} onchange="syncPaymentTermFields()"><option value="">À confirmer</option>${b2.payment_terms.map(item => `<option value="${item.id}" ${b2.payment_terms_code === item.id ? 'selected' : ''}>${esc(item.label)}</option>`).join('')}</select></label><div id="payment-conditional-fields" class="dependent-grid">${paymentConditionalMarkup(b2.payment_terms_code, b2.payment_due_days, b2.payment_terms_custom_text)}</div><fieldset class="condition-choice field-wide payment-methods"><legend>Moyens de paiement</legend>${b2.payment_method_options.map(item => `<label><input type="checkbox" name="payment-method" value="${item.id}" ${paymentMethods.has(item.id) ? 'checked' : ''} ${editable ? '' : 'disabled'}> ${esc(item.label)}</label>`).join('') || '<span>Aucun moyen configuré</span>'}</fieldset></div>${editable ? '<div class="conditions-actions"><button class="primary" onclick="saveContractPricing()">Enregistrer le prix et le paiement</button></div>' : ''}`;
   const pricing = `<article class="contract-section conditions-b2-section pricing-section"><div class="contract-section-head"><div><span class="eyebrow">Prix & paiement</span><h3>Prix annuel et règlement</h3></div></div>${pricingBody}</article>`;
-  return period + intervention + pricing;
+  return presentPeriodBlock(period) + presentManagedStep2Block('INTERVENTION', intervention) + presentManagedStep2Block('PRICING', pricing);
 }
 
 function renewalDependentMarkup(mode, values) {
@@ -680,7 +870,7 @@ function saveContractRenewal() {
     non_renewal_notice_channels: [...document.querySelectorAll('input[name="non-renewal-channel"]:checked')].map(node => node.value),
     internal_alert_days: mode === 'MANUAL' || mode === 'TACIT' ? integerValue('#contract-internal-alert-days') : null,
     renewal_price_rule: mode === 'MANUAL' || mode === 'TACIT' ? document.querySelector('#contract-renewal-price-rule')?.value || null : null,
-  }, callback), true, 'Renouvellement enregistré.');
+  }, callback), true, 'Renouvellement enregistré.', { step2BlockId: 'RENEWAL' });
 }
 
 function openEarlyTerminationDrawer(trigger) {
@@ -711,7 +901,7 @@ function saveEarlyTermination() {
 function saveContractSpecialTerms() {
   contractMutation(callback => bridge.updateContractSpecialTerms(contractWorkspaceState.contract.id, {
     special_terms: document.querySelector('#contract-special-terms')?.value || '',
-  }, callback), true, 'Conditions particulières enregistrées.');
+  }, callback), true, 'Conditions particulières enregistrées.', { step2BlockId: 'SPECIAL_TERMS' });
 }
 
 function renderContractB3(state) {
@@ -727,12 +917,25 @@ function renderContractB3(state) {
   const reasons = reasonCount === 0 ? 'Aucun motif sélectionné' : reasonCount === 1 ? '1 motif sélectionné' : `${reasonCount} motifs sélectionnés`;
   const ending = `<article class="contract-section conditions-b3-section ending-section"><div class="contract-section-head"><div><span class="eyebrow">Fin du contrat / fin anticipée</span><h3>Conditions de fin anticipée</h3></div>${editable ? '<button class="button button-secondary" onclick="openEarlyTerminationDrawer(this)">Modifier les conditions de fin anticipée</button>' : ''}</div><div class="ending-summary"><strong>${esc(reasons)}</strong><small>${b3.early_termination_custom_text ? 'Une précision contractuelle est renseignée.' : 'Aucune précision contractuelle renseignée.'}</small></div></article>`;
   const special = `<article class="contract-section conditions-b3-section special-terms-section"><div class="contract-section-head"><div><span class="eyebrow">Conditions particulières</span><h3>Précisions propres au contrat</h3></div></div><label class="condition-field field-wide"><span>Conditions particulières</span><textarea id="contract-special-terms" rows="5" ${editable ? '' : 'disabled'}>${esc(b3.special_terms || '')}</textarea><small>Texte brut uniquement · les retours à la ligne sont conservés.</small></label>${editable ? '<div class="conditions-actions"><button class="primary" onclick="saveContractSpecialTerms()">Enregistrer les conditions particulières</button></div>' : ''}</article>`;
-  return renewal + ending + special;
+  return presentManagedStep2Block('RENEWAL', renewal) + ending + presentManagedStep2Block('SPECIAL_TERMS', special);
 }
 
 function openReviewBlock(blockId) {
+  const managedBlocks = {
+    MODEL_SERVICES: 'SERVICE', PERIOD: 'PERIOD', INTERVENTION: 'INTERVENTION',
+    PRICE_PAYMENT: 'PRICING', RENEWAL_END: 'RENEWAL', SPECIAL_TERMS: 'SPECIAL_TERMS',
+  };
+  const managedBlockId = managedBlocks[blockId];
+  const current = managedBlockId ? step2BlockState(managedBlockId) : null;
+  const previous = current ? { mode: current.mode, hasSaved: current.hasSaved, feedback: current.feedback } : null;
+  if (managedBlockId) {
+    const state = step2BlockState(managedBlockId);
+    state.mode = 'EDITING'; state.feedback = '';
+  }
   bridge.openContractReviewBlock(contractWorkspaceState.contract.id, blockId, result => {
-    if (!result?.ok) contractSaveFailure = result?.message || 'Cette section n’est pas disponible.';
+    if (result?.ok) return;
+    if (managedBlockId) Object.assign(step2BlockState(managedBlockId), previous);
+    contractSaveFailure = result?.message || 'Cette section n’est pas disponible.';
   });
 }
 
@@ -908,6 +1111,7 @@ function workspaceSummaryRow(label, value, tone = '') {
 }
 
 function renderContractWorkspace(state) {
+  step2PreviewRenderEpoch += 1;
   contractWorkspaceState = state;
   clientsState = null;
   const c = state.contract;
@@ -934,6 +1138,9 @@ function renderContractWorkspace(state) {
     body.innerHTML = failure + renderContractConditions(state);
     body.querySelector('.conditions-step-panel').insertAdjacentHTML('beforeend', renderContractB2(state));
     body.querySelector('.conditions-step-panel').insertAdjacentHTML('beforeend', renderContractB3(state));
+    presentServiceBlock();
+    wirePeriodPreview();
+    wirePricingPreview();
   } else if ((state.active_step || 1) === 3) {
     document.querySelector('.contract-workspace-body').innerHTML = failure + renderContractReview(state);
   } else if ((state.active_step || 1) === 4) {

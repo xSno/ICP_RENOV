@@ -114,6 +114,54 @@ class WebContractConditionsW3B2Tests(unittest.TestCase):
         self.assertTrue(second["ok"]); self.assertEqual(second["resolved_end_date"], "2027-04-14")
         self.assertEqual(self.contracts.get_conditions(self.contract.id).resolved_end_date, "2027-04-14")
 
+    def test_period_and_pricing_previews_are_authoritative_and_nonpersisting(self):
+        before = self.contracts.get_conditions(self.contract.id)
+        states_before = len(self.states)
+        period = self.bridge.previewContractPeriod(self.contract.id, {
+            "start_date": "2028-02-29", "initial_duration_mode": "STANDARD", "initial_duration_months": 12, "initial_end_date": None,
+        })
+        self.assertEqual(period, {"ok": True, "resolved_end_date": "2029-02-27"})
+        price = self.bridge.previewContractPricing(self.contract.id, {"annual_ht": "100", "vat_rate": "20"})
+        self.assertEqual((price["ok"], price["vat_amount"], price["annual_ttc"]), (True, "20,00", "120,00"))
+        self.assertEqual(self.contracts.get_conditions(self.contract.id), before)
+        self.assertEqual(len(self.states), states_before)
+        saved_period = self.bridge.updateContractPeriod(self.contract.id, self.period(start_date="2028-02-29", initial_duration_mode="STANDARD", initial_duration_months=12))
+        self.assertEqual(period["resolved_end_date"], saved_period["resolved_end_date"])
+        saved_price = self.bridge.updateContractPricing(self.contract.id, self.pricing(annual_ht="100", vat_rate="20", payment_terms_code="DUE", payment_due_days=0, payment_methods=["TRANSFER"]))
+        self.assertEqual((price["vat_amount"], price["annual_ttc"]), (saved_price["vat_amount"], saved_price["annual_ttc"]))
+
+    def test_invalid_previews_do_not_persist_or_refresh(self):
+        before = self.contracts.get_conditions(self.contract.id); states = len(self.states)
+        self.assertFalse(self.bridge.previewContractPeriod(self.contract.id, {"start_date": None, "initial_duration_mode": "STANDARD", "initial_duration_months": 0, "initial_end_date": None})["ok"])
+        self.assertFalse(self.bridge.previewContractPricing(self.contract.id, {"annual_ht": "-1", "vat_rate": "999"})["ok"])
+        self.assertFalse(self.bridge.previewContractPeriod(self.contract.id, {"start_date": None, "initial_duration_mode": "STANDARD", "initial_duration_months": 12, "initial_end_date": None})["ok"])
+        self.assertFalse(self.bridge.previewContractPeriod(self.contract.id, {"start_date": "2026-09-01", "initial_duration_mode": "STANDARD", "initial_duration_months": None, "initial_end_date": None})["ok"])
+        self.assertFalse(self.bridge.previewContractPricing(self.contract.id, {"annual_ht": None, "vat_rate": "20"})["ok"])
+        self.assertFalse(self.bridge.previewContractPricing(self.contract.id, {"annual_ht": "100", "vat_rate": None})["ok"])
+        self.assertEqual(self.contracts.get_conditions(self.contract.id), before)
+        self.assertEqual(len(self.states), states)
+
+    def test_custom_preview_malformed_dates_are_bounded_without_persistence(self):
+        before = self.contracts.get_conditions(self.contract.id); states = len(self.states)
+        malformed_start = self.bridge.previewContractPeriod(self.contract.id, {"start_date": "not-a-date", "initial_duration_mode": "CUSTOM", "initial_duration_months": None, "initial_end_date": "2027-01-01"})
+        malformed_end = self.bridge.previewContractPeriod(self.contract.id, {"start_date": "2026-09-01", "initial_duration_mode": "CUSTOM", "initial_duration_months": None, "initial_end_date": "not-a-date"})
+        incoherent = self.bridge.previewContractPeriod(self.contract.id, {"start_date": "2027-01-01", "initial_duration_mode": "CUSTOM", "initial_duration_months": None, "initial_end_date": "2026-12-31"})
+        self.assertFalse(malformed_start["ok"]); self.assertFalse(malformed_end["ok"]); self.assertFalse(incoherent["ok"])
+        self.assertIn("postérieure", incoherent["message"])
+        self.assertEqual(self.contracts.get_conditions(self.contract.id), before); self.assertEqual(len(self.states), states)
+
+    def test_period_session_state_machine_is_local_and_never_uses_global_feedback(self):
+        js = (Path(__file__).parents[1] / "src" / "icp_renov_contracts" / "ui_web" / "contract-workspace.js").read_text(encoding="utf-8")
+        for fragment in ("const step2BlockUiState = {}", "step2BlockUiState[contractId]", "mode: 'EDITING', hasSaved: false, feedback: ''", "step2BlockId: 'PERIOD'", "function presentManagedStep2Block(blockId, markup)", "data-step2-block=\"${blockId}\"", "editStep2Block('${blockId}')", "cancelStep2Block", "Période enregistrée."):
+            self.assertIn(fragment, js)
+        period_start = js.index("function presentManagedStep2Block")
+        period_end = js.index("function renderContractB2", period_start)
+        period = js[period_start:period_end]
+        self.assertIn("Modifier", period); self.assertIn("Annuler", period); self.assertIn("step2-block-feedback", period)
+        mutation = js[js.index("function contractMutation"):js.index("function updateContractRegime")]
+        self.assertIn("options?.step2BlockId", mutation)
+        self.assertIn("} else if (successMessage) showContractSaveFeedback", mutation)
+
     def test_custom_end_is_explicit_months_clear_and_invalid_coherence_is_safe(self):
         accepted = self.bridge.updateContractPeriod(self.contract.id, self.period(
             issue_date="2026-08-20", start_date="2026-09-01",
