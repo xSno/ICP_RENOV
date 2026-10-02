@@ -303,7 +303,7 @@ function openSiteMenu(site, trigger) {
       closeSiteMenu(false);
       openSiteDrawer(trigger, 'edit', site.id);
     }));
-    if (!clientsState.selected.archived) {
+    if (!clientsState.selected.archived && site.active_equipment_count > 0) {
       popover.append(item('Ajouter un équipement', () => {
         closeSiteMenu(false);
         openEquipmentDrawer('create', site.id, trigger);
@@ -485,8 +485,15 @@ function renderClients(state) {
   const sites = !selected ? '' : selected.sites.map(site => {
     const equipmentRows = site.equipment.map(eq => `<div class="equipment-row ${eq.archived ? 'archived-equipment' : ''}">${icon('air')}<span><strong>${esc(eq.name)}${eq.archived ? archiveBadge : ''}</strong><small>${esc(eq.location)}</small></span>${eq.archived ? `<button class="equipment-restore-action" type="button">${icon('restore')}Restaurer</button>` : !site.archived && !selected.archived ? `<button class="table-action equipment-edit-action" type="button" aria-label="Modifier ${esc(eq.name)}">${icon('pencil')}</button>` : ''}</div>`).join('');
     const mayCreate = !selected.archived && !site.archived;
-    const emptyEquipment = `<div class="empty-list">Aucun équipement.${mayCreate ? ' <button class="add-inline">Ajouter un équipement</button>' : ''}</div>`;
-    return `<article class="site-card ${site.archived ? 'archived-site' : ''}"><header class="site-card-header"><span>${icon('pin')}<span><strong>${esc(site.label)}${site.archived ? archiveBadge : ''}</strong><small>${esc(site.address)}</small></span></span><div><span class="count-label">${site.active_equipment_count} équipement(s)</span>${mayCreate ? `<button class="button button-secondary" onclick="bridge.createContractForSite('${site.id}')">Créer un contrat pour ce site</button>` : ''}</div></header><div class="equipment-list">${equipmentRows || emptyEquipment}</div></article>`;
+    const hasActiveEquipment = site.active_equipment_count > 0;
+    const contractAction = !mayCreate ? '' : hasActiveEquipment
+      ? `<button class="button button-secondary" onclick="bridge.createContractForSite('${site.id}')">Créer un contrat pour ce site</button>`
+      : '<button type="button" class="button button-secondary" disabled aria-disabled="true">Créer un contrat pour ce site</button>';
+    const zeroActiveEquipment = mayCreate && !hasActiveEquipment
+      ? `<div class="empty-list zero-active-equipment"><div class="zero-active-equipment-message">Ajoutez au moins un équipement actif pour créer un contrat depuis ce site.</div><div class="zero-active-equipment-action"><button type="button" class="button button-secondary zero-active-add-equipment">${icon('plus')}Ajouter un équipement</button></div></div>`
+      : '';
+    const emptyEquipment = '<div class="empty-list">Aucun équipement.</div>';
+    return `<article class="site-card ${site.archived ? 'archived-site' : ''}"><header class="site-card-header"><span>${icon('pin')}<span><strong>${esc(site.label)}${site.archived ? archiveBadge : ''}</strong><small>${esc(site.address)}</small></span></span><div><span class="count-label">${site.active_equipment_count} équipement(s)</span>${contractAction}</div></header><div class="equipment-list">${equipmentRows || (zeroActiveEquipment ? '' : emptyEquipment)}${zeroActiveEquipment}</div></article>`;
   }).join('') || '<div class="empty-list">Aucun site.</div>';
   const linked = selected?.linked?.length ? selected.linked.map(contract => `<button class="linked-contract-row" onclick="bridge.openLinkedContract('${contract.id}')">${icon('file')}<span><strong>${esc(contract.number)}</strong><small>${esc(contract.secondary_display)}</small></span><span class="pill ${esc(contract.status_tone)}">${esc(contract.status_label)}</span>${icon('chevron')}</button>`).join('') : '<div class="empty-list">Aucun contrat lié</div>';
   const clientHeaderAction = selected && !selected.archived ? '<button class="ghost">Modifier</button>' : '';
@@ -534,7 +541,7 @@ function renderClients(state) {
         openSiteMenu(site, event.currentTarget);
       });
       headerActions.insertBefore(siteActions, contractAction);
-      const addEquipment = card.querySelector('.add-inline');
+      const addEquipment = card.querySelector('.zero-active-add-equipment');
       if (addEquipment) addEquipment.onclick = event => openEquipmentDrawer('create', site.id, event.currentTarget);
       card.querySelectorAll('.equipment-row').forEach((row, equipmentIndex) => {
         const equipment = site.equipment[equipmentIndex];

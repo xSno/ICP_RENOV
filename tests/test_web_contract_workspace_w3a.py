@@ -77,9 +77,14 @@ class WebContractWorkspaceW3ATests(unittest.TestCase):
         self.bridge.returnToContracts(); created = self.bridge.createContract()
         self.assertTrue(created["ok"]); self.assertIs(self.contracts.get(created["id"]).status, ContractStatus.DRAFT)
         self.assertEqual(self.states[-1]["contract"]["number"], "Brouillon sans numéro")
+        blank = self.contracts.get(created["id"])
+        self.assertIsNone(blank.client_source_id); self.assertIsNone(blank.site_source_id)
+        self.assertEqual(blank.equipment_items, ())
+        self.assertEqual(self.bridge.contract_step, 1)
 
-    def test_create_for_site_prefills_exact_context_once_without_regime_or_equipment(self):
+    def test_create_for_multi_equipment_site_prefills_context_without_auto_selection(self):
         before = {item.id for item in self.contracts.list_drafts()}
+        self.bridge.contract_step = 3; self.bridge.contract_focus_target = "period"
         result = self.bridge.createContractForSite(self.site_a.id)
         after = {item.id for item in self.contracts.list_drafts()}
         self.assertEqual(after - before, {result["id"]})
@@ -87,6 +92,72 @@ class WebContractWorkspaceW3ATests(unittest.TestCase):
         self.assertEqual((contract.client_source_id, contract.site_source_id), (self.client_a.id, self.site_a.id))
         self.assertIsNone(contract.regime); self.assertEqual(contract.equipment_items, ())
         self.assertEqual(self.bridge.page_name, "CONTRACT_WORKSPACE")
+        self.assertEqual(self.bridge.contract_step, 1); self.assertIsNone(self.bridge.contract_focus_target)
+        self.assertIsNone(contract.template_version_id)
+
+    def test_create_for_zero_equipment_site_rejects_without_draft_or_refresh(self):
+        self.bridge.openContract(self.populated().id)
+        before = {item.id for item in self.contracts.list_drafts()}
+        location = (self.bridge.page_name, self.bridge.contract_id, self.bridge.contract_step)
+        emissions = len(self.states)
+        result = self.bridge.createContractForSite(self.foreign_site.id)
+        self.assertFalse(result["ok"])
+        self.assertIn("équipement actif", result["field_errors"]["site_id"])
+        self.assertEqual({item.id for item in self.contracts.list_drafts()}, before)
+        self.assertEqual((self.bridge.page_name, self.bridge.contract_id, self.bridge.contract_step), location)
+        self.assertEqual(len(self.states), emissions)
+
+    def test_create_for_single_active_equipment_selects_only_it_without_master_mutation(self):
+        for with_archived in (False, True):
+            with self.subTest(with_archived=with_archived):
+                if with_archived:
+                    archived = self.master.create_equipment(self.site_b.id, equipment("Ancien", "Archives"))
+                    self.master.archive_equipment(archived.id)
+                masters = (self.master.get_client(self.client_a.id), self.master.get_site(self.site_b.id),
+                           self.master.list_equipment(self.site_b.id))
+                before = {item.id for item in self.contracts.list_drafts()}
+                result = self.bridge.createContractForSite(self.site_b.id)
+                self.assertTrue(result["ok"])
+                self.assertEqual({item.id for item in self.contracts.list_drafts()} - before, {result["id"]})
+                contract = self.contracts.get(result["id"])
+                self.assertEqual((contract.client_source_id, contract.site_source_id), (self.client_a.id, self.site_b.id))
+                self.assertEqual(len(contract.equipment_items), 1)
+                self.assertEqual(contract.equipment_items[0].source_equipment_id, self.eq_other.id)
+                self.assertIsNone(contract.regime); self.assertIsNone(contract.template_version_id)
+                snapshot = self.states[-1]
+                self.assertEqual([(row["id"], row["selected"]) for row in snapshot["equipment"]], [(self.eq_other.id, True)])
+                self.assertEqual(len(snapshot["summary"]["equipment"]), 1)
+                self.assertEqual((self.bridge.page_name, self.bridge.contract_step), ("CONTRACT_WORKSPACE", 1))
+                self.assertEqual((self.master.get_client(self.client_a.id), self.master.get_site(self.site_b.id),
+                                  self.master.list_equipment(self.site_b.id)), masters)
+                self.assertTrue(self.bridge.setContractEquipment(contract.id, self.eq_other.id, False)["ok"])
+                self.assertEqual(self.contracts.get(contract.id).equipment_items, ())
+
+    def test_create_for_all_archived_equipment_site_is_zero_eligible(self):
+        self.master.archive_equipment(self.eq_other.id)
+        before = {item.id for item in self.contracts.list_drafts()}
+        location = (self.bridge.page_name, self.bridge.contract_id)
+        emissions = len(self.states)
+        result = self.bridge.createContractForSite(self.site_b.id)
+        self.assertFalse(result["ok"])
+        self.assertIn("équipement actif", result["field_errors"]["site_id"])
+        self.assertEqual({item.id for item in self.contracts.list_drafts()}, before)
+        self.assertEqual((self.bridge.page_name, self.bridge.contract_id), location)
+        self.assertEqual(len(self.states), emissions)
+
+    def test_create_for_archived_parent_rejects_before_creating_draft(self):
+        for parent in ("site", "client"):
+            with self.subTest(parent=parent):
+                if parent == "site":
+                    self.master.archive_site(self.site_b.id)
+                else:
+                    self.master.restore_site(self.site_b.id)
+                    self.master.archive_client(self.client_a.id)
+                before = {item.id for item in self.contracts.list_drafts()}
+                emissions = len(self.states)
+                self.assertFalse(self.bridge.createContractForSite(self.site_b.id)["ok"])
+                self.assertEqual({item.id for item in self.contracts.list_drafts()}, before)
+                self.assertEqual(len(self.states), emissions)
 
     def test_client_change_cascade_and_master_separation(self):
         contract = self.populated(); item = contract.equipment_items[0]

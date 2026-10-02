@@ -132,6 +132,34 @@ class WebSiteManagementFrontendD2BTests(unittest.TestCase):
         self.assertNotIn("Supprimer", block)
         self.assertIn("openSiteDrawer(trigger, 'edit', site.id)", block)
         self.assertIn("openEquipmentDrawer('create', site.id, trigger)", block)
+        self.assertIn("!clientsState.selected.archived && site.active_equipment_count > 0", block)
+
+    def test_zero_active_site_has_disabled_contract_action_and_one_standalone_add(self) -> None:
+        block = self.source.split("function renderClients(state) {", 1)[1].split("const linked =", 1)[0]
+        self.assertIn("const hasActiveEquipment = site.active_equipment_count > 0", block)
+        action = block.split("const contractAction =", 1)[1].split("const zeroActiveEquipment =", 1)[0]
+        enabled, disabled = action.split("\n      :", 1)
+        self.assertIn("hasActiveEquipment", enabled)
+        self.assertIn("bridge.createContractForSite('${site.id}')", enabled)
+        self.assertIn('disabled aria-disabled="true"', disabled)
+        self.assertNotIn("onclick", disabled)
+        self.assertNotIn("bridge.createContractForSite", disabled)
+        zero = block.split("const zeroActiveEquipment =", 1)[1].split("const emptyEquipment =", 1)[0]
+        self.assertIn("mayCreate && !hasActiveEquipment", zero)
+        self.assertIn("Ajoutez au moins un équipement actif pour créer un contrat depuis ce site.", zero)
+        self.assertIn('class="empty-list zero-active-equipment"', zero)
+        self.assertIn('class="zero-active-equipment-message"', zero)
+        self.assertIn('depuis ce site.</div><div class="zero-active-equipment-action">', zero)
+        self.assertEqual(zero.count('class="button button-secondary zero-active-add-equipment"'), 1)
+        self.assertIn("${icon('plus')}Ajouter un équipement", zero)
+        self.assertNotIn("add-inline", zero)
+        self.assertNotIn("zero-active-add-equipment", block.split("const emptyEquipment =", 1)[1])
+        self.assertIn("${equipmentRows || (zeroActiveEquipment ? '' : emptyEquipment)}${zeroActiveEquipment}", block)
+        binding = self.source.split("const addEquipment =", 1)[1].split("card.querySelectorAll('.equipment-row')", 1)[0]
+        self.assertIn("card.querySelector('.zero-active-add-equipment')", binding)
+        self.assertIn("openEquipmentDrawer('create', site.id, event.currentTarget)", binding)
+        menu = self.source.split("function openSiteMenu(site, trigger) {", 1)[1].split("function findEquipmentContext", 1)[0]
+        self.assertIn("if (!clientsState.selected.archived && site.active_equipment_count > 0)", menu)
 
     def test_site_menu_and_drawer_keep_exact_ownership_and_existing_create_path(self) -> None:
         self.assertEqual(self.source.count("function openEquipmentDrawer("), 1)

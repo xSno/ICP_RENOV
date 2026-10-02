@@ -1842,14 +1842,23 @@ class UiBridge(QObject):
                 raise MasterDataValidationError({
                     "site_id": "Un contrat ne peut pas être créé pour un site ou un client archivé."
                 })
+            eligible_equipment = [
+                item for item in self.context.master_data.list_equipment(site.id) if not item.archived
+            ]
+            if not eligible_equipment:
+                raise MasterDataValidationError({
+                    "site_id": "Ajoutez au moins un équipement actif à ce site avant de créer un contrat."
+                })
             contract = self.context.contracts.create_draft()
             self.context.contracts.select_client(contract.id, client.id)
             contract = self.context.contracts.select_site(contract.id, site.id)
+            if len(eligible_equipment) == 1:
+                self.context.contracts.select_equipment(contract.id, eligible_equipment[0].id)
         except ApplicationError as error:
             return _master_error(error)
-        self.contract_id = contract.id
-        self.page_name = "CONTRACT_WORKSPACE"
-        self.refresh()
+        opened = self.openContract(contract.id)
+        if not opened["ok"]:
+            return opened
         return {"ok": True, "id": contract.id, "site_id": site.id, "client_id": client.id}
 
 
