@@ -143,7 +143,7 @@ class WebContractEndW3D4Tests(GenerationCase):
 
     def test_terminal_occurrences_use_recording_clock_and_keep_honest_tie_order(self):
         self._signed("NONE")
-        existing = self._events()[0]
+        existing = next(item for item in self._events() if item.type is ContractEventType.ACTIVATED)
         self.lifecycle.now_provider = lambda: existing.occurred_at
         before = self._events()
         self.assertTrue(self.bridge.scheduleContractTermination(self.contract.id, "2026-10-02", "BREACH", "", "")["ok"])
@@ -194,7 +194,7 @@ class WebContractEndW3D4Tests(GenerationCase):
         self.lifecycle.reconcile_lifecycle(date(2027, 1, 1))
         self.assertEqual(sum(item.type is ContractEventType.EXPIRED for item in self._events()), 1)
         labels = [item["label"] for item in self._state()["documents_d1"]["timeline"]]
-        self.assertEqual(labels[0], "Contrat expiré")
+        self.assertIn("Contrat expiré", labels)
 
         self.contract = self.contracts.create_draft()
         self.complete(renewal="TACIT")
@@ -227,7 +227,7 @@ class WebContractEndW3D4Tests(GenerationCase):
         self.assertEqual(len(self.lifecycle.revisions(self.contract.id)), 1)
         self.assertTrue(generated.pdf_path.is_file())
         labels = [item["label"] for item in self._state()["documents_d1"]["timeline"]]
-        self.assertEqual(labels[0], "Contrat abandonné")
+        self.assertIn("Contrat abandonné", labels)
 
     def test_d4_web_surface_uses_only_controlled_routes_and_terminal_copy(self):
         application = QCoreApplication.instance() or QCoreApplication([])

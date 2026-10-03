@@ -101,6 +101,25 @@ class ContractRegisterS10Tests(GenerationCase):
         self.assertNotIn("R02 · signé", row.document_lines)
         self.assertEqual(r02.document.revision, "R02")
 
+    def test_abandoned_latest_revision_is_historical_without_document_mutation(self):
+        r01 = self.service().generate(self.contract.id)
+        self.lifecycle.reopen_for_correction(self.contract.id)
+        generation = self.service(); generation.number_allocator = UnavailableAllocator()
+        r02 = generation.generate(self.contract.id)
+        documents = self.documents.list_for_contract(self.contract.id)
+        files = {path: path.read_bytes() for result in (r01, r02) for path in (result.docx_path, result.pdf_path)}
+        self.lifecycle.abandon(self.contract.id)
+        history = self.lifecycle.history(self.contract.id)
+        row = self._row(self.contract.id)
+        self.assertIs(row.status, ContractStatus.ABANDONED)
+        self.assertEqual(row.document_lines, ("Dernière révision R02",))
+        self.assertNotIn("R02 · non signé", row.document_lines)
+        self.assertIs(row.signal.kind, ContractOperationalSignalKind.INFORMATION)
+        self.assertEqual(row.signal.label, "Abandonné")
+        self.assertEqual(self.documents.list_for_contract(self.contract.id), documents)
+        self.assertEqual(self.lifecycle.history(self.contract.id), history)
+        self.assertEqual({path: path.read_bytes() for path in files}, files)
+
     def test_table_keeps_difficult_documents_and_operational_text_readable_at_desktop_widths(self):
         r01 = self.service().generate(self.contract.id)
         self.lifecycle.reopen_for_correction(self.contract.id)

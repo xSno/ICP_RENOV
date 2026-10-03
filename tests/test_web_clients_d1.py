@@ -9,7 +9,7 @@ from icp_renov_contracts.ui.web_host import CLIENT_DTO_FIELDS, UiBridge
 
 from test_document_generation import GenerationCase
 from test_foundation import scratch
-from test_master_data import organization, site
+from test_master_data import equipment, organization, site
 
 
 def person_payload(**overrides) -> dict[str, str]:
@@ -65,6 +65,10 @@ class WebClientBridgeD1Tests(unittest.TestCase):
         self.assertTrue(result["ok"])
         created = self.master.get_client(result["id"])
         self.assertEqual(created.display_name, "Élise Martin")
+        self.assertEqual(created.party_type, "PERSON")
+        self.assertEqual(self.states[-1]["selected"]["type"], "Particulier")
+        self.assertEqual(self.states[-1]["selected"]["editor"]["party_type"], "PERSON")
+        self.assertEqual(next(row["type"] for row in self.states[-1]["clients"] if row["id"] == created.id), "Particulier")
         self.assertEqual(self.bridge.selected_client_id, created.id)
         self.assertEqual(self.states[-1]["selected"]["id"], created.id)
 
@@ -73,6 +77,10 @@ class WebClientBridgeD1Tests(unittest.TestCase):
         self.assertTrue(result["ok"])
         created = self.master.get_client(result["id"])
         self.assertEqual(created.organization_name, "Bâtiments Horizon")
+        self.assertEqual(created.party_type, "ORGANIZATION")
+        self.assertEqual(self.states[-1]["selected"]["type"], "Entreprise")
+        self.assertEqual(self.states[-1]["selected"]["editor"]["party_type"], "ORGANIZATION")
+        self.assertEqual(next(row["type"] for row in self.states[-1]["clients"] if row["id"] == created.id), "Entreprise")
         self.assertEqual(created.billing_address, "Service comptabilité, 69001 Lyon")
         self.assertEqual(set(self.states[-1]["selected"]["editor"]), CLIENT_DTO_FIELDS)
         self.assertFalse(any("regime" in field for field in CLIENT_DTO_FIELDS))
@@ -94,6 +102,12 @@ class WebClientBridgeD1Tests(unittest.TestCase):
         self.assertFalse(unsupported["ok"])
         self.assertIn("payload", unsupported["field_errors"])
         self.assertEqual(len(self.master.list_clients()), before)
+
+        for label in ("Particulier", "Entreprise"):
+            invalid_type = self.bridge.createClient(person_payload(party_type=label))
+            self.assertFalse(invalid_type["ok"])
+            self.assertEqual(invalid_type["field_errors"]["party_type"], "Choisissez Particulier ou Entreprise.")
+            self.assertEqual(len(self.master.list_clients()), before)
 
     def test_malformed_payload_is_rejected_without_mutation(self) -> None:
         before = len(self.master.list_clients())
@@ -132,6 +146,37 @@ class WebClientBridgeD1Tests(unittest.TestCase):
         self.bridge.refresh()
         self.assertGreater(len(self.states), states_before)
         self.assertEqual(self.master.get_client(self.original.id), before)
+
+    def test_client_count_summaries_use_singular_only_for_one(self) -> None:
+        empty = self.master.create_client(organization("Sans installation"))
+        def summary(client_id):
+            return next(row["summary"] for row in self.bridge.clients_snapshot()["clients"] if row["id"] == client_id)
+        self.assertEqual(summary(empty.id), "0 sites · 0 équipements")
+        self.assertEqual(summary(self.original.id), "1 site · 0 équipements")
+        self.master.create_equipment(self.site.id, equipment("Pompe", "Atelier"))
+        self.assertEqual(summary(self.original.id), "1 site · 1 équipement")
+        second = self.master.create_site(self.original.id, site("Entrepôt"))
+        self.master.create_equipment(second.id, equipment("Ventilation", "Toit"))
+        self.assertEqual(summary(self.original.id), "2 sites · 2 équipements")
+
+    def test_clients_frontend_uses_person_identity_and_active_count_grammar(self) -> None:
+        source = (Path(__file__).parents[1] / "src" / "icp_renov_contracts" / "ui_web" / "app.js").read_text(encoding="utf-8")
+        clients = source.split("function renderClients(state) {", 1)[1]
+        self.assertIn("selected?.type === 'Particulier' ? 'Nom complet' : 'Raison sociale'", clients)
+        self.assertIn('<dt>${identityLabel}</dt><dd>${esc(selected.name)}</dd>', clients)
+        self.assertIn("selected.type === 'ORGANIZATION' ? 'Entreprise' : selected.type === 'PERSON' ? 'Particulier'", clients)
+        type_control = source.split("const typeControl =", 1)[1].split("const identity =", 1)[0]
+        self.assertIn("setClientType('PERSON')\">Particulier</button>", type_control)
+        self.assertIn("setClientType('ORGANIZATION')\">Entreprise</button>", type_control)
+        self.assertIn("person ? 'Particulier' : 'Entreprise'", type_control)
+        for active_copy in (type_control, clients):
+            self.assertNotIn("Personne", active_copy)
+            self.assertNotIn("Organisation", active_copy)
+        self.assertIn("Aucun régime dans la fiche maître", source)
+        self.assertIn("Le régime applicable et le signataire sont confirmés dans chaque contrat.", source)
+        sites = clients.split("const sites =", 1)[1].split("const linked =", 1)[0]
+        self.assertNotIn("équipement(s)", sites)
+        self.assertIn("${site.active_equipment_count === 1 ? 'équipement' : 'équipements'}", sites)
 
 
 class WebClientContractImmutabilityD1Tests(GenerationCase):

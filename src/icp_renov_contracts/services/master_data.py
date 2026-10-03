@@ -146,7 +146,7 @@ class MasterDataService:
         values = {key: _clean(value) if isinstance(value, str) else value for key, value in draft.__dict__.items()}
         errors: dict[str, str] = {}
         if values["party_type"] not in {"PERSON", "ORGANIZATION"}:
-            errors["party_type"] = "Choisissez Personne ou Organisation."
+            errors["party_type"] = "Choisissez Particulier ou Entreprise."
         if values["party_type"] == "PERSON":
             if not values["first_name"]: errors["first_name"] = "Le prénom est requis."
             if not values["last_name"]: errors["last_name"] = "Le nom est requis."

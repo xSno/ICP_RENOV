@@ -143,7 +143,7 @@ class ContractRegisterService:
         documents = self.lifecycle.revisions(contract.id)
         terminal = contract.status in {ContractStatus.TERMINATED, ContractStatus.EXPIRED, ContractStatus.ABANDONED}
         due_date, projection = self._due_date_and_projection(contract.id, contract.status)
-        document_lines, document_problem, authority = self._document_summary(contract.id, documents)
+        document_lines, document_problem, authority = self._document_summary(contract.id, documents, contract.status)
         signal = self._signal(contract, projection, document_problem, authority, terminal)
         return ContractRegisterRow(
             contract.id, contract.number or "Brouillon sans numéro",
@@ -184,11 +184,11 @@ class ContractRegisterService:
                     return None
         return None
 
-    def _document_summary(self, contract_id: str, documents):
+    def _document_summary(self, contract_id: str, documents, status: ContractStatus):
         if not documents:
             return ("Aucun document",), False, None
         latest = max(documents, key=lambda document: document.revision_index or 0)
-        lines = [f"{latest.revision} · non signé"]
+        lines = [f"Dernière révision {latest.revision}" if status is ContractStatus.ABANDONED else f"{latest.revision} · non signé"]
         problem = any(
             self.lifecycle.resolve_document_path(path) is None
             for document in documents for path in (document.docx_relpath, document.pdf_relpath)

@@ -30,6 +30,7 @@ class WebBridgeC2W1Tests(GenerationCase):
         self.assertEqual(len(state["rows"]), 3)
         self.assertEqual(state["action_count"], 2)
         self.assertEqual(len(state["filters"]), 5)
+        self.assertIn({"id": "ACTIONS", "label": "Actions à traiter", "active": False}, state["filters"])
         self.assertEqual(set(state["rows"][0]), {
             "id", "number", "updated", "client", "site", "status", "status_code",
             "deadline", "signal", "needs_action", "document",
@@ -69,6 +70,15 @@ class WebBridgeC2W1Tests(GenerationCase):
             self.assertIn(primitive, source)
         self.assertIn("Math.min(Math.max(0, focus.start), length)", source)
         self.assertIn("Math.min(Math.max(start, focus.end), length)", source)
+
+    def test_operational_banner_omits_duplicate_action_but_preserves_filter_toolbar(self) -> None:
+        source = (Path(__file__).parents[1] / "src" / "icp_renov_contracts" / "ui_web" / "app.js").read_text(encoding="utf-8")
+        landing = source.split("function render(state) {", 1)[1].split("function renderClients(state) {", 1)[0]
+        self.assertNotIn("Afficher les actions", landing)
+        self.assertIn("state.filters.map", landing)
+        self.assertIn("bridge.setFilter(", landing)
+        for preserved in ("actionLabel", 'class="attention"', "Sauvegarder maintenant", "bridge.saveBackup()", "contracts-search"):
+            self.assertIn(preserved, landing)
 
     def test_explicit_actions_open_the_bounded_web_workspace(self) -> None:
         opened = self.bridge.openContract(self.contract.id)

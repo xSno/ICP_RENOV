@@ -807,15 +807,15 @@ class UiBridge(QObject):
             "clients": [{
                 "id": item.client.id,
                 "name": item.client.display_name,
-                "type": "Personne" if item.client.party_type == "PERSON" else "Organisation",
-                "summary": f"{item.site_count} site(s) · {item.equipment_count} équipement(s)",
+                "type": "Particulier" if item.client.party_type == "PERSON" else "Entreprise",
+                "summary": f"{item.site_count} {'site' if item.site_count == 1 else 'sites'} · {item.equipment_count} {'équipement' if item.equipment_count == 1 else 'équipements'}",
                 "archived": item.client.archived,
                 "selected": item.client.id == self.selected_client_id,
             } for item in clients],
             "selected": None if selected is None else {
                 "id": selected.id,
                 "name": selected.display_name,
-                "type": "Personne" if selected.party_type == "PERSON" else "Organisation",
+                "type": "Particulier" if selected.party_type == "PERSON" else "Entreprise",
                 "address": selected.rendered_address,
                 "email": selected.email,
                 "phone": selected.phone,
