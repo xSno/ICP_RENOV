@@ -10,7 +10,10 @@ import subprocess
 import time
 
 
-QUALIFIED_LIBREOFFICE_VERSIONS = frozenset({"26.2.5.2"})
+QUALIFIED_LIBREOFFICE_VERSIONS = frozenset({
+    "26.2.5.2",
+    "26.8.0.3",
+})
 
 
 class LibreOfficeState(Enum):

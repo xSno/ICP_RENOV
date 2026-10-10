@@ -39,7 +39,7 @@ class RuntimeCase(unittest.TestCase):
     def tearDown(self):
         self.temporary.__exit__(None, None, None)
 
-    def version(self, version="26.8.0.3", code=0):
+    def version(self, version="26.2.6.0", code=0):
         self.run.side_effect = None
         self.run.return_value = subprocess.CompletedProcess([], code, f"LibreOffice {version} build-id\n", "")
         return self.runtime.refresh()
@@ -54,11 +54,13 @@ class RuntimeCase(unittest.TestCase):
 
 class LibreOfficeRuntimeTests(RuntimeCase):
     def test_qualified_set_and_exact_versions(self):
-        self.assertEqual(QUALIFIED_LIBREOFFICE_VERSIONS, frozenset({"26.2.5.2"}))
-        self.assertNotIn("26.8.0.3", QUALIFIED_LIBREOFFICE_VERSIONS)
+        self.assertEqual(QUALIFIED_LIBREOFFICE_VERSIONS, frozenset({"26.2.5.2", "26.8.0.3"}))
         for version, state in (("26.2.5.2", LibreOfficeState.QUALIFIED),
-                               ("26.8.0.3", LibreOfficeState.UNQUALIFIED),
-                               ("26.2.6.0", LibreOfficeState.UNQUALIFIED)):
+                               ("26.8.0.3", LibreOfficeState.QUALIFIED),
+                               ("26.2.6.0", LibreOfficeState.UNQUALIFIED),
+                               ("26.8.0.2", LibreOfficeState.UNQUALIFIED),
+                               ("26.8.0.4", LibreOfficeState.UNQUALIFIED),
+                               ("27.0.0.0", LibreOfficeState.UNQUALIFIED)):
             with self.subTest(version=version):
                 status = self.version(version)
                 self.assertIs(status.state, state)
@@ -66,6 +68,7 @@ class LibreOfficeRuntimeTests(RuntimeCase):
                 self.assertEqual(status.executable, self.exe.resolve())
                 self.assertEqual(status.version_output, f"LibreOffice {version} build-id\n")
                 self.assertEqual(self.converter.available(), state is LibreOfficeState.QUALIFIED)
+                self.assertEqual(self.probe.probe().pdf_available, state is LibreOfficeState.QUALIFIED)
                 with self.assertRaises(FrozenInstanceError): status.version = "other"
 
     def test_absent_and_resolved_but_failed_probe_are_distinct(self):
@@ -138,16 +141,17 @@ class LibreOfficeRuntimeTests(RuntimeCase):
         self.assertIs(self.runtime.inspect(), status)
         self.assertFalse(self.converter.available())
         self.assertFalse(self.probe.probe().pdf_available)
-        self.assertEqual(QUALIFIED_LIBREOFFICE_VERSIONS, frozenset({"26.2.5.2"}))
+        self.assertEqual(QUALIFIED_LIBREOFFICE_VERSIONS, frozenset({"26.2.5.2", "26.8.0.3"}))
 
     def test_qualified_production_and_candidate_use_identical_internal_path(self):
-        self.version("26.2.5.2")
         docx = self.root / "input.docx"; docx.write_bytes(b"fixture")
-        with patch("icp_renov_contracts.documents.converter.subprocess.Popen", side_effect=self.process) as process:
-            self.converter.convert(docx, self.root / "official.pdf")
-            self.converter.convert_candidate(docx, self.root / "candidate.pdf")
-            self.assertEqual(process.call_count, 2)
-            self.assertTrue(all(call.args[0][0] == str(self.exe.resolve()) for call in process.call_args_list))
+        for version in ("26.2.5.2", "26.8.0.3"):
+            with self.subTest(version=version), patch("icp_renov_contracts.documents.converter.subprocess.Popen", side_effect=self.process) as process:
+                self.version(version)
+                self.converter.convert(docx, self.root / "official.pdf")
+                self.converter.convert_candidate(docx, self.root / "candidate.pdf")
+                self.assertEqual(process.call_count, 2)
+                self.assertTrue(all(call.args[0][0] == str(self.exe.resolve()) for call in process.call_args_list))
 
     def test_candidate_blocks_absent_and_probe_failed(self):
         for state in (LibreOfficeState.ABSENT, LibreOfficeState.PROBE_FAILED):
@@ -206,9 +210,9 @@ class LibreOfficeDiagnosticTests(RuntimeCase):
         self.assertTrue(result.succeeded, result.issue)
         self.assertTrue(result.compatibility_candidate)
         self.assertIs(result.libreoffice_state, LibreOfficeState.UNQUALIFIED)
-        self.assertEqual(result.libreoffice_version, "26.8.0.3")
+        self.assertEqual(result.libreoffice_version, "26.2.6.0")
         self.assertEqual(result.executable, self.exe.resolve())
-        self.assertEqual(result.version_output, "LibreOffice 26.8.0.3 build-id\n")
+        self.assertEqual(result.version_output, "LibreOffice 26.2.6.0 build-id\n")
         self.assertEqual(result.tested_cases, ("equipment-1", "equipment-10", "equipment-30"))
         self.assertEqual((len(result.docx_paths), len(result.pdf_paths)), (3, 3))
         self.assertTrue(all(path.is_file() and sha256_file(path) for path in result.docx_paths + result.pdf_paths))
@@ -216,7 +220,7 @@ class LibreOfficeDiagnosticTests(RuntimeCase):
         self.assertFalse(self.converter.available())
         self.assertFalse(self.service.workstation_status().pdf_available)
         self.assertIs(self.runtime.inspect().state, LibreOfficeState.UNQUALIFIED)
-        self.assertEqual(QUALIFIED_LIBREOFFICE_VERSIONS, frozenset({"26.2.5.2"}))
+        self.assertEqual(QUALIFIED_LIBREOFFICE_VERSIONS, frozenset({"26.2.5.2", "26.8.0.3"}))
 
     def test_candidate_failure_does_not_promote_or_persist(self):
         with patch.object(self.converter, "convert_candidate", side_effect=DocumentGenerationError("converter_failure", "PDF de test impossible")):
@@ -247,13 +251,28 @@ class LibreOfficeDiagnosticTests(RuntimeCase):
         run.assert_not_called()
 
     def test_qualified_diagnostic_never_uses_candidate_route(self):
-        self.version("26.2.5.2")
-        with patch.object(self.converter, "convert_candidate") as candidate, patch(
-                "icp_renov_contracts.documents.converter.subprocess.Popen", side_effect=self.process):
-            result = self.service.run("v1")
-        self.assertTrue(result.succeeded)
-        self.assertFalse(result.compatibility_candidate)
-        candidate.assert_not_called()
+        app = QApplication.instance() or QApplication(["compatibility"])
+        page = GenerationDiagnosticPage(self.service, self.catalog)
+        self.addCleanup(page.close)
+        for version in ("26.2.5.2", "26.8.0.3"):
+            with self.subTest(version=version), patch.object(self.converter, "convert_candidate") as candidate, patch(
+                    "icp_renov_contracts.documents.converter.subprocess.Popen", side_effect=self.process) as process:
+                self.version(version)
+                page.refresh(); app.processEvents()
+                self.assertTrue(any(f"LibreOffice {version} pris en charge" in label.text()
+                                    for label in page.workstation.findChildren(QLabel)))
+                result = self.service.run("v1")
+                self.assertTrue(result.succeeded)
+                self.assertFalse(result.compatibility_candidate)
+                self.assertIs(result.libreoffice_state, LibreOfficeState.QUALIFIED)
+                self.assertEqual(result.libreoffice_version, version)
+                self.assertTrue(self.probe.probe().pdf_available)
+                self.assertEqual(process.call_count, 3)
+                candidate.assert_not_called()
+                page.result = result; page._show_result()
+                self.assertIn("Résultat → Test réussi", page.feedback.text())
+                self.assertNotIn("Test local réussi", page.feedback.text())
+                self.assertNotIn("version non encore qualifiée", page.feedback.text())
 
     def test_absent_and_probe_failed_diagnostic_are_bounded_without_rendering(self):
         for state, text in ((LibreOfficeState.ABSENT, "LibreOffice absent"),
@@ -272,7 +291,8 @@ class LibreOfficeDiagnosticTests(RuntimeCase):
         app = QApplication.instance() or QApplication(["compatibility"])
         page = GenerationDiagnosticPage(self.service, self.catalog)
         self.addCleanup(page.close)
-        for version, expected in (("26.2.5.2", "pris en charge"), ("26.8.0.3", "version non qualifiée")):
+        for version, expected in (("26.2.5.2", "pris en charge"), ("26.8.0.3", "pris en charge"),
+                                  ("26.2.6.0", "version non qualifiée")):
             self.version(version); page.refresh(); app.processEvents()
             self.assertTrue(any(expected in label.text() for label in page.workstation.findChildren(QLabel)))
         page.version.addItem("Version de test", "v1")
@@ -313,7 +333,7 @@ class LibreOfficeProductionGateTests(GenerationCase):
         self.review.generation_ready = None
         self.review.generation_readiness = service.readiness
         self.review.capability_probe = DocumentCapabilityProbe(runtime=runtime)
-        with patch("icp_renov_contracts.documents.libreoffice.subprocess.run", return_value=subprocess.CompletedProcess([], 0, "LibreOffice 26.8.0.3", "")):
+        with patch("icp_renov_contracts.documents.libreoffice.subprocess.run", return_value=subprocess.CompletedProcess([], 0, "LibreOffice 26.2.6.0", "")):
             result = self.review.review(self.contract.id)
             self.assertTrue(next(check for check in result.generation.checks if check.key == "DOCX").available)
             self.assertFalse(next(check for check in result.generation.checks if check.key == "PDF").available)
@@ -327,6 +347,6 @@ class LibreOfficeInterventionGateTests(InterventionCase):
         exe = self.temporary / "soffice.com"; exe.write_bytes(b"fixture")
         self.sheet_service.converter = LibreOfficeConverter(exe)
         before = self.documents.list_for_contract(self.contract.id)
-        with patch("icp_renov_contracts.documents.libreoffice.subprocess.run", return_value=subprocess.CompletedProcess([], 0, "LibreOffice 26.8.0.3", "")):
+        with patch("icp_renov_contracts.documents.libreoffice.subprocess.run", return_value=subprocess.CompletedProcess([], 0, "LibreOffice 26.2.6.0", "")):
             with self.assertRaises(DocumentGenerationError): self.generate_sheet()
         self.assertEqual(self.documents.list_for_contract(self.contract.id), before)
