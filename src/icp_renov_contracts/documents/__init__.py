@@ -7,6 +7,7 @@ from .renderer import ProductionDocxRenderer
 from .source_store import TemplateSourceStore
 from .model_validation import NonOfficialModelValidationRunner, StructureControlResult, TemplateStructureValidator, ValidationRunResult
 from .validation import DocumentGenerationError
+from .libreoffice import LibreOfficeRuntimeProbe, LibreOfficeRuntimeStatus, LibreOfficeState, QUALIFIED_LIBREOFFICE_VERSIONS
 
 __all__ = [
     "CompanyDocumentDataProvider", "ContractNumberAllocator", "DocumentGenerationError",
@@ -15,4 +16,5 @@ __all__ = [
     "NonOfficialModelValidationRunner", "StructureControlResult", "TemplateStructureValidator", "ValidationRunResult",
     "UnavailableCompanyDocumentDataProvider", "UnavailableContractNumberAllocator",
     "discover_libreoffice_executable",
+    "LibreOfficeRuntimeProbe", "LibreOfficeRuntimeStatus", "LibreOfficeState", "QUALIFIED_LIBREOFFICE_VERSIONS",
 ]

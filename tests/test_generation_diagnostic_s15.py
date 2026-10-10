@@ -31,11 +31,11 @@ class GenerationDiagnosticS15Tests(unittest.TestCase):
         self.assertTrue(status.workspace_available); self.assertTrue(status.docx_available); self.assertTrue(status.pdf_available)
         self.assertEqual(status.libreoffice_version, '26.2.5.2')
 
-    def test_wrong_converter_is_blocked_before_any_model_test(self):
+    def test_unqualified_converter_is_blocked_before_governed_model_test(self):
         root=Path(tempfile.mkdtemp())
         service=GenerationDiagnosticService(type('Workspace', (), {'root':root})(), _WorkspaceService(), _Catalog(), None,
             _Probe(DocumentCapabilities(True, False, 'Version non conforme', '26.2.6.0')))
-        result=service.run('v1')
+        result=service.run('v1', validation_mode=True)
         self.assertFalse(result.succeeded); self.assertIn('Version attendue', result.issue)
 
     def test_workspace_failure_is_blocked_before_any_model_test(self):

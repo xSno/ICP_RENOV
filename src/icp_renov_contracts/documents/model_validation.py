@@ -11,6 +11,7 @@ from .ooxml import W, q
 from .renderer import ProductionDocxRenderer, _preflight_adapted
 from .source_store import TemplateSourceStore, sha256_file
 from .validation import DocumentGenerationError, story_xml, validate_pdf, validate_rendered_docx
+from .libreoffice import LibreOfficeState
 
 
 @dataclass(frozen=True)
@@ -86,12 +87,20 @@ class NonOfficialModelValidationRunner:
         self.converter = converter
         self.company_provider = company_provider
 
-    def run(self, version, source: Path, output_root: Path | None = None) -> ValidationRunResult:
-        if not self.converter.available():
+    def run(self, version, source: Path, output_root: Path | None = None,
+            *, compatibility_candidate: bool = False) -> ValidationRunResult:
+        if compatibility_candidate:
+            # This separate API is never used by governed model validation.
+            if self.converter.runtime.inspect().state not in {LibreOfficeState.QUALIFIED, LibreOfficeState.UNQUALIFIED}:
+                raise DocumentGenerationError("converter_unavailable", "La conversion PDF de test est indisponible.")
+            convert = self.converter.convert_candidate
+        elif not self.converter.available():
             raise DocumentGenerationError(
                 "converter_unavailable",
-                "LibreOffice 26.2.5.2 n’est pas disponible sur ce poste.",
+                "Une version qualifiée de LibreOffice n’est pas disponible sur ce poste.",
             )
+        else:
+            convert = self.converter.convert
         attempt = uuid.uuid4().hex
         base = output_root.resolve() if output_root else self.workspace_root / "validation" / "models" / version.id
         root = base / attempt
@@ -113,7 +122,7 @@ class NonOfficialModelValidationRunner:
             context = self._context(version, count, observations=index != 1)
             self.renderer.render(source, docx, context, work)
             validate_rendered_docx(docx)
-            self.converter.convert(docx, pdf)
+            convert(docx, pdf)
             validate_pdf(pdf)
             for path in (docx, pdf):
                 paths.append(str(path) if output_root else path.relative_to(self.workspace_root).as_posix())

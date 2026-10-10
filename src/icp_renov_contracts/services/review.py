@@ -57,6 +57,11 @@ class ReviewService:
         preflight = self.generation_readiness(contract_id) if self.generation_ready is None and self.generation_readiness else None
         docx_available = preflight.available if preflight is not None else (self.generation_ready(contract_id) if self.generation_ready else capabilities.docx_available)
         docx_detail = preflight.detail if preflight is not None else ("Disponible" if docx_available else "Indisponible")
+        # A combined preflight blocked by PDF qualification says nothing about
+        # intrinsic local DOCX rendering. The separate PDF check still blocks generation.
+        if not capabilities.pdf_available:
+            docx_available = capabilities.docx_available
+            docx_detail = "Disponible" if docx_available else "Indisponible"
         model_ok = self._model_compatible(contract, version)
         checks = (
             GenerationCheck("MODEL", "Modèle disponible", model_ok, "Disponible" if model_ok else "Indisponible"),

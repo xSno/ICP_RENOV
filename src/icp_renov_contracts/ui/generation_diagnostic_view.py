@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QComboBox, QFrame, QHBoxLayout, QLabel, QMessageBo
 from ..services import FileOpener
 from .models_settings_view import COMPANY_FIELD_LABELS, DOCUMENT_LABELS, STATUS_LABELS
 from .styles import SPACING
+from ..documents.libreoffice import LibreOfficeState
 
 
 class GenerationDiagnosticPage(QWidget):
@@ -27,10 +28,14 @@ class GenerationDiagnosticPage(QWidget):
         workspace='Accessible' if status.workspace_available else 'Inaccessible en écriture'
         layout.addWidget(self._capability_row(f'Dossier de travail → {workspace}', 'success' if status.workspace_available else 'error'))
         layout.addWidget(self._capability_row(f'Génération DOCX → {"Disponible" if status.docx_available else "Indisponible"}', 'success' if status.docx_available else 'error'))
-        pdf='Disponible · LibreOffice 26.2.5.2' if status.pdf_available else ('Version non conforme' if status.libreoffice_version else 'Indisponible')
-        pdf_tone = 'success' if status.pdf_available else ('warning' if status.libreoffice_version else 'error')
+        pdf={
+            LibreOfficeState.ABSENT: 'LibreOffice absent',
+            LibreOfficeState.QUALIFIED: f'Disponible · LibreOffice {status.libreoffice_version} pris en charge',
+            LibreOfficeState.UNQUALIFIED: f'LibreOffice {status.libreoffice_version} détecté · version non qualifiée',
+            LibreOfficeState.PROBE_FAILED: 'LibreOffice détecté mais version impossible à vérifier',
+        }[status.libreoffice_state]
+        pdf_tone = 'success' if status.pdf_available else ('warning' if status.libreoffice_state is LibreOfficeState.UNQUALIFIED else 'error')
         layout.addWidget(self._capability_row(f'Conversion PDF → {pdf}', pdf_tone))
-        if not status.pdf_available and status.libreoffice_version: layout.addWidget(self._capability_row(f'Version attendue : 26.2.5.2 · Version détectée : {status.libreoffice_version}', 'warning'))
         row=QHBoxLayout(); actual=QPushButton('Actualiser l’état du poste'); actual.setObjectName('secondaryButton'); actual.clicked.connect(self.refresh); row.addWidget(actual)
         open_folder=QPushButton('Ouvrir le dossier'); open_folder.setObjectName('tertiaryButton'); open_folder.clicked.connect(lambda:self.opener.open(status.workspace_path)); row.addWidget(open_folder); row.addStretch(1); layout.addLayout(row)
         self._populate_versions()
@@ -94,7 +99,10 @@ class GenerationDiagnosticPage(QWidget):
         while self.actions.count():
             item=self.actions.takeAt(0); w=item.widget(); w and w.deleteLater()
         if not self.result.succeeded: self._set_feedback(self.result.issue+' Les données de l’application sont conservées.', 'error'); return
-        self._set_feedback('Résultat → Test réussi\nDOCX → Créé\nPDF → Créé\nDonnées documentaires → Toutes traitées\nContrôle visuel → À contrôler visuellement', 'success')
+        heading = 'Test local réussi — version non encore qualifiée' if self.result.compatibility_candidate else 'Test réussi'
+        evidence = f'\nLibreOffice → {self.result.libreoffice_version}\nExécutable utilisé → {self.result.executable}' if self.result.executable else ''
+        pdf_label = 'PDF de test' if self.result.compatibility_candidate else 'PDF'
+        self._set_feedback(f'Résultat → {heading}\nDOCX → Créé\n{pdf_label} → Créé\nDonnées documentaires → Toutes traitées\nContrôle visuel → À contrôler visuellement'+evidence, 'success')
         if self.result.docx_paths:
             b=QPushButton('Ouvrir le DOCX'); b.setObjectName('secondaryButton'); b.clicked.connect(lambda:self.opener.open(self.result.docx_paths[0])); self.actions.addWidget(b)
         if self.result.pdf_paths:

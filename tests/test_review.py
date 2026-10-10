@@ -281,12 +281,12 @@ class ReadinessAndProbeTests(ReviewCase):
         self.complete(); result = ReviewService(self.contracts, UnavailableWorkspace(), self.context.workspace, FakeCapabilities(True, True)).review(self.contract.id)
         self.assertTrue(result.data_complete); self.assertFalse(result.generation.checks[1].available)
 
-    @patch.object(DocumentCapabilityProbe, "_find_soffice", return_value=None)
+    @patch("icp_renov_contracts.documents.libreoffice.discover_libreoffice_executable", return_value=None)
     def test_libreoffice_missing(self, find):
-        result = DocumentCapabilityProbe().probe(); self.assertFalse(result.pdf_available); self.assertFalse(result.docx_available)
+        result = DocumentCapabilityProbe().probe(); self.assertFalse(result.pdf_available); self.assertTrue(result.docx_available)
 
-    @patch.object(DocumentCapabilityProbe, "_find_soffice", return_value=Path("C:/fake/soffice.com"))
-    @patch("icp_renov_contracts.services.capabilities.subprocess.run")
+    @patch("icp_renov_contracts.documents.libreoffice.discover_libreoffice_executable", return_value=Path("C:/fake/soffice.com"))
+    @patch("icp_renov_contracts.documents.libreoffice.subprocess.run")
     def test_libreoffice_accepted_unexpected_and_probe_error(self, run, find):
         run.return_value = subprocess.CompletedProcess([], 0, "LibreOffice 26.2.5.2", "")
         self.assertTrue(DocumentCapabilityProbe().probe().pdf_available)
@@ -295,8 +295,8 @@ class ReadinessAndProbeTests(ReviewCase):
         run.side_effect = OSError("probe")
         self.assertEqual(DocumentCapabilityProbe().probe().pdf_detail, "Conversion PDF à vérifier")
 
-    @patch.object(DocumentCapabilityProbe, "_find_soffice", return_value=Path("C:/fake/soffice.com"))
-    @patch("icp_renov_contracts.services.capabilities.subprocess.run")
+    @patch("icp_renov_contracts.documents.libreoffice.discover_libreoffice_executable", return_value=Path("C:/fake/soffice.com"))
+    @patch("icp_renov_contracts.documents.libreoffice.subprocess.run")
     def test_capability_probe_caches_navigation_checks_but_diagnostic_refreshes(self, run, find):
         run.return_value = subprocess.CompletedProcess([], 0, "LibreOffice 26.2.5.2", "")
         probe = DocumentCapabilityProbe()
@@ -306,8 +306,9 @@ class ReadinessAndProbeTests(ReviewCase):
         self.assertTrue(probe.probe(refresh=True).pdf_available)
         self.assertEqual(run.call_count, 2)
 
-    @patch("icp_renov_contracts.documents.converter.subprocess.run")
-    def test_converter_version_probe_is_windowless_and_cached(self, run):
+    @patch.object(Path, "is_file", return_value=True)
+    @patch("icp_renov_contracts.documents.libreoffice.subprocess.run")
+    def test_converter_version_probe_is_windowless_and_cached(self, run, is_file):
         run.return_value = subprocess.CompletedProcess([], 0, "LibreOffice 26.2.5.2", "")
         converter = LibreOfficeConverter(Path("C:/fake/soffice.com"))
         self.assertEqual(converter.version(), "26.2.5.2"); self.assertEqual(converter.version(), "26.2.5.2")

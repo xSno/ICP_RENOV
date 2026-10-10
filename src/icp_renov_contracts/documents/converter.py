@@ -3,34 +3,16 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import os
 from pathlib import Path
-import re
 import shutil
 import subprocess
 import tempfile
-import time
 import uuid
 
 from .validation import DocumentGenerationError
-
-
-REQUIRED_LIBREOFFICE_VERSION = "26.2.5.2"
-_VERSION_CACHE_SECONDS = 5.0
-
-
-def _windows_background_process_kwargs() -> dict[str, int]:
-    """Keep LibreOffice utility invocations invisible for the windowed app."""
-    return {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0)}
-
-
-def discover_libreoffice_executable() -> Path | None:
-    candidates: list[Path] = []
-    for name in ("soffice.com", "soffice.exe", "soffice"):
-        found = shutil.which(name)
-        if found: candidates.append(Path(found))
-    for variable in ("ProgramFiles", "ProgramFiles(x86)"):
-        if root := os.environ.get(variable):
-            candidates.extend((Path(root) / "LibreOffice/program/soffice.com", Path(root) / "LibreOffice/program/soffice.exe"))
-    return next((item.resolve() for item in candidates if item.is_file()), None)
+from .libreoffice import (
+    LibreOfficeRuntimeProbe, LibreOfficeState, _windows_background_process_kwargs,
+    discover_libreoffice_executable,
+)
 
 
 class PdfConverter(ABC):
@@ -41,42 +23,46 @@ class PdfConverter(ABC):
 
 
 class LibreOfficeConverter(PdfConverter):
-    def __init__(self, executable: Path | None = None, timeout_seconds: int = 180) -> None:
-        self.executable = executable or discover_libreoffice_executable()
+    def __init__(self, executable: Path | None = None, timeout_seconds: int = 180,
+                 *, runtime: LibreOfficeRuntimeProbe | None = None) -> None:
+        if runtime is not None and executable is not None:
+            raise ValueError("Specify the shared runtime or an executable, not both")
+        self.runtime = runtime if runtime is not None else LibreOfficeRuntimeProbe(executable)
         self.timeout_seconds = timeout_seconds
-        self._cached_version: str | None = None
-        self._version_checked_at: float | None = None
+
+    @property
+    def executable(self) -> Path | None:
+        return self.runtime.inspect().executable
 
     def version(self, refresh: bool = False) -> str | None:
-        if not self.executable: return None
-        if not refresh and self._version_checked_at is not None and time.monotonic() - self._version_checked_at < _VERSION_CACHE_SECONDS:
-            return self._cached_version
-        try:
-            result = subprocess.run(
-                [str(self.executable), "--version"], capture_output=True, text=True, timeout=15,
-                **_windows_background_process_kwargs(),
-            )
-        except (OSError, subprocess.SubprocessError):
-            self._cached_version = None; self._version_checked_at = time.monotonic(); return None
-        match = re.search(r"LibreOffice\s+([0-9.]+)", result.stdout + result.stderr)
-        self._cached_version = match.group(1) if result.returncode == 0 and match else None
-        self._version_checked_at = time.monotonic()
-        return self._cached_version
+        return self.runtime.inspect(refresh=refresh).version
 
     def available(self) -> bool:
-        return bool(self.executable and self.executable.is_file() and self.version() == REQUIRED_LIBREOFFICE_VERSION)
+        return self.runtime.inspect().state is LibreOfficeState.QUALIFIED
 
     def convert(self, docx: Path, pdf: Path) -> None:
-        if not self.executable or not self.executable.is_file():
+        status = self.runtime.inspect()
+        if status.state is LibreOfficeState.ABSENT:
             raise DocumentGenerationError("converter_unavailable", "Le PDF n’a pas pu être créé.")
-        if self.version() != REQUIRED_LIBREOFFICE_VERSION:
+        if status.state is not LibreOfficeState.QUALIFIED:
             raise DocumentGenerationError("converter_version", "La conversion PDF n’est pas disponible avec la version installée.")
+        self._convert(docx, pdf, status.executable)
+
+    def convert_candidate(self, docx: Path, pdf: Path) -> None:
+        """Non-official compatibility evidence only; never changes qualification."""
+        status = self.runtime.inspect()
+        if status.state not in {LibreOfficeState.QUALIFIED, LibreOfficeState.UNQUALIFIED}:
+            raise DocumentGenerationError("converter_unavailable", "La conversion PDF de test est indisponible.")
+        self._convert(docx, pdf, status.executable)
+
+    def _convert(self, docx: Path, pdf: Path, executable: Path) -> None:
         pdf.parent.mkdir(parents=True, exist_ok=True)
         profile_dir = tempfile.mkdtemp(prefix="icp_lo_profile_")
+        output_dir = None
         try:
             output_dir = docx.parent / f"lo_output_{uuid.uuid4().hex}"
             output_dir.mkdir()
-            command = [str(self.executable), f"-env:UserInstallation={Path(profile_dir).resolve().as_uri()}",
+            command = [str(executable), f"-env:UserInstallation={Path(profile_dir).resolve().as_uri()}",
                        "--headless", "--norestore", "--nodefault", "--nolockcheck",
                        "--convert-to", "pdf", "--outdir", str(output_dir), str(docx.resolve())]
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
@@ -101,6 +87,7 @@ class LibreOfficeConverter(PdfConverter):
                 generated.replace(pdf)
             finally:
                 if generated.exists(): generated.unlink()
-                shutil.rmtree(output_dir, ignore_errors=True)
         finally:
+            if output_dir is not None:
+                shutil.rmtree(output_dir, ignore_errors=True)
             shutil.rmtree(profile_dir, ignore_errors=True)

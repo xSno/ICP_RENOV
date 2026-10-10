@@ -13,6 +13,8 @@ from ..documents import (LibreOfficeConverter, NonOfficialModelValidationRunner,
                          )
 from ..services import AlertSettingsService, BackupService, CompanySettingsService, ContractLifecycleService, ContractService, DocumentGenerationService, GenerationDiagnosticService, InterventionSheetGenerationService, LocalBusinessDateProvider, MasterDataService, NumberingSettingsService, PersistedContractNumberAllocator, RealBackupSummaryProvider, ReviewService, RestoreService, TemplateCatalogService
 from ..storage import Workspace, WorkspaceService
+from ..documents.libreoffice import LibreOfficeRuntimeProbe
+from ..services.capabilities import DocumentCapabilityProbe
 
 
 class ApplicationState(Enum):
@@ -85,7 +87,9 @@ def build_application_context(
     company_repository = CompanySettingsRepository(database)
     source_store = TemplateSourceStore(workspace.root)
     renderer = ProductionDocxRenderer()
-    converter = LibreOfficeConverter()
+    libreoffice_runtime = LibreOfficeRuntimeProbe()
+    converter = LibreOfficeConverter(runtime=libreoffice_runtime)
+    capability_probe = DocumentCapabilityProbe(runtime=libreoffice_runtime)
     company_provider = PersistedCompanyDocumentDataProvider(company_repository, workspace.root)
     template_catalog = TemplateCatalogService(
         TemplateCatalogRepository(database), source_store, TemplateValidationRepository(database),
@@ -99,7 +103,7 @@ def build_application_context(
     contracts = ContractService(
         ContractRepository(database), master_data, ContractConditionsRepository(database), template_catalog, alerts
     )
-    review = ReviewService(contracts, workspaces, workspace)
+    review = ReviewService(contracts, workspaces, workspace, capability_probe=capability_probe)
     company = CompanySettingsService(company_repository, TemplateCatalogRepository(database), workspace.root)
     generation = DocumentGenerationService(
         database, contracts, ContractDocumentRepository(database), review, source_store,
@@ -118,7 +122,8 @@ def build_application_context(
     if failures:
         application_logger.error("Due contract activation reconciliation failed for %s", ",".join(failures))
     review.generation_readiness = generation.readiness
-    diagnostic = GenerationDiagnosticService(workspace, workspaces, template_catalog, template_catalog.validation_runner)
+    diagnostic = GenerationDiagnosticService(workspace, workspaces, template_catalog, template_catalog.validation_runner,
+                                             capability_probe=capability_probe)
     application_logger.info("Local workspace and database initialized")
     return ApplicationContext(
         ApplicationState.READY,
