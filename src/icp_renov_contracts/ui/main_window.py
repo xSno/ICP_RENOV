@@ -8,6 +8,7 @@ from ..config import BootstrapConfig
 from ..database import DatabaseService
 from ..database.service import MIGRATIONS
 from ..errors import ApplicationError
+from ..services import RestoreError
 from .bootstrap_view import BootstrapView
 from .shell import ApplicationShell
 from .styles import application_stylesheet
@@ -166,5 +167,8 @@ class MainWindow(QMainWindow):
         target = QFileDialog.getExistingDirectory(self, "Choisir un dossier vide de restauration")
         if not target: return
         try: self.context.restore.restore(Path(archive), Path(target))
-        except Exception: QMessageBox.warning(self, "Restauration", "La sauvegarde ne peut pas être restaurée.")
+        except RestoreError as error: QMessageBox.warning(self, "Restauration", error.user_message)
+        except Exception:
+            self.context.logger.exception("Unexpected first-use restore failure")
+            QMessageBox.warning(self, "Restauration", "La sauvegarde ne peut pas être restaurée.")
         else: QMessageBox.information(self, "Restauration", "Restauration terminée. Redémarrez l’application pour utiliser le dossier restauré.")

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 from decimal import Decimal
 from pathlib import Path
+import logging
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -141,14 +142,18 @@ class CompanySettingsView(QWidget):
         target=QFileDialog.getExistingDirectory(self,"Choisir un nouveau dossier de restauration",str(Path(archive).parent.parent))
         if not target:return
         target_path=Path(target)
-        if target_path.exists() and any(target_path.iterdir()):
-            self._storage_message("Le dossier de restauration doit être vide. Choisissez un nouveau dossier ou un dossier vide."); return
+        try:
+            if target_path.exists() and (not target_path.is_dir() or any(target_path.iterdir())):
+                self._storage_message("Le dossier de restauration doit être vide. Choisissez un nouveau dossier ou un dossier vide."); return
+        except OSError as error:
+            logging.getLogger("icp_renov_contracts").warning("Restore target selection failed type=%s winerror=%s", type(error).__name__, getattr(error, "winerror", None))
+            self._storage_message("Le dossier de restauration n’est pas accessible."); return
         box=QMessageBox(self);box.setWindowTitle("Restaurer la sauvegarde ?")
         box.setText("Le dossier de travail actuel ne sera pas remplacé. La restauration crée un nouveau dossier ; après succès, il sera utilisé au prochain redémarrage.")
         cancel=box.addButton("Annuler",QMessageBox.ButtonRole.RejectRole);confirm=box.addButton("Restaurer la sauvegarde",QMessageBox.ButtonRole.AcceptRole);box.exec()
         if box.clickedButton() is not confirm:return
         try:self.restore_service.restore(Path(archive),target_path);self._storage_message("Restauration terminée. Redémarrez l’application pour utiliser le dossier restauré.",True)
-        except RestoreError:self._storage_message("La sauvegarde ne peut pas être restaurée. Le dossier courant est conservé.")
+        except RestoreError as error:self._storage_message(error.user_message)
     @staticmethod
     def _open_path(path):
         if path:
