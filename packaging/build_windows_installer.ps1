@@ -14,7 +14,7 @@ $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $bundleScript = Join-Path $repositoryRoot "packaging\build_windows_bundle.ps1"
 $bundleExecutable = Join-Path $repositoryRoot "dist\ICP Renov - Contrats\ICP Renov - Contrats.exe"
 $installerScript = Join-Path $repositoryRoot "packaging\installer\icp_renov_contrats.iss"
-$installer = Join-Path $repositoryRoot "installer-output\ICP-Renov-Contrats-Setup-1.0.0.exe"
+$installer = Join-Path $repositoryRoot "installer-output\ICP-Renov-Contrats-Setup-1.0.1.exe"
 $CertificateThumbprint = $CertificateThumbprint.ToUpperInvariant()
 
 function Resolve-SignTool {

@@ -1,9 +1,9 @@
-; ICP Renov — Contrats 1.0.0
+; ICP Renov — Contrats 1.0.1
 ; Stable installer identity. User data is deliberately outside {app}.
 
 #define AppName "ICP Renov — Contrats"
 #define AppPublisher "ICP Renov"
-#define AppVersion "1.0.0"
+#define AppVersion "1.0.1"
 #define AppExeName "ICP Renov - Contrats.exe"
 
 [Setup]
@@ -15,7 +15,7 @@ DefaultDirName={autopf}\ICP Renov\Contrats
 DefaultGroupName=ICP Renov
 DisableProgramGroupPage=yes
 OutputDir=..\..\installer-output
-OutputBaseFilename=ICP-Renov-Contrats-Setup-1.0.0
+OutputBaseFilename=ICP-Renov-Contrats-Setup-1.0.1
 UninstallDisplayIcon={app}\{#AppExeName}
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
